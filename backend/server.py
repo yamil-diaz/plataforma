@@ -1,3 +1,4 @@
+from fastapi.responses import FileResponse
 import os
 import uuid
 import zipfile
@@ -37,28 +38,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.mount("/static/covers", StaticFiles(directory=os.path.join(STORAGE_DIR, "covers")), name="covers")
+app.mount("/static/books", StaticFiles(directory=os.path.join(STORAGE_DIR, "books")), name="books")
+@app.get("/")
+def read_index():
+    index_path = os.path.join(BASE_DIR, "frontend_dist", "index.html")
+    return FileResponse(index_path)
 
-# Servir Archivos Estáticos (Portadas y Libros)
-import os
-print("--- RASTREANDO CARPETAS EN RENDER ---")
 app.mount("/", StaticFiles(directory=os.path.join(BASE_DIR, "frontend_dist"), html=True), name="frontend")
-print("¿Existe frontend_dist aquí?:", os.path.exists(os.path.join(BASE_DIR, "frontend_dist")))
-try:
-    print("Contenido de la raíz:", os.listdir(os.path.join(BASE_DIR, "..")))
-    print("Contenido de backend:", os.listdir(BASE_DIR))
-except Exception as e:
-    print("Error listando:", e)
-print("-------------------------------------")
-app.mount("/static/covers", StaticFiles(directory=STORAGE_COVERS), name="covers")
-app.mount("/static/books", StaticFiles(directory=STORAGE_BOOKS), name="books")
-# Buscar la carpeta del frontend de forma dinámica
-frontend_path = os.path.join(BASE_DIR, "frontend_dist")
-if not os.path.exists(frontend_path):
-    frontend_path = os.path.join(BASE_DIR, "..", "frontend", "frontend_dist")
-if not os.path.exists(frontend_path):
-    frontend_path = "frontend_dist"
-
-app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 
 app.include_router(api_router, prefix="/api")
 
