@@ -41,7 +41,14 @@ app.add_middleware(
 # Servir Archivos Estáticos (Portadas y Libros)
 app.mount("/static/covers", StaticFiles(directory=STORAGE_COVERS), name="covers")
 app.mount("/static/books", StaticFiles(directory=STORAGE_BOOKS), name="books")
-app.mount("/", StaticFiles(directory=os.path.join(BASE_DIR, "frontend_dist"), html=True), name="frontend")
+# Buscar la carpeta del frontend de forma dinámica
+frontend_path = os.path.join(BASE_DIR, "frontend_dist")
+if not os.path.exists(frontend_path):
+    frontend_path = os.path.join(BASE_DIR, "..", "frontend", "frontend_dist")
+if not os.path.exists(frontend_path):
+    frontend_path = "frontend_dist"
+
+app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
 
 app.include_router(api_router, prefix="/api")
 
