@@ -41,7 +41,7 @@ app.add_middleware(
 # Servir Archivos Estáticos (Portadas y Libros)
 import os
 print("--- RASTREANDO CARPETAS EN RENDER ---")
-print("BASE_DIR actual es:", BASE_DIR)
+app.mount("/", StaticFiles(directory=os.path.join(BASE_DIR, "frontend_dist"), html=True), name="frontend")
 print("¿Existe frontend_dist aquí?:", os.path.exists(os.path.join(BASE_DIR, "frontend_dist")))
 try:
     print("Contenido de la raíz:", os.listdir(os.path.join(BASE_DIR, "..")))
