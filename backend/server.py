@@ -45,9 +45,28 @@ def read_index():
     index_path = os.path.join(BASE_DIR, "frontend_dist", "index.html")
     return FileResponse(index_path)
 
-app.mount("/", StaticFiles(directory=os.path.join(BASE_DIR, "frontend_dist"), html=True), name="frontend")
 
+# 1. Rutas de almacenamiento estático (Dejar arriba)
+app.mount("/static/covers", StaticFiles(directory=os.path.join(STORAGE_DIR, "covers")), name="covers")
+app.mount("/static/books", StaticFiles(directory=os.path.join(STORAGE_DIR, "books")), name="books")
+
+# 2. LA API SIEMPRE VA ANTES DEL FRONTEND (Esto rompe el 404)
 app.include_router(api_router, prefix="/api")
+
+# 3. Servir el Frontend (Se queda al final para que no interfiera)
+@app.get("/")
+def read_index():
+    index_path = os.path.join(BASE_DIR, "frontend_dist", "index.html")
+    return FileResponse(index_path)
+
+# 3. Servir el Frontend (Se queda al final para que no interfiera)
+@app.get("/")
+def read_index():
+    index_path = os.path.join(BASE_DIR, "frontend_dist", "index.html")
+    return FileResponse(index_path)
+
+# ¡ESTA ES LA LÍNEA QUE FALTA AÑADIR!
+app.mount("/", StaticFiles(directory=os.path.join(BASE_DIR, "frontend_dist"), html=True), name="frontend")
 
 SECRET_KEY = "clave-super-secreta-lectura-rayos"
 ALGORITHM = "HS256"
