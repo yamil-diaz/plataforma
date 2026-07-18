@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generador de Pack de Libros en Español — AETHERNUM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- jsPDF para generar PDFs reales en el navegador -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0A0A0A; --surface: #121212; --surface2: #181818;
+      --border: rgba(255,255,255,0.08); --red: #D92B2B; --red-hover: #F03C3C;
+      --gold: #D4AF37; --text: #F5F5F5; --muted: #A0A0A0; --dim: #606060;
+      --green: #34d399;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-serif; min-height: 100vh; padding: 40px 20px; }
+    .container { max-width: 700px; margin: 0 auto; background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 40px; box-shadow: 0 20px 80px rgba(0,0,0,0.4); }
+    .header { text-align: center; margin-bottom: 30px; }
+    .logo { width: 50px; height: 50px; background: var(--red); border-radius: 14px; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 24px; box-shadow: 0 5px 20px rgba(217,43,43,0.3); }
+    h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 6px; }
+    .desc { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+    .form-group { margin-bottom: 20px; }
+    .form-label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+    select, input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 13px 16px; color: var(--text); font-family: 'Outfit', sans-serif; font-size: 0.9rem; outline: none; }
+    select:focus, input:focus { border-color: var(--red); }
+    .btn { cursor: pointer; border: none; font-family: 'Outfit', sans-serif; font-weight: 700; transition: all 0.2s; border-radius: 10px; width: 100%; padding: 16px; font-size: 1rem; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-primary { background: var(--red); color: white; box-shadow: 0 4px 20px rgba(217,43,43,0.25); }
+    .btn-primary:hover:not(:disabled) { background: var(--red-hover); transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary { background: transparent; color: var(--muted); border: 1px solid var(--border); margin-top: 12px; }
+    .btn-secondary:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
+    .progress-section { display: none; margin-top: 30px; border-top: 1px solid var(--border); padding-top: 30px; }
+    .progress-section.show { display: block; }
+    .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 0.85rem; }
+    .progress-pct { color: var(--gold); font-weight: 700; }
+    .progress-bar-wrap { background: var(--bg); border: 1px solid var(--border); border-radius: 999px; height: 12px; overflow: hidden; margin-bottom: 12px; }
+    .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--red), var(--gold)); border-radius: 999px; transition: width 0.3s ease; width: 0%; }
+    .log-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; font-family: monospace; font-size: 0.75rem; height: 180px; overflow-y: auto; color: var(--muted); line-height: 1.6; }
+    .log-box { font-family: 'Outfit', sans-serif; font-size: 0.8rem; }
+    .log-entry { margin-bottom: 6px; }
+    .log-entry.success { color: var(--green); }
+    .log-entry.error { color: #f87171; }
+    .log-entry.info { color: #60a5fa; }
+    .action-links { display: none; margin-top: 24px; text-align: center; }
+    .action-links a { color: var(--green); font-weight: 600; text-decoration: none; font-size: 0.9rem; }
+    .action-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <div class="logo">📦</div>
+    <h1>Generador de Pack de Libros</h1>
+    <p class="desc">Descarga un archivo ZIP listo para importar en tu plataforma. Este generador descarga libros clásicos de Gutenberg, les crea portadas e imágenes y genera archivos PDF reales en español.</p>
+  </div>
+
+  <div id="setup-form">
+    <div class="form-group">
+      <label class="form-label">Cantidad de libros a incluir</label>
+      <select id="qty-select">
+        <option value="5">5 libros (Rápido, ~15 segundos)</option>
+        <option value="15" selected>15 libros (Recomendado, ~45 segundos)</option>
+        <option value="30">30 libros (Completo, ~2 minutos)</option>
+        <option value="50">50 libros (Largo, ~3 minutos)</option>
+      </select>
+    </div>
+
+    <button class="btn btn-primary" id="btn-generar" onclick="generarPack()">
+      ⚡ Generar y Descargar ZIP de Libros
+    </button>
+  </div>
+
+  <div class="progress-section" id="progress-section">
+    <div class="progress-header">
+      <span id="progress-status" style="font-weight: 600;">Iniciando proceso...</span>
+      <span class="progress-pct" id="progress-pct">0%</span>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progress-fill"></div>
+    </div>
+    <div class="log-box" id="log-box"></div>
+
+    <div class="action-links" id="action-links">
+      <p style="margin-bottom: 12px; font-size: 0.85rem; color: var(--muted);">¡ZIP listo! Guárdalo en tu ordenador.</p>
+      <a href="plataforma.html">👉 Ir a plataforma.html para subirlo en "Importar ZIP"</a>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_GUTENBERG = 'https://gutendex.com/books/';
+  const defaultCovers = [
+    'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400',
+    'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400',
+    'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=400',
+    'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400',
+    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400'
+  ];
+
+  function log(msg, type='normal') {
+    const box = document.getElementById('log-box');
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    box.appendChild(entry);
+    box.scrollTop = box.scrollHeight;
+  }
+
+  async function fetchImageBlob(url) {
+    try {
+      const resp = await fetch(url);
+      if (resp.ok) return await resp.blob();
+    } catch(e) {}
+    return null;
+  }
+
+  // Genera un PDF simple en el navegador usando jsPDF
+  function generarPdfDocument(title, author, text) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+      orientation: 'p',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    const maxLineWidth = pageWidth - (margin * 2);
+
+    // Portada del PDF
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(28);
+    const titleLines = doc.splitTextToSize(title.toUpperCase(), maxLineWidth);
+    doc.text(titleLines, margin, 70);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(16);
+    doc.text(`por ${author}`, margin, 70 + (titleLines.length * 12) + 10);
+
+    doc.setFontSize(10);
+    doc.text("Biblioteca Digital AETHERNUM — Obra de dominio público", margin, 270);
+
+    // Página de Contenido
+    doc.addPage();
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+
+    // Cortar el texto a un extracto legible de 2 páginas
+    const cleanText = text.substring(0, 10000).replace(/\r/g, '');
+    const lines = doc.splitTextToSize(cleanText, maxLineWidth);
+
+    let y = margin;
+    for (let i = 0; i < lines.length; i++) {
+      if (y > 275) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.text(lines[i], margin, y);
+      y += 6.5; // espacio de línea
+    }
+
+    return doc.output('arraybuffer');
+  }
+
+  async function generarPack() {
+    const qty = parseInt(document.getElementById('qty-select').value);
+    document.getElementById('btn-generar').disabled = true;
+    document.getElementById('progress-section').classList.add('show');
+    
+    const fill = document.getElementById('progress-fill');
+    const status = document.getElementById('progress-status');
+    const pctEl = document.getElementById('progress-pct');
+    const logBox = document.getElementById('log-box');
+    logBox.innerHTML = '';
+
+    log(`Iniciando descarga de libros en español de Project Gutenberg...`, 'info');
+    status.textContent = 'Buscando libros en Gutenberg...';
+
+    const zip = new JSZip();
+    const librosMetadata = [];
+
+    try {
+      // 1. Descargar catálogo desde Gutenberg en español
+      // Filtramos por lenguaje español (es) y ordenamos por popularidad
+      const url = `${API_GUTENBERG}?languages=es&page=1`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("No se pudo conectar con el servidor de Gutendex.");
+      
+      const data = await response.json();
+      const results = data.results || [];
+      
+      if (results.length === 0) {
+        throw new Error("No se encontraron libros en español en la API de Gutenberg.");
+      }
+
+      const limit = Math.min(qty, results.length);
+      log(`Se obtuvieron ${results.length} libros. Procesando los primeros ${limit}...`, 'success');
+
+      for (let i = 0; i < limit; i++) {
+        const book = results[i];
+        const pct = Math.round((i / limit) * 100);
+        fill.style.width = `${pct}%`;
+        pctEl.textContent = `${pct}%`;
+        status.textContent = `Descargando libro ${i+1} de ${limit}...`;
+
+        const author = book.authors && book.authors.length > 0 
+          ? book.authors[0].name.split(',').reverse().join(' ').trim() 
+          : 'Autor Desconocido';
+        
+        log(`[${i+1}/${limit}] "${book.title}" de ${author}`, 'info');
+
+        // Formato seguro para nombres de archivos
+        const cleanName = book.title.toLowerCase()
+          .replace(/[^a-z0-9]/g, '_')
+          .substring(0, 35) + `_${book.id}`;
+        
+        const coverFileName = `${cleanName}.jpg`;
+        const pdfFileName = `${cleanName}.pdf`;
+
+        // 2. Descargar imagen de portada
+        let coverBlob = null;
+        const imgUrl = book.formats['image/jpeg'] || `https://www.gutenberg.org/cache/epub/${book.id}/pg${book.id}.cover.medium.jpg`;
+        if (imgUrl) {
+          status.textContent = `Descargando portada de "${book.title}"...`;
+          coverBlob = await fetchImageBlob(imgUrl);
+        }
+
+        // 3. Descargar texto completo del libro
+        let bookText = `Extracto de la obra clásica de dominio público: "${book.title}" de ${author}.`;
+        const textUrl = book.formats['text/plain; charset=utf-8'] || book.formats['text/plain'] || book.formats['text/html'];
+        if (textUrl) {
+          status.textContent = `Descargando contenido de "${book.title}"...`;
+          try {
+            const txtResp = await fetch(textUrl);
+            if (txtResp.ok) {
+              bookText = await txtResp.text();
+            }
+          } catch(e) {
+            log(`Error al descargar texto de Gutenberg para este libro. Generando plantilla básica.`, 'error');
+          }
+        }
+
+        // 4. Generar el PDF real
+        status.textContent = `Generando archivo PDF de "${book.title}"...`;
+        const pdfArrayBuffer = generarPdfDocument(book.title, author, bookText);
+
+        // 5. Añadir archivos al ZIP
+        if (coverBlob) {
+          zip.file(`portadas/${coverFileName}`, coverBlob);
+        }
+        zip.file(`pdfs/${pdfFileName}`, pdfArrayBuffer);
+
+        // 6. Registrar metadatos
+        librosMetadata.push({
+          title: book.title,
+          author: author,
+          category: book.subjects && book.subjects.length > 0 ? 'Clásicos' : 'General',
+          description: `Obra clásica de la literatura universal escrita por ${author}. Clasificada bajo: ${book.subjects ? book.subjects.slice(0, 2).join(', ') : 'Temática general'}. Obra completa disponible en formato PDF local.`,
+          pdf_file: pdfFileName,
+          cover_file: coverFileName,
+          price: 0
+        });
+
+        log(`Libro "${book.title}" añadido con éxito.`, 'success');
+        // Pequeña pausa
+        await new Promise(r => setTimeout(r, 100));
+      }
+
+      // Añadir archivo libros.json con los metadatos al ZIP
+      zip.file("libros.json", JSON.stringify(librosMetadata, null, 2));
+
+      // 7. Generar el archivo ZIP final
+      fill.style.width = '95%';
+      pctEl.textContent = '95%';
+      status.textContent = 'Comprimiendo carpeta ZIP...';
+      log('Generando archivo ZIP final...', 'info');
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+
+      // 8. Iniciar descarga automática para el usuario
+      const downloadLink = document.createElement("a");
+      downloadLink.href = URL.createObjectURL(zipBlob);
+      downloadLink.download = "libros_rayos_espanol.zip";
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+
+      // Fin del proceso
+      fill.style.width = '100%';
+      pctEl.textContent = '100%';
+      status.textContent = '¡Completado con éxito!';
+      log('🎉 Pack de libros "libros_rayos_espanol.zip" generado y descargado correctamente.', 'success');
+      document.getElementById('action-links').style.display = 'block';
+
+    } catch(err) {
+      log(`Error durante la generación: ${err.message}`, 'error');
+      status.textContent = 'Error en la generación.';
+      document.getElementById('btn-generar').disabled = false;
+    }
+  }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,2071 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AETHERNUM — Plataforma de Lectura</title>
+  <meta name="description" content="La primera plataforma donde leer tiene recompensa. Acumula Aethers leyendo libros y deja tus reseñas con calificación de estrellas." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Merriweather:ital,wght@0,300;0,400;0,700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0A0A0A; --surface: #121212; --surface2: #181818;
+      --border: rgba(255,255,255,0.08); --red: #D92B2B; --red-hover: #F03C3C;
+      --gold: #D4AF37; --text: #F5F5F5; --muted: #A0A0A0; --dim: #606060;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: 'Outfit', sans-serif; min-height: 100vh; }
+    ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--red); }
+    .screen { display: none; min-height: 100vh; } .screen.active { display: block; }
+    nav { background: rgba(10,10,10,0.85); border-bottom: 1px solid var(--border); backdrop-filter: blur(16px); position: sticky; top: 0; z-index: 100; padding: 0 32px; height: 64px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-logo { display: flex; align-items: center; gap: 10px; cursor: pointer; text-decoration: none; }
+    .nav-logo-icon { width: 36px; height: 36px; background: var(--red); border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px rgba(217,43,43,0.25); font-size: 18px; }
+    .nav-logo span { font-size: 1.2rem; font-weight: 800; letter-spacing: 0.1em; color: var(--text); }
+    .nav-links { display: flex; align-items: center; gap: 24px; }
+    .nav-link { color: var(--muted); font-size: 0.85rem; font-weight: 500; text-decoration: none; cursor: pointer; transition: color 0.2s; display: flex; align-items: center; gap: 6px; }
+    .nav-link:hover { color: var(--text); } .nav-link.admin-only { display: none; }
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+    .rayos-badge { display: flex; align-items: center; gap: 6px; padding: 6px 14px; background: rgba(212,175,55,0.1); border: 1px solid rgba(212,175,55,0.3); border-radius: 999px; font-size: 0.75rem; font-weight: 700; color: var(--gold); letter-spacing: 0.05em; animation: pulse-gold 2s infinite; }
+    @keyframes pulse-gold { 0%,100% { box-shadow: 0 0 0 0 rgba(212,175,55,0.2); } 50% { box-shadow: 0 0 0 6px rgba(212,175,55,0); } }
+    .btn { cursor: pointer; border: none; font-family: 'Outfit', sans-serif; font-weight: 600; transition: all 0.2s; border-radius: 8px; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-primary { background: var(--red); color: white; padding: 10px 20px; font-size: 0.875rem; box-shadow: 0 4px 20px rgba(217,43,43,0.2); }
+    .btn-primary:hover { background: var(--red-hover); transform: translateY(-1px); }
+    .btn-ghost { background: transparent; color: var(--muted); padding: 10px 16px; font-size: 0.875rem; border: 1px solid var(--border); }
+    .btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
+    .btn-sm { padding: 8px 16px; font-size: 0.8rem; } .btn-full { width: 100%; justify-content: center; padding: 14px; font-size: 0.95rem; }
+    .btn-icon { background: rgba(255,255,255,0.05); color: var(--muted); padding: 9px; border-radius: 8px; font-size: 0.85rem; }
+    .btn-icon:hover { background: rgba(217,43,43,0.1); color: var(--red); }
+    .hero { text-align: center; padding: 80px 32px 60px; position: relative; overflow: hidden; }
+    .hero::before { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 600px; height: 300px; background: radial-gradient(ellipse, rgba(217,43,43,0.06) 0%, transparent 70%); pointer-events: none; }
+    .hero h1 { font-size: clamp(2.5rem, 5vw, 4.5rem); font-weight: 900; line-height: 1.1; letter-spacing: -0.02em; color: var(--text); margin-bottom: 20px; }
+    .hero h1 span { color: var(--red); }
+    .hero p { font-size: 1.1rem; color: var(--muted); max-width: 560px; margin: 0 auto 40px; line-height: 1.7; }
+    .hero-stats { display: flex; justify-content: center; gap: 40px; margin-top: 40px; }
+    .hero-stat { text-align: center; } .hero-stat-num { font-size: 1.8rem; font-weight: 800; color: var(--text); }
+    .hero-stat-label { font-size: 0.75rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
+    .filters { max-width: 1200px; margin: 0 auto; padding: 0 32px 32px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: space-between; }
+    .categories { display: flex; gap: 10px; flex-wrap: wrap; }
+    .cat-btn { padding: 8px 18px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; transition: all 0.2s; font-family: 'Outfit', sans-serif; }
+    .cat-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
+    .cat-btn.active { background: var(--red); color: white; border-color: var(--red); box-shadow: 0 4px 15px rgba(217,43,43,0.2); }
+    .search-box { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 8px 18px; }
+    .search-box input { background: transparent; border: none; outline: none; color: var(--text); font-size: 0.85rem; font-family: 'Outfit', sans-serif; width: 220px; }
+    .search-box input::placeholder { color: var(--dim); }
+    .books-grid { max-width: 1200px; margin: 0 auto; padding: 0 32px 80px; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 28px; }
+    .book-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; cursor: pointer; transition: all 0.3s; position: relative; }
+    .book-card:hover { transform: translateY(-6px); border-color: rgba(255,255,255,0.12); box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+    .del-btn { position: absolute; top: 10px; right: 10px; z-index: 10; opacity: 0; transition: opacity 0.2s; background: rgba(10,10,10,0.8) !important; }
+    .book-card:hover .del-btn { opacity: 1; }
+    .book-cover { aspect-ratio: 3/4; overflow: hidden; position: relative; background: var(--surface2); }
+    .book-cover img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s; }
+    .book-card:hover .book-cover img { transform: scale(1.06); }
+    .book-cover-overlay { position: absolute; inset: 0; background: linear-gradient(to top, var(--surface) 0%, transparent 50%); opacity: 0.7; }
+    .book-info { padding: 18px; }
+    .book-category { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--red); margin-bottom: 6px; }
+    .book-title { font-size: 0.95rem; font-weight: 600; color: var(--text); line-height: 1.3; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .book-author { font-size: 0.78rem; color: var(--muted); margin-bottom: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .book-stars { display: flex; align-items: center; gap: 4px; margin-bottom: 14px; font-size: 0.75rem; }
+    .star-score { color: var(--gold); font-weight: 700; } .star-count { color: var(--dim); }
+    .book-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid var(--border); }
+    .book-stats { display: flex; gap: 12px; }
+    .book-stat { font-size: 0.7rem; color: var(--dim); display: flex; align-items: center; gap: 3px; }
+    .book-price { font-size: 0.8rem; font-weight: 700; color: var(--gold); }
+    .reader-header { max-width: 800px; margin: 0 auto; padding: 32px 32px 0; }
+    .back-btn { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.85rem; cursor: pointer; background: none; border: none; font-family: 'Outfit', sans-serif; transition: color 0.2s; margin-bottom: 24px; }
+    .back-btn:hover { color: var(--text); }
+    .reader-container { max-width: 800px; margin: 0 auto; padding: 0 32px; }
+    .book-detail-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 48px; box-shadow: 0 20px 80px rgba(0,0,0,0.3); }
+    .book-detail-header { display: flex; gap: 32px; margin-bottom: 40px; padding-bottom: 40px; border-bottom: 1px solid var(--border); }
+    .book-detail-cover { width: 140px; flex-shrink: 0; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.4); aspect-ratio: 3/4; }
+    .book-detail-cover img { width: 100%; height: 100%; object-fit: cover; }
+    .book-detail-meta h1 { font-family: 'Lora', serif; font-size: 2rem; font-weight: 700; color: var(--text); line-height: 1.25; margin-bottom: 8px; }
+    .book-detail-meta p { color: var(--muted); font-size: 1rem; margin-bottom: 16px; }
+    .book-detail-stats { display: flex; align-items: center; gap: 20px; font-size: 0.85rem; color: var(--muted); flex-wrap: wrap; }
+    .detail-stat { display: flex; align-items: center; gap: 5px; } .detail-stat.gold { color: var(--gold); font-weight: 600; }
+    .book-content { font-family: 'Merriweather', serif; font-size: 1.05rem; line-height: 1.9; color: rgba(245,245,245,0.9); }
+    .book-content p { margin-bottom: 24px; }
+    .reviews-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 48px; margin-top: 24px; box-shadow: 0 20px 80px rgba(0,0,0,0.3); }
+    .reviews-card h2 { font-family: 'Lora', serif; font-size: 1.8rem; font-weight: 600; color: var(--text); margin-bottom: 32px; }
+    .review-form { margin-bottom: 48px; padding-bottom: 40px; border-bottom: 1px solid var(--border); }
+    .review-form h3 { font-family: 'Lora', serif; font-size: 1.2rem; color: var(--text); margin-bottom: 16px; }
+    .form-label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+    .star-picker { display: flex; gap: 6px; margin-bottom: 20px; }
+    .star-btn { background: none; border: none; cursor: pointer; font-size: 1.6rem; transition: transform 0.1s; color: var(--dim); }
+    .star-btn:hover { transform: scale(1.2); } .star-btn.lit { color: var(--gold); }
+    textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; color: var(--text); font-family: 'Outfit', sans-serif; font-size: 0.9rem; resize: vertical; min-height: 120px; outline: none; transition: border-color 0.2s; margin-bottom: 16px; }
+    textarea:focus { border-color: var(--red); } textarea::placeholder { color: var(--dim); }
+    .reviews-list { display: flex; flex-direction: column; gap: 28px; }
+    .review-item { padding-bottom: 28px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .review-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .review-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+    .review-user { font-weight: 600; color: var(--text); font-size: 0.95rem; }
+    .review-date { font-size: 0.8rem; color: var(--dim); }
+    .review-stars { display: flex; gap: 3px; margin-bottom: 10px; font-size: 0.9rem; }
+    .review-comment { color: var(--text); font-size: 0.9rem; line-height: 1.65; }
+    .no-reviews { text-align: center; color: var(--muted); padding: 40px; font-size: 0.95rem; }
+    .auth-page { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 32px; position: relative; overflow: hidden; }
+    .auth-page::before { content: ''; position: absolute; top: 30%; left: 40%; transform: translate(-50%,-50%); width: 500px; height: 400px; background: radial-gradient(ellipse, rgba(217,43,43,0.05) 0%, transparent 70%); pointer-events: none; }
+    .auth-card { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 48px; width: 100%; max-width: 460px; box-shadow: 0 30px 100px rgba(0,0,0,0.4); position: relative; z-index: 1; }
+    .auth-logo { text-align: center; margin-bottom: 32px; }
+    .auth-logo-icon { width: 56px; height: 56px; background: var(--red); border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; font-size: 26px; box-shadow: 0 8px 30px rgba(217,43,43,0.25); animation: bounce 2s infinite; }
+    @keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+    .auth-card h2 { font-size: 1.8rem; font-weight: 800; color: var(--text); text-align: center; margin-bottom: 6px; }
+    .auth-card > p { color: var(--muted); text-align: center; font-size: 0.9rem; margin-bottom: 32px; }
+    .form-group { margin-bottom: 20px; }
+    input[type="text"], input[type="email"], input[type="password"], input[type="number"], select { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; color: var(--text); font-family: 'Outfit', sans-serif; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
+    input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, input[type="number"]:focus, select:focus { border-color: var(--red); }
+    input::placeholder { color: var(--dim); } select { cursor: pointer; }
+    .auth-switch { text-align: center; margin-top: 24px; font-size: 0.875rem; color: var(--muted); }
+    .auth-switch a { color: var(--red); font-weight: 600; cursor: pointer; text-decoration: none; }
+    .auth-switch a:hover { text-decoration: underline; }
+    .error-msg { background: rgba(217,43,43,0.08); border: 1px solid rgba(217,43,43,0.25); border-radius: 10px; padding: 14px 18px; color: #f87171; font-size: 0.875rem; margin-bottom: 20px; display: none; }
+    .error-msg.show { display: block; }
+    .admin-container { max-width: 760px; margin: 0 auto; padding: 32px; }
+    .admin-card { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 48px; box-shadow: 0 20px 80px rgba(0,0,0,0.3); }
+    .admin-card h1 { font-size: 2rem; font-weight: 800; color: var(--text); margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
+    .admin-card > p { color: var(--muted); font-size: 0.9rem; margin-bottom: 40px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .form-full { grid-column: 1 / -1; }
+    .upload-zone { border: 2px dashed var(--border); border-radius: 14px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
+    .upload-zone:hover { border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.01); }
+    .upload-zone-icon { font-size: 2.5rem; margin-bottom: 12px; display: block; }
+    .upload-zone-title { font-size: 0.95rem; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .upload-zone-sub { font-size: 0.8rem; color: var(--dim); margin-bottom: 20px; }
+    .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .upload-selected { font-size: 0.8rem; color: var(--red); font-weight: 600; margin-top: 10px; }
+    .cover-preview { max-width: 80px; border-radius: 8px; margin: 12px auto 0; display: block; }
+    .info-box { background: rgba(59,130,246,0.06); border: 1px solid rgba(59,130,246,0.18); border-radius: 14px; padding: 20px 24px; display: flex; gap: 14px; align-items: flex-start; margin-bottom: 32px; }
+    .info-box-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 2px; }
+    .info-box-text { font-size: 0.875rem; color: var(--muted); line-height: 1.7; }
+    .info-box-text strong { color: var(--text); } .info-box-text ul { padding-left: 20px; margin-top: 8px; } .info-box-text li { margin-bottom: 4px; }
+    .info-box-text code { background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+    .progress-section { display: none; } .progress-section.show { display: block; }
+    .task-status-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .task-status-label { font-size: 0.85rem; font-weight: 600; color: var(--text); }
+    .task-badge { padding: 4px 14px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+    .task-badge.processing { background: rgba(212,175,55,0.1); color: var(--gold); animation: pulse-gold 2s infinite; }
+    .task-badge.completed { background: rgba(52,211,153,0.1); color: #34d399; }
+    .progress-bar-wrap { background: var(--bg); border: 1px solid var(--border); border-radius: 999px; height: 12px; overflow: hidden; margin-bottom: 8px; }
+    .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--red), var(--gold)); border-radius: 999px; transition: width 0.4s ease; }
+    .progress-labels { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--dim); font-weight: 600; }
+    .success-box { background: rgba(52,211,153,0.06); border: 1px solid rgba(52,211,153,0.18); border-radius: 12px; padding: 16px 20px; font-size: 0.875rem; color: #34d399; display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+    .import-actions { display: flex; gap: 16px; margin-top: 24px; }
+    .rayos-notification { position: fixed; top: 88px; right: 24px; background: rgba(212,175,55,0.12); border: 1px solid var(--gold); border-radius: 16px; padding: 18px 24px; display: flex; align-items: center; gap: 14px; box-shadow: 0 8px 30px rgba(0,0,0,0.3); backdrop-filter: blur(10px); z-index: 200; transform: translateX(300%); transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1); }
+    .rayos-notification.show { transform: translateX(0); }
+    .rayos-notification-icon { font-size: 1.8rem; } .rayos-notification h4 { font-size: 0.95rem; font-weight: 700; color: var(--text); } .rayos-notification p { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 300; backdrop-filter: blur(4px); }
+    .modal-overlay.show { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 40px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 30px 80px rgba(0,0,0,0.5); animation: modal-in 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+    @keyframes modal-in { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .modal-icon { font-size: 3rem; margin-bottom: 16px; } .modal h3 { font-size: 1.4rem; font-weight: 700; color: var(--text); margin-bottom: 8px; } .modal p { color: var(--muted); font-size: 0.9rem; line-height: 1.6; margin-bottom: 24px; }
+    @media (max-width: 768px) {
+      .hero { padding: 60px 20px 40px; } .books-grid { padding: 0 20px 60px; grid-template-columns: repeat(2,1fr); gap: 16px; }
+      .filters { padding: 0 20px 24px; } .book-detail-header { flex-direction: column; } .book-detail-card, .reviews-card, .admin-card { padding: 28px; }
+      .form-grid { grid-template-columns: 1fr; } .nav-links .nav-link { display: none; } .hero-stats { gap: 24px; } .auth-card { padding: 32px 24px; }
+    }
+    /* ===== LECTOR CON IFRAME EMBEBIDO ===== */
+    .reader-container { max-width: 1100px; margin: 0 auto; padding: 0 32px 80px; }
+    .book-info-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 36px 40px; box-shadow: 0 20px 80px rgba(0,0,0,0.3); margin-bottom: 20px; }
+    .reader-tabs-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin: 24px 0 0; }
+    .rtab { background: transparent; border: none; border-bottom: 3px solid transparent; padding: 14px 28px; font-family: 'Outfit', sans-serif; font-size: 0.875rem; font-weight: 700; color: var(--muted); cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px; }
+    .rtab:hover { color: var(--text); }
+    .rtab.active { color: var(--text); border-bottom-color: var(--red); }
+    .rtab-content { display: none; }
+    .rtab-content.active { display: block; }
+    .book-iframe-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 0 0 20px 20px; overflow: hidden; margin-bottom: 20px; }
+    .book-iframe { width: 100%; height: 82vh; border: none; display: block; background: white; }
+    .pdf-iframe { height: 90vh; }
+    .text-reader { background: var(--surface); border: 1px solid var(--border); border-radius: 0 0 20px 20px; padding: 48px; margin-bottom: 20px; }
+    .loading-reader { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px; gap: 16px; }
+    .spin { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--red); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .gutenberg-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2); border-radius: 999px; font-size: 0.7rem; font-weight: 700; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.08em; margin-left: 8px; }
+    .cover-large { width: 160px; flex-shrink: 0; border-radius: 14px; overflow: hidden; box-shadow: 0 14px 50px rgba(0,0,0,0.5); aspect-ratio: 2/3; }
+    .cover-large img { width: 100%; height: 100%; object-fit: cover; }
+    .quote-banner { 
+      background: linear-gradient(135deg, rgba(255,255,255,0.02), rgba(255,255,255,0.005));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 24px;
+      margin: 24px auto;
+      max-width: 800px;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      backdrop-filter: blur(8px);
+      transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .quote-text {
+      font-family: 'Lora', serif;
+      font-size: 0.95rem;
+      font-style: italic;
+      color: var(--text);
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+    .quote-author {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--red);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+  </style>
+</head>
+<body>
+
+<nav id="main-nav">
+  <div class="nav-logo" onclick="showScreen('home')">
+    <div class="nav-logo-icon">✨</div>
+    <span>AETHERNUM</span>
+  </div>
+  <div class="nav-links">
+    <a class="nav-link" onclick="showScreen('home')">📚 Catálogo</a>
+    <a class="nav-link" onclick="showScreen('courses')">🎓 Cursos</a>
+    <a class="nav-link admin-only" onclick="showScreen('admin-upload')">⬆️ Subir Libro</a>
+    <a class="nav-link admin-only" onclick="showScreen('admin-import')">📦 Importar ZIP</a>
+    <a class="nav-link admin-only" onclick="showScreen('admin-download')" style="color:#34d399;">📥 Descargar Biblioteca</a>
+  </div>
+  <div class="nav-right">
+    <div id="nav-auth-logged" style="display:none;align-items:center;gap:16px;">
+      <div class="rayos-badge">✨ <span id="rayos-count">0</span> Aethers</div>
+      <span id="user-name-display" style="font-size:0.85rem;color:var(--muted);"></span>
+      <button class="btn btn-icon" onclick="doLogout()" title="Cerrar sesión">🚪</button>
+    </div>
+    <div id="nav-auth-loggedout" style="display:flex;align-items:center;gap:12px;">
+      <button class="btn btn-ghost btn-sm" onclick="showScreen('login')">Iniciar Sesión</button>
+      <button class="btn btn-primary btn-sm" onclick="showScreen('register')">Registrarse</button>
+    </div>
+  </div>
+</nav>
+
+<!-- HOME -->
+<div id="home" class="screen active">
+  <div class="hero">
+    <h1>Lee Libros,<br>Gana <span>Aethers</span></h1>
+    <p>La primera plataforma donde la lectura tiene recompensa. Acumula Aethers leyendo y comparte tus opiniones con estrellas.</p>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="hero-stat-num" id="stat-books">4</div><div class="hero-stat-label">Libros disponibles</div></div>
+      <div class="hero-stat"><div class="hero-stat-num">+10</div><div class="hero-stat-label">Aethers por lectura</div></div>
+      <div class="hero-stat"><div class="hero-stat-num">⭐</div><div class="hero-stat-label">Sistema de reseñas</div></div>
+    </div>
+  </div>
+  <div class="quote-banner">
+    <p class="quote-text">“La educación es el arma más poderosa que puedes usar para cambiar el mundo.”</p>
+    <p class="quote-author">— Nelson Mandela</p>
+  </div>
+  <div class="filters">
+    <div class="categories" id="category-filters">
+      <button class="cat-btn active" onclick="filterByCategory(this,'')">Todos</button>
+      <button class="cat-btn" onclick="filterByCategory(this,'Ficción')">Ficción</button>
+      <button class="cat-btn" onclick="filterByCategory(this,'Clásicos')">Clásicos</button>
+      <button class="cat-btn" onclick="filterByCategory(this,'Ciencia')">Ciencia</button>
+      <button class="cat-btn" onclick="filterByCategory(this,'Negocios')">Negocios</button>
+    </div>
+    <div class="search-box">
+      <span>🔍</span>
+      <input type="text" id="search-input" placeholder="Buscar libro o autor..." oninput="renderBooks()">
+    </div>
+  </div>
+  <div class="books-grid" id="books-grid"></div>
+</div>
+
+<!-- READER -->
+<div id="reader" class="screen">
+  <div class="reader-header"><button class="back-btn" onclick="showScreen('home')">← Volver al catálogo</button></div>
+  <div class="reader-container">
+    <div id="book-info-area"></div>
+    <div id="book-reader-area"></div>
+    <div class="reviews-card" id="reviews-card"></div>
+  </div>
+</div>
+
+<!-- ADMIN: DESCARGAR BIBLIOTECA -->
+<div id="admin-download" class="screen">
+  <div class="admin-container">
+    <button class="back-btn" onclick="showScreen('home')">← Volver al catálogo</button>
+    <div class="admin-card">
+      <h1>📥 Descargar Biblioteca Completa</h1>
+      <p>Descarga el contenido de todos tus libros de Gutenberg y guárdalos permanentemente en tu plataforma. Después de esto, los lectores abrirán cualquier libro <strong style="color:var(--text);">sin necesitar internet</strong>.</p>
+
+      <div class="info-box" style="margin-bottom:28px;">
+        <div class="info-box-icon">💡</div>
+        <div class="info-box-text">
+          <strong>¿Cómo funciona?</strong><br>
+          El sistema descarga el texto completo de cada libro desde Project Gutenberg y lo guarda en la base de datos de tu navegador (IndexedDB). 
+          Una vez descargado, el libro es <strong>100% tuyo</strong> — se puede leer sin conexión y sin depender de ningún sitio externo.
+          <ul style="margin-top:10px;">
+            <li>La primera descarga necesita internet (una sola vez)</li>
+            <li>Después de esto, los libros son completamente locales</li>
+            <li>Los libros ya descargados se saltan automáticamente</li>
+          </ul>
+        </div>
+      </div>
+
+      <div id="descarga-stats" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:28px;">
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;">
+          <div style="font-size:1.8rem;font-weight:800;color:var(--text);" id="stat-total-libros">...</div>
+          <div style="font-size:0.7rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-top:4px;">Libros en catálogo</div>
+        </div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;">
+          <div style="font-size:1.8rem;font-weight:800;color:#34d399;" id="stat-descargados">...</div>
+          <div style="font-size:0.7rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-top:4px;">Ya guardados localmente</div>
+        </div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;">
+          <div style="font-size:1.8rem;font-weight:800;color:var(--gold);" id="stat-pendientes">...</div>
+          <div style="font-size:0.7rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-top:4px;">Pendientes por descargar</div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="btn-descargar" onclick="iniciarDescargaBiblioteca()" style="width:100%;padding:18px;font-size:1.05rem;justify-content:center;margin-bottom:24px;">
+        📥 Iniciar Descarga de Biblioteca
+      </button>
+
+      <div id="descarga-panel" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <span style="font-size:.85rem;font-weight:600;color:var(--text);">Progreso de descarga</span>
+          <span style="font-size:.8rem;font-weight:700;color:var(--gold);" id="descarga-pct">0%</span>
+        </div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:999px;height:14px;overflow:hidden;margin-bottom:10px;">
+          <div id="descarga-bar" style="height:100%;background:linear-gradient(90deg,var(--red),var(--gold));border-radius:999px;transition:width .3s ease;width:0%;"></div>
+        </div>
+        <p id="descarga-msg" style="font-size:.85rem;color:var(--muted);margin-bottom:0;">Iniciando...</p>
+      </div>
+    </div>
+
+    <!-- MANTENIMIENTO DEL CATÁLOGO -->
+    <div class="admin-card" style="margin-top:24px;">
+      <h2>🧹 Mantenimiento del Catálogo</h2>
+      <p style="color:var(--muted);font-size:0.85rem;margin-bottom:20px;">Herramientas avanzadas para limpiar y organizar tu base de datos de libros.</p>
+      
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <button class="btn btn-ghost" onclick="eliminarLibrosSinEnlaces()" style="justify-content:center;color:#f87171;border-color:rgba(248,113,113,0.2);">
+          🗑️ Eliminar libros sin enlace de lectura
+        </button>
+        <button class="btn btn-ghost" onclick="eliminarTodosGutenberg()" style="justify-content:center;color:#f87171;border-color:rgba(248,113,113,0.2);">
+          🗑️ Eliminar todos los libros importados (Gutenberg)
+        </button>
+        <button class="btn btn-ghost" onclick="restablecerCatalogoCompleto()" style="justify-content:center;color:#f87171;border-color:rgba(248,113,113,0.2);">
+          ⚠️ Restablecer catálogo completo a cero
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- COURSES -->
+<div id="courses" class="screen">
+  <div class="hero" style="padding: 60px 32px 30px;">
+    <h1>🎓 Aethernum <span>Academia</span></h1>
+    <p>Aprende de forma interactiva con nuestros cursos en video y gana Aethers por estudiar.</p>
+    <div id="course-admin-actions" style="margin-top: 20px; display: none;">
+      <button class="btn btn-primary btn-sm" onclick="showScreen('admin-course-upload')">➕ Publicar Nuevo Curso</button>
+    </div>
+  </div>
+  <div class="quote-banner">
+    <p class="quote-text">“La educación es el arma más poderosa que puedes usar para cambiar el mundo.”</p>
+    <p class="quote-author">— Nelson Mandela</p>
+  </div>
+  <div class="filters" style="max-width: 1200px; margin: 0 auto; padding-bottom: 24px; padding-left: 20px; padding-right: 20px;">
+    <div class="categories" id="course-category-filters">
+      <button class="cat-btn active" onclick="filterCoursesByCategory(this,'')">Todos</button>
+      <button class="cat-btn" onclick="filterCoursesByCategory(this,'Matemáticas')">Matemáticas</button>
+      <button class="cat-btn" onclick="filterCoursesByCategory(this,'Ciencia')">Ciencia</button>
+      <button class="cat-btn" onclick="filterCoursesByCategory(this,'Tecnología')">Tecnología</button>
+      <button class="cat-btn" onclick="filterCoursesByCategory(this,'Arte')">Arte</button>
+    </div>
+  </div>
+
+  <div class="books-grid" id="courses-grid" style="padding-bottom: 80px; max-width: 1200px; margin: 0 auto;"></div>
+</div>
+
+<!-- COURSE VIEW -->
+<div id="course-view" class="screen">
+  <div class="admin-container" style="max-width: 1200px; padding-bottom: 80px;">
+    <button class="back-btn" onclick="showScreen('courses')" style="margin-bottom: 20px;">← Volver a Cursos</button>
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 28px; align-items: start;">
+      
+      <!-- Video Player Column -->
+      <div>
+        <div class="book-iframe-wrap" style="border-radius: 20px; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; background: #000; overflow: hidden; border: 1px solid var(--border);">
+          <div id="video-player-container" style="width: 100%; height: 100%;"></div>
+        </div>
+        
+        <div class="book-info-card" style="margin-top: 20px; border-radius: 20px; padding: 30px;">
+          <h1 id="course-view-title" style="font-family: 'Lora', serif; font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; color: var(--text);"></h1>
+          <p style="color: var(--muted); font-size: 0.95rem; margin-bottom: 16px;">Impartido por: <strong id="course-view-instructor" style="color: var(--text);"></strong></p>
+          <p id="course-view-description" style="line-height: 1.7; color: var(--text); font-size: 0.92rem;"></p>
+        </div>
+      </div>
+      
+      <!-- Interaction Column -->
+      <div>
+        <div class="reviews-card" id="course-reviews-card" style="border-radius: 20px; padding: 24px; margin-top: 0; border: 1px solid var(--border); background: var(--surface);">
+          <!-- Course Comments / Questions -->
+        </div>
+      </div>
+      
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN: PUBLICAR CURSO -->
+<div id="admin-course-upload" class="screen">
+  <div class="admin-container">
+    <button class="back-btn" onclick="showScreen('courses')">← Volver a Cursos</button>
+    <div class="admin-card">
+      <h1>🎓 Publicar Nuevo Curso</h1>
+      <p>Sube tus clases en video o asocia una URL externa (como YouTube) para que tus alumnos aprendan.</p>
+      
+      <div class="form-grid" style="margin-top:20px;">
+        <div class="form-group">
+          <label class="form-label">Título del Curso</label>
+          <input type="text" id="course-title" placeholder="Ej. Álgebra Básica y Ecuaciones">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Profesor / Instructor</label>
+          <input type="text" id="course-instructor" placeholder="Ej. Prof. Alberto Cárdenas">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Categoría</label>
+          <select id="course-category">
+            <option value="Matemáticas">Matemáticas</option>
+            <option value="Ciencia">Ciencia</option>
+            <option value="Tecnología">Tecnología</option>
+            <option value="Arte">Arte</option>
+            <option value="General">General</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Origen del Video</label>
+          <select id="course-video-source" onchange="toggleVideoSourceInput()">
+            <option value="local">Subir archivo de video (Local/Offline)</option>
+            <option value="youtube">Enlace externo (YouTube)</option>
+          </select>
+        </div>
+        
+        <div class="form-full" style="margin-top:12px;">
+          <label class="form-label">Descripción del Curso</label>
+          <textarea id="course-desc" placeholder="Describe brevemente de qué trata el curso..." style="min-height:100px;"></textarea>
+        </div>
+        
+        <div class="form-full" id="local-video-group" style="margin-top:12px;">
+          <div class="upload-zone">
+            <input type="file" accept="video/*" onchange="handleCourseVideoSelect(event)">
+            <span class="upload-zone-icon">🎬</span>
+            <div class="upload-zone-title">Seleccionar Archivo de Video</div>
+            <div class="upload-zone-sub">Formatos recomendados: MP4, WebM (offline-first)</div>
+            <button class="btn btn-ghost btn-sm" onclick="this.parentNode.querySelector('input').click(); return false;">Seleccionar Video</button>
+            <div class="upload-selected" id="course-video-selected" style="display:none; margin-top:12px;"></div>
+          </div>
+        </div>
+        
+        <div class="form-full" id="youtube-video-group" style="display:none; margin-top:12px;">
+          <label class="form-label">URL de YouTube o código del video</label>
+          <input type="text" id="course-youtube-url" placeholder="Ej. https://www.youtube.com/watch?v=dQw4w9WgXcQ">
+        </div>
+        
+        <div class="form-full" style="margin-top:20px;">
+          <label class="form-label">Foto de Portada del Curso (Opcional)</label>
+          <input type="file" accept="image/*" onchange="handleCourseCoverSelect(event)">
+          <div id="course-cover-status" style="font-size:0.8rem;color:var(--green);margin-top:6px;display:none;font-weight:600;">Portada seleccionada</div>
+        </div>
+      </div>
+      
+      <button class="btn btn-primary btn-full" id="btn-upload-course" onclick="doUploadCourse()" style="margin-top:32px;">
+        🎓 Publicar Curso en la Academia
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div id="login" class="screen">
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-logo"><div class="auth-logo-icon">✨</div></div>
+      <h2>Bienvenido de nuevo</h2>
+      <p>Inicia sesión para acumular Aethers mientras lees</p>
+      <div class="quote-banner" style="margin: 10px 0 20px; padding: 12px 16px;">
+        <p class="quote-text" style="font-size: 0.82rem;">“La educación es el arma más poderosa que puedes usar para cambiar el mundo.”</p>
+        <p class="quote-author" style="font-size: 0.65rem;">— Nelson Mandela</p>
+      </div>
+      <div class="error-msg" id="login-error"></div>
+      <div class="form-group"><label class="form-label">Correo Electrónico</label><input type="email" id="login-email" placeholder="ejemplo@correo.com"></div>
+      <div class="form-group"><label class="form-label">Contraseña</label><input type="password" id="login-password" placeholder="••••••••"></div>
+      <button class="btn btn-primary btn-full" onclick="doLogin()">Ingresar</button>
+      <div class="auth-switch">¿No tienes cuenta? <a onclick="showScreen('register')">Regístrate aquí</a></div>
+      <div style="margin-top:20px;padding:14px;background:rgba(212,175,55,0.06);border:1px solid rgba(212,175,55,0.15);border-radius:10px;font-size:0.8rem;color:var(--muted);text-align:center;">
+        <strong style="color:var(--gold);">👤 Cuenta de prueba (Admin):</strong><br>
+        Email: <code style="color:var(--text);">admin@plataforma.com</code> / Contraseña: <code style="color:var(--text);">admin123</code>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- REGISTER -->
+<div id="register" class="screen">
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-logo"><div class="auth-logo-icon">✨</div></div>
+      <h2>Crear Cuenta</h2>
+      <p>Únete y obtén <strong style="color:var(--gold);">100 Aethers</strong> de regalo de bienvenida</p>
+      <div class="quote-banner" style="margin: 10px 0 20px; padding: 12px 16px;">
+        <p class="quote-text" style="font-size: 0.82rem;">“La educación es el arma más poderosa que puedes usar para cambiar el mundo.”</p>
+        <p class="quote-author" style="font-size: 0.65rem;">— Nelson Mandela</p>
+      </div>
+      <div class="error-msg" id="register-error"></div>
+      <div class="form-group"><label class="form-label">Nombre Completo</label><input type="text" id="register-name" placeholder="Tu nombre completo"></div>
+      <div class="form-group"><label class="form-label">Correo Electrónico</label><input type="email" id="register-email" placeholder="ejemplo@correo.com"></div>
+      <div class="form-group"><label class="form-label">Contraseña</label><input type="password" id="register-password" placeholder="Crea una contraseña segura"></div>
+      <button class="btn btn-primary btn-full" onclick="doRegister()">Crear Cuenta</button>
+      <div class="auth-switch">¿Ya tienes cuenta? <a onclick="showScreen('login')">Inicia sesión aquí</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN UPLOAD -->
+<div id="admin-upload" class="screen">
+  <div class="admin-container">
+    <button class="back-btn" onclick="showScreen('home')">← Volver al catálogo</button>
+    <div class="admin-card">
+      <h1>📖 Añadir Nuevo Libro</h1>
+      <p>Completa los datos del libro, sube el archivo PDF y asígnale una foto de portada personalizada.</p>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Título del Libro</label><input type="text" id="upload-title" placeholder="Ej. Cien Años de Soledad"></div>
+        <div class="form-group"><label class="form-label">Autor</label><input type="text" id="upload-author" placeholder="Ej. Gabriel García Márquez"></div>
+        <div class="form-group"><label class="form-label">Categoría</label><select id="upload-category"><option value="Ficción">Ficción</option><option value="Clásicos">Clásicos</option><option value="Ciencia">Ciencia</option><option value="Negocios">Negocios</option><option value="General">General</option></select></div>
+        <div class="form-group"><label class="form-label">Precio (0 = Gratis)</label><input type="number" id="upload-price" value="0" min="0" step="0.01"></div>
+        <div class="form-full">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:12px;">
+            <div class="upload-zone">
+              <input type="file" accept=".pdf" onchange="handlePdfSelect(event)">
+              <span class="upload-zone-icon">📄</span>
+              <div class="upload-zone-title">Archivo PDF del Libro</div>
+              <div class="upload-zone-sub">El texto se extraerá automáticamente</div>
+              <button class="btn btn-ghost btn-sm">Seleccionar PDF</button>
+              <div class="upload-selected" id="pdf-selected" style="display:none;"></div>
+            </div>
+            <div class="upload-zone">
+              <input type="file" accept="image/*" onchange="handleCoverSelect(event)">
+              <span class="upload-zone-icon" id="cover-icon">🖼️</span>
+              <div class="upload-zone-title">Foto de Portada</div>
+              <div class="upload-zone-sub">Opcional (JPG, PNG, WEBP)</div>
+              <button class="btn btn-ghost btn-sm">Seleccionar Imagen</button>
+              <img id="cover-preview" class="cover-preview" style="display:none;">
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full" style="margin-top:32px;" onclick="doUploadBook()">🚀 Publicar Libro</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN IMPORT ZIP -->
+<div id="admin-import" class="screen">
+  <div class="admin-container">
+    <button class="back-btn" onclick="showScreen('home')">← Volver al catálogo</button>
+    <div class="admin-card">
+      <h1>📦 Importación Masiva de Libros</h1>
+      <p>Sube miles de libros en un solo archivo ZIP. El sistema los procesará automáticamente.</p>
+      <div class="info-box">
+        <div class="info-box-icon">💡</div>
+        <div class="info-box-text">
+          <strong>¿Cómo estructurar tu ZIP?</strong>
+          <ul>
+            <li>Agrega tus libros en formato <strong>.pdf</strong></li>
+            <li><strong>Portadas automáticas:</strong> imagen con el mismo nombre que el PDF (ej. <code>quijote.pdf</code> y <code>quijote.jpg</code>)</li>
+            <li>Los libros sin portada usarán una imagen por defecto</li>
+          </ul>
+        </div>
+      </div>
+      <div id="import-form">
+        <div class="form-grid" style="margin-bottom:24px;">
+          <div class="form-group"><label class="form-label">Categoría por Defecto</label><select id="import-category"><option>General</option><option>Ficción</option><option>Clásicos</option><option>Ciencia</option><option>Negocios</option></select></div>
+          <div class="form-group"><label class="form-label">Precio por Defecto</label><input type="number" id="import-price" value="0" min="0" step="0.01"></div>
+        </div>
+        <div class="upload-zone" style="margin-bottom:24px;">
+          <input type="file" accept=".zip" onchange="handleZipSelect(event)">
+          <span class="upload-zone-icon">📦</span>
+          <div class="upload-zone-title">Selecciona tu Archivo ZIP</div>
+          <div class="upload-zone-sub">Debe contener PDFs e imágenes de portadas (opcional)</div>
+          <button class="btn btn-ghost btn-sm">Seleccionar ZIP</button>
+          <div class="upload-selected" id="zip-selected" style="display:none;"></div>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="doImportZip()">⚡ Iniciar Importación Masiva</button>
+      </div>
+      <div class="progress-section" id="progress-section">
+        <div class="task-status-header"><span class="task-status-label">Estado de la Importación</span><span class="task-badge processing" id="task-badge">Procesando</span></div>
+        <p style="font-size:0.875rem;color:var(--muted);margin-bottom:16px;" id="progress-msg">Procesando libros...</p>
+        <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
+        <div class="progress-labels"><span id="progress-pct">0% Procesado</span><span id="progress-count">0/0 libros</span></div>
+        <div class="success-box" id="import-success" style="display:none;">✅ ¡Importación masiva completada con éxito!</div>
+        <div class="import-actions" id="import-actions" style="display:none;">
+          <button class="btn btn-ghost" style="flex:1;justify-content:center;padding:12px;" onclick="showScreen('home')">📚 Ver Catálogo</button>
+          <button class="btn btn-primary" style="flex:1;justify-content:center;padding:12px;" onclick="resetImport()">📦 Subir Otro ZIP</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NOTIFICACIÓN AETHERNUM -->
+<div class="rayos-notification" id="rayos-notif">
+  <div class="rayos-notification-icon">✨</div>
+  <div><h4>¡+10 Aethers Ganados!</h4><p>Sigue leyendo para ganar más</p></div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-icon" id="modal-icon">✅</div>
+    <h3 id="modal-title"></h3>
+    <p id="modal-msg"></p>
+    <button class="btn btn-primary btn-full" onclick="closeModal()">Continuar</button>
+  </div>
+</div>
+
+<script>
+  let currentUser = null, selectedCategory = '', currentRating = 5;
+  let selectedZipFile = null, selectedPdfFile = null, selectedCoverDataUrl = null;
+  let currentBookId = null;
+
+  const defaultCovers = [
+    'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400',
+    'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400',
+    'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=400',
+    'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400',
+    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
+    'https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=400',
+  ];
+
+  function getBooks() {
+    const s = localStorage.getItem('rayos_books');
+    if (s) return JSON.parse(s);
+    const d = [
+      { id:1, title:"El Principito", author_name:"Antoine de Saint-Exupéry", content:"Era una vez el Principito, que vivía en un asteroide del tamaño de una casa.\n\nTenía en su planeta tres volcanes: dos activos y uno extinto. Aunque nunca se sabe...\n\nAquí está mi secreto. Es muy simple: no se ve bien sino con el corazón. Lo esencial es invisible a los ojos.\n\nLos hombres de tu tierra cultivan cinco mil rosas en un mismo jardín... y no encuentran lo que buscan.\n\nY sin embargo, lo que buscan podría encontrarse en una sola rosa o en un poco de agua. Pero los ojos están ciegos. Hay que buscar con el corazón.\n\nFue en aquel entonces cuando el zorro apareció.\n\n— Hola —dijo el zorro.\n\n— Hola —respondió el principito cortésmente, que se volvió pero no vio nada.\n\n— Estoy aquí —dijo la voz—, bajo el manzano.\n\n— ¿Quién eres? —dijo el principito—. Eres muy bonito...\n\n— Soy un zorro —dijo el zorro.\n\n— Ven a jugar conmigo —le propuso el principito—. ¡Estoy tan triste!\n\n— No puedo jugar contigo —dijo el zorro—. No estoy domesticado.", category:"Ficción", price:0, cover_image_url:defaultCovers[0], views:1523, likes:342, average_rating:4.5, total_reviews:28 },
+      { id:2, title:"Cien Años de Soledad", author_name:"Gabriel García Márquez", content:"Muchos años después, frente al pelotón de fusilamiento, el coronel Aureliano Buendía había de recordar aquella tarde remota en que su padre lo llevó a conocer el hielo.\n\nMacondo era entonces una aldea de veinte casas de barro y cañabrava construidas a la orilla de un río de aguas diáfanas que se precipitaban por un lecho de piedras pulidas, blancas y enormes como huevos prehistóricos.\n\nEl mundo era tan reciente, que muchas cosas carecían de nombre, y para mencionarlas había que señalarlas con el dedo.\n\nTodos los años, por el mes de marzo, una familia de gitanos desarrapados plantaba su carpa cerca de la aldea, y con un gran alboroto de pitos y timbales daban a conocer los nuevos inventos.", category:"Clásicos", price:0, cover_image_url:defaultCovers[1], views:1892, likes:456, average_rating:4.8, total_reviews:35 },
+      { id:3, title:"Don Quijote de la Mancha", author_name:"Miguel de Cervantes", content:"En un lugar de la Mancha, de cuyo nombre no quiero acordarme, no ha mucho tiempo que vivía un hidalgo de los de lanza en astillero, adarga antigua, rocín flaco y galgo corredor.\n\nUna olla de algo más vaca que carnero, salpicón las más noches, duelos y quebrantos los sábados, lantejas los viernes, algún palomino de añadidura los domingos, consumían las tres partes de su hacienda.\n\nFrisaba la edad de nuestro hidalgo con los cincuenta años; era de complexión recia, seco de carnes, enjuto de rostro, gran madrugador y amigo de la caza.", category:"Clásicos", price:0, cover_image_url:defaultCovers[2], views:856, likes:178, average_rating:4.2, total_reviews:15 },
+      { id:4, title:"1984", author_name:"George Orwell", content:"Era un día luminoso y frío de abril y los relojes daban las trece.\n\nWinston Smith, con la barbilla clavada en el pecho en su esfuerzo por burlar el azote del viento, se deslizó rápidamente por las puertas de cristal de las Casas de la Victoria.\n\nEl vestíbulo olía a col hervida y a esteras de esparto. Al fondo, un cartel de colores, demasiado grande para estar colgado en una habitación, estaba pegado a la pared. Representaba sólo un rostro enorme: el rostro de un hombre de unos cuarenta y cinco años, con un bigote negro y espeso y facciones toscas pero atractivas.", category:"Ficción", price:5.99, cover_image_url:defaultCovers[3], views:723, likes:145, average_rating:4.6, total_reviews:22 }
+    ];
+    localStorage.setItem('rayos_books', JSON.stringify(d));
+    return d;
+  }
+  function saveBooks(b) { localStorage.setItem('rayos_books', JSON.stringify(b)); }
+  function getReviews() { const s = localStorage.getItem('rayos_reviews'); return s ? JSON.parse(s) : []; }
+  function saveReviews(r) { localStorage.setItem('rayos_reviews', JSON.stringify(r)); }
+  function getUsers() {
+    const s = localStorage.getItem('rayos_users');
+    if (s) return JSON.parse(s);
+    const d = [
+      { id:1, name:'Administrador', email:'admin@plataforma.com', password:'admin123', role:'admin', rayos:500 },
+      { id:2, name:'Lector de Prueba', email:'lector@plataforma.com', password:'user123', role:'user', rayos:100 }
+    ];
+    localStorage.setItem('rayos_users', JSON.stringify(d));
+    return d;
+  }
+  function saveUsers(u) { localStorage.setItem('rayos_users', JSON.stringify(u)); }
+
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const el = document.getElementById(id);
+    if (el) el.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (id === 'home') renderBooks();
+    if (id === 'courses') renderCourses();
+    if (id === 'admin-download') cargarStatsDescarga();
+  }
+
+  async function cargarStatsDescarga() {
+    const books = getBooks().filter(b => b.text_url || b.html_url);
+    const descargados = await contarLibrosDescargados();
+    const pendientes = Math.max(0, books.length - descargados);
+    const elTotal = document.getElementById('stat-total-libros');
+    const elDesc = document.getElementById('stat-descargados');
+    const elPend = document.getElementById('stat-pendientes');
+    if (elTotal) elTotal.textContent = books.length.toLocaleString();
+    if (elDesc) elDesc.textContent = descargados.toLocaleString();
+    if (elPend) elPend.textContent = pendientes.toLocaleString();
+  }
+
+
+
+  function filterByCategory(btn, cat) {
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedCategory = cat;
+    renderBooks();
+  }
+
+  function starsHtml(rating, dim) {
+    return [1,2,3,4,5].map(s => `<span style="color:${s<=Math.round(rating)?'var(--gold)':'var(--dim)'};">★</span>`).join('');
+  }
+
+  function renderBooks() {
+    const books = getBooks();
+    const search = (document.getElementById('search-input').value || '').toLowerCase();
+    const filtered = books.filter(b => (!selectedCategory || b.category === selectedCategory) && (!search || b.title.toLowerCase().includes(search) || b.author_name.toLowerCase().includes(search)));
+    document.getElementById('stat-books').textContent = books.length;
+    const grid = document.getElementById('books-grid');
+    if (!filtered.length) {
+      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:80px;color:var(--muted);"><div style="font-size:3rem;margin-bottom:16px;">📚</div><p style="font-size:1rem;font-weight:500;">No se encontraron libros</p><p style="font-size:0.85rem;margin-top:6px;">Intenta con otra búsqueda o categoría</p></div>`;
+      return;
+    }
+    grid.innerHTML = filtered.map(book => {
+      const price = book.price > 0 ? `$${book.price.toFixed(2)}` : 'GRATIS';
+      const pColor = book.price > 0 ? 'var(--gold)' : '#34d399';
+      const adminDel = currentUser && currentUser.role === 'admin' ? `<button class="del-btn btn btn-icon" onclick="deleteBook(event,${book.id})" title="Eliminar">🗑️</button>` : '';
+      const coverUrl = book.cover_image_url === 'local' ? defaultCovers[0] : book.cover_image_url;
+      const lazyLoadAttr = book.cover_image_url === 'local' ? `onload="lazyLoadCover(${book.id}, this)"` : '';
+      return `<div class="book-card" onclick="openBook(${book.id})">${adminDel}<div class="book-cover"><img src="${coverUrl}" ${lazyLoadAttr} alt="${book.title}" loading="lazy" onerror="this.src='${defaultCovers[0]}''"><div class="book-cover-overlay"></div></div><div class="book-info"><div class="book-category">${book.category}</div><div class="book-title">${book.title}</div><div class="book-author">por ${book.author_name}</div><div class="book-stars">${book.average_rating > 0 ? `${starsHtml(book.average_rating)}<span class="star-score">&nbsp;${book.average_rating}</span><span class="star-count">&nbsp;(${book.total_reviews})</span>` : `<span class="star-count">Sin calificaciones aún</span>`}</div><div class="book-footer"><div class="book-stats"><span class="book-stat">👁 ${book.views}</span><span class="book-stat">♥ ${book.likes}</span></div><span class="book-price" style="color:${pColor};">${price}</span></div></div></div>`;
+    }).join('');
+  }
+
+  function openBook(bookId) {
+    currentBookId = bookId;
+    const books = getBooks();
+    const book = books.find(b => b.id === bookId);
+    if (!book) return;
+    book.views++;
+    saveBooks(books);
+
+    const price = book.price > 0 ? `$${book.price.toFixed(2)}` : 'GRATIS';
+    const pColor = book.price > 0 ? 'var(--gold)' : '#34d399';
+    const hasHtml = book.html_url;
+    const hasPdf  = book.pdf_url;
+    const hasText = book.text_url;
+    const isGutenberg = !!book.gutenberg_id;
+    const fallbackCover = defaultCovers[0];
+    const isLocalCover = book.cover_image_url === 'local';
+    const initialCover = isLocalCover ? defaultCovers[0] : book.cover_image_url;
+    const coverOnload = isLocalCover ? `onload="lazyLoadCover(${book.id}, this)"` : '';
+
+    // Tarjeta informativa del libro
+    document.getElementById('book-info-area').innerHTML = `
+      <div class="book-info-card">
+        <div style="display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap;">
+          <div class="cover-large">
+            <img src="${initialCover}" ${coverOnload} alt="${book.title}" onerror="this.src='${fallbackCover}'">
+          </div>
+          <div style="flex:1;min-width:200px;">
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+              <span style="font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--red);">${book.category}</span>
+              ${isGutenberg ? '<span class="gutenberg-badge">📚 Project Gutenberg</span>' : ''}
+            </div>
+            <h1 style="font-family:'Lora',serif;font-size:1.9rem;font-weight:700;color:var(--text);line-height:1.25;margin-bottom:8px;">${book.title}</h1>
+            <p style="color:var(--muted);font-size:1rem;margin-bottom:16px;">por <strong style="color:var(--text);">${book.author_name}</strong></p>
+            <div style="display:flex;align-items:center;gap:18px;font-size:.85rem;color:var(--muted);flex-wrap:wrap;">
+              <span>👁 ${book.views} vistas</span>
+              <span>♥ ${book.likes}</span>
+              ${book.average_rating > 0 ? `<span style="color:var(--gold);font-weight:600;">★ ${book.average_rating} (${book.total_reviews} reseñas)</span>` : ''}
+              <span style="color:${pColor};font-weight:700;">${price}</span>
+            </div>
+            ${currentUser && currentUser.role === 'admin' ? `
+              <div style="margin-top:20px;">
+                <button class="btn btn-ghost btn-sm" onclick="mostrarFormularioEdicion(${book.id})">✏️ Editar Detalles y Portada</button>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+        ${(hasHtml || hasPdf || hasText) ? `
+        <div class="reader-tabs-bar">
+          ${hasHtml ? '<button class="rtab active" id="rtab-btn-html" onclick="switchTab(\'html\')"> 📖 Leer Libro</button>' : ''}
+          ${hasPdf  ? `<button class="rtab ${!hasHtml?'active':''}" id="rtab-btn-pdf" onclick="switchTab('pdf')"> 📄 Ver PDF</button>` : ''}
+          ${(hasText && !hasHtml) ? `<button class="rtab ${(!hasPdf && !hasHtml)?'active':''}" id="rtab-btn-text" onclick="switchTab('text')"> 📝 Texto</button>` : ''}
+        </div>` : ''}
+      </div>`;
+
+    // Si el libro tiene PDF local guardado en IndexedDB: cargándolo
+    if (book.has_local_pdf) {
+      document.getElementById('book-reader-area').innerHTML = `
+        <div class="book-iframe-wrap" id="pdf-loading-wrap">
+          <div class="loading-reader">
+            <div class="spin"></div>
+            <p style="color:var(--muted);font-size:.9rem;">Cargando PDF "${book.pdf_filename}" (${book.pdf_size_mb||'?'} MB)...</p>
+          </div>
+        </div>`;
+
+      cargarPdfDeDB(book.id).then(blobUrl => {
+        if (blobUrl) {
+          document.getElementById('book-reader-area').innerHTML = `
+            <div class="book-iframe-wrap">
+              <iframe class="book-iframe pdf-iframe" src="${blobUrl}" type="application/pdf"
+                title="${book.title}"></iframe>
+            </div>`;
+        } else {
+          document.getElementById('book-reader-area').innerHTML = `
+            <div class="text-reader">
+              <div style="text-align:center;padding:60px;color:var(--muted);">
+                <div style="font-size:3rem;margin-bottom:16px;">⚠️</div>
+                <p>No se encontró el PDF en este navegador.<br>
+                Puede haberse borrado al limpiar el navegador.<br><br>
+                <strong style="color:var(--text);">Solución:</strong> Ve a Subir Libro y vuelve a subir el PDF.</p>
+              </div>
+            </div>`;
+        }
+      }).catch(() => {
+        document.getElementById('book-reader-area').innerHTML = `<div class="text-reader"><div class="book-content"><p>Error al cargar el PDF. Por favor recarga la página.</p></div></div>`;
+      });
+    } else if (isGutenberg && (hasText || hasHtml)) {
+      // Libro de Gutenberg — sistema caché-primero:
+      // 1. Busca en IndexedDB (ya descargado antes → 100% local)
+      // 2. Si no está → descarga UNA VEZ de Gutenberg y guarda para siempre
+      const renderTextoLocal = (texto) => {
+        // Formatear el texto plano en párrafos legibles
+        const parrafos = texto
+          .split('\n')
+          .filter(l => l.trim().length > 0)
+          .map(l => `<p>${l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>`)
+          .join('');
+        document.getElementById('book-reader-area').innerHTML = `
+          <div class="text-reader">
+            <div style="background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.2);border-radius:10px;padding:12px 20px;margin-bottom:24px;font-size:0.8rem;color:#34d399;display:flex;align-items:center;gap:10px;">
+              <span>✅</span> <span>Este libro está guardado en tu plataforma y se lee sin internet.</span>
+            </div>
+            <div class="book-content">${parrafos}</div>
+          </div>`;
+      };
+
+      // Mostrar pantalla de carga
+      document.getElementById('book-reader-area').innerHTML = `
+        <div class="book-iframe-wrap">
+          <div class="loading-reader">
+            <div class="spin"></div>
+            <p style="color:var(--muted);font-size:.9rem;" id="reader-load-msg">Buscando en biblioteca local...</p>
+          </div>
+        </div>`;
+
+      cargarTextoDeDB(book.id).then(async cachedText => {
+        if (cachedText) {
+          // ✅ Ya está guardado localmente — sin internet
+          renderTextoLocal(cachedText);
+        } else {
+          // Primera vez: descargar y guardar
+          const msgEl = document.getElementById('reader-load-msg');
+          if (msgEl) msgEl.textContent = 'Descargando libro por primera vez... (próximas veces será instantáneo)';
+          try {
+            const url = hasText || hasHtml;
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error('Error ' + resp.status);
+            const texto = await resp.text();
+            // Guardar permanentemente en IndexedDB
+            await guardarTextoEnDB(book.id, texto);
+            renderTextoLocal(texto);
+          } catch(err) {
+            document.getElementById('book-reader-area').innerHTML = `
+              <div class="text-reader">
+                <div style="text-align:center;padding:60px;color:var(--muted);">
+                  <div style="font-size:3rem;margin-bottom:16px;">📶</div>
+                  <h3 style="color:var(--text);margin-bottom:12px;">Sin conexión</h3>
+                  <p>Este libro no está descargado aún.<br>Conéctate a internet una vez para descargarlo<br>y luego estará disponible sin conexión.</p>
+                  <p style="margin-top:16px;font-size:0.8rem;">O ve al menú <strong style="color:var(--text);">📥 Descargar Biblioteca</strong> para descargar todos los libros de una vez.</p>
+                </div>
+              </div>`;
+          }
+        }
+      });
+    } else {
+      // Libro manual sin PDF o sin URL
+      const readerHTML = `<div class="text-reader"><div class="book-content">${book.content.split('\n').map(p=>p.trim()?`<p>${p}</p>`:'').join('')}</div></div>`;
+      document.getElementById('book-reader-area').innerHTML = readerHTML;
+    }
+
+
+
+    renderReviews(bookId);
+    showScreen('reader');
+    if (currentUser) {
+      setTimeout(() => {
+        const users = getUsers(); const u = users.find(x=>x.id===currentUser.id);
+        if (u) { u.rayos += 10; saveUsers(users); currentUser.rayos = u.rayos; updateNavUser(); showRayosNotif(); }
+      }, 5000);
+    }
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.rtab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.rtab-content').forEach(c => c.classList.remove('active'));
+    const btn = document.getElementById('rtab-btn-' + tab);
+    const panel = document.getElementById('rtab-' + tab);
+    if (btn) btn.classList.add('active');
+    if (panel) panel.classList.add('active');
+  }
+
+  function renderReviews(bookId) {
+    const reviews = getReviews().filter(r=>r.book_id===bookId);
+    const userReviewed = currentUser && reviews.some(r=>r.user_id===currentUser.id);
+    document.getElementById('reviews-card').innerHTML = `
+      <h2>Reseñas</h2>
+      ${currentUser ? (userReviewed ? `<div style="background:rgba(212,175,55,0.06);border:1px solid rgba(212,175,55,0.18);border-radius:12px;padding:18px 22px;font-size:0.875rem;color:var(--gold);margin-bottom:40px;padding-bottom:40px;border-bottom:1px solid var(--border);">⭐ Ya dejaste una reseña para este libro. ¡Gracias por tu opinión!</div>` : `
+        <div class="review-form"><h3>Deja tu reseña</h3>
+          <label class="form-label">Calificación</label>
+          <div class="star-picker" id="star-picker">${[1,2,3,4,5].map(s=>`<button class="star-btn lit" onclick="setRating(${s})" data-v="${s}">★</button>`).join('')}</div>
+          <label class="form-label">Tu opinión</label>
+          <textarea id="review-comment" placeholder="Comparte tu opinión sobre este libro..."></textarea>
+          <button class="btn btn-primary" onclick="submitReview(${bookId})">✉️ Publicar Comentario</button>
+        </div>`) : `<div style="background:rgba(217,43,43,0.06);border:1px solid rgba(217,43,43,0.18);border-radius:12px;padding:18px 22px;font-size:0.875rem;color:#f87171;margin-bottom:40px;padding-bottom:40px;border-bottom:1px solid var(--border);">🔒 <a onclick="showScreen('login')" style="color:var(--red);cursor:pointer;font-weight:600;">Inicia sesión</a> para dejar una reseña y ganar Aethers mientras lees.</div>`}
+      <div class="reviews-list">${reviews.length===0 ? `<div class="no-reviews"><div style="font-size:2.5rem;margin-bottom:12px;">💬</div><p>Aún no hay reseñas para este libro.<br>¡Sé el primero en dejar una!</p></div>` : reviews.map(r=>`<div class="review-item"><div class="review-header"><div><div class="review-user">${r.user_name}</div><div class="review-stars">${[1,2,3,4,5].map(s=>`<span style="color:${s<=r.rating?'var(--gold)':'var(--dim)'};">★</span>`).join('')}</div></div><div class="review-date">${new Date(r.created_at).toLocaleDateString('es-ES',{year:'numeric',month:'long',day:'numeric'})}</div></div><div class="review-comment">${r.comment}</div></div>`).join('')}</div>`;
+    currentRating = 5;
+    updateStarPicker(5);
+  }
+
+  function updateStarPicker(val) {
+    const picker = document.getElementById('star-picker');
+    if (!picker) return;
+    picker.querySelectorAll('.star-btn').forEach((btn, idx) => {
+      btn.style.color = idx < val ? 'var(--gold)' : 'var(--dim)';
+    });
+  }
+
+  function setRating(val) { currentRating = val; updateStarPicker(val); }
+
+  function submitReview(bookId) {
+    if (!currentUser) { showScreen('login'); return; }
+    const comment = (document.getElementById('review-comment').value || '').trim();
+    if (!comment) { alert('Por favor escribe un comentario antes de enviar.'); return; }
+    const reviews = getReviews();
+    if (reviews.some(r=>r.book_id===bookId && r.user_id===currentUser.id)) { alert('Ya dejaste una reseña.'); return; }
+    reviews.push({ id: Date.now(), book_id: bookId, user_id: currentUser.id, user_name: currentUser.name, rating: currentRating, comment, created_at: new Date().toISOString() });
+    saveReviews(reviews);
+    const books = getBooks(); const book = books.find(b=>b.id===bookId);
+    if (book) { const br = reviews.filter(r=>r.book_id===bookId); book.total_reviews = br.length; book.average_rating = Math.round((br.reduce((a,r)=>a+r.rating,0)/br.length)*10)/10; saveBooks(books); }
+    openBook(bookId);
+  }
+
+  function doLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const err = document.getElementById('login-error');
+    const user = getUsers().find(u=>u.email===email && u.password===password);
+    if (!user) { err.textContent='Correo o contraseña incorrectos. Prueba: admin@plataforma.com / admin123'; err.classList.add('show'); return; }
+    err.classList.remove('show'); currentUser = user; updateNavUser();
+    showModal('🎉','¡Bienvenido!',`Hola ${user.name}, tienes ${user.rayos} Aethers. ¡Empieza a leer!`);
+    setTimeout(() => { closeModal(); showScreen('home'); }, 200);
+  }
+
+  function doRegister() {
+    const name = document.getElementById('register-name').value.trim();
+    const email = document.getElementById('register-email').value.trim();
+    const password = document.getElementById('register-password').value;
+    const err = document.getElementById('register-error');
+    if (!name || !email || !password) { err.textContent='Por favor completa todos los campos.'; err.classList.add('show'); return; }
+    const users = getUsers();
+    if (users.find(u=>u.email===email)) { err.textContent='Ese correo ya está registrado.'; err.classList.add('show'); return; }
+    const newUser = { id: Date.now(), name, email, password, role:'user', rayos:100 };
+    users.push(newUser); saveUsers(users); currentUser = newUser; updateNavUser();
+    showModal('✨','¡Cuenta Creada!',`¡Bienvenido ${name}! Te hemos dado 100 Aethers de regalo. ¡Ve a leer tu primer libro!`);
+    setTimeout(() => { closeModal(); showScreen('home'); }, 200);
+  }
+
+  function doLogout() { currentUser = null; updateNavUser(); showScreen('home'); }
+
+  function updateNavUser() {
+    const logged = document.getElementById('nav-auth-logged');
+    const loggedOut = document.getElementById('nav-auth-loggedout');
+    if (currentUser) {
+      logged.style.display='flex'; loggedOut.style.display='none';
+      document.getElementById('rayos-count').textContent = currentUser.rayos;
+      document.getElementById('user-name-display').textContent = currentUser.name;
+      document.querySelectorAll('.admin-only').forEach(el => el.style.display = currentUser.role==='admin' ? 'flex' : 'none');
+    } else {
+      logged.style.display='none'; loggedOut.style.display='flex';
+      document.querySelectorAll('.admin-only').forEach(el => el.style.display='none');
+    }
+  }
+
+  // ====== BASE DE DATOS LOCAL (IndexedDB) ======
+  // Guarda PDFs subidos por el admin Y el texto de libros de Gutenberg
+  // para que todo se lea sin depender de internet externo.
+
+  function abrirPdfDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open('rayos_biblioteca_v3', 3);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('pdfs'))
+          db.createObjectStore('pdfs', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('content'))
+          db.createObjectStore('content', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('videos'))
+          db.createObjectStore('videos', { keyPath: 'id' });
+      };
+      req.onsuccess = e => resolve(e.target.result);
+      req.onerror = e => reject(e.target.error);
+    });
+  }
+
+  // --- PDFs (archivos del admin) ---
+  async function guardarPdfEnDB(bookId, arrayBuffer, filename, coverArrayBuffer, coverFilename) {
+    const db = await abrirPdfDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('pdfs', 'readwrite');
+      tx.objectStore('pdfs').put({ 
+        id: bookId, 
+        data: arrayBuffer, 
+        filename,
+        coverData: coverArrayBuffer || null,
+        coverFilename: coverFilename || null
+      });
+      tx.oncomplete = resolve; tx.onerror = reject;
+    });
+  }
+
+  async function cargarCoverDeDB(bookId) {
+    try {
+      const db = await abrirPdfDB();
+      return new Promise((resolve) => {
+        const tx = db.transaction('pdfs', 'readonly');
+        const req = tx.objectStore('pdfs').get(bookId);
+        req.onsuccess = e => {
+          const res = e.target.result;
+          if (res && res.coverData) {
+            const blob = new Blob([res.coverData]);
+            resolve(URL.createObjectURL(blob));
+          } else {
+            resolve(null);
+          }
+        };
+        req.onerror = () => resolve(null);
+      });
+    } catch(e) {
+      return null;
+    }
+  }
+
+  async function cargarPdfDeDB(bookId) {
+    const db = await abrirPdfDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('pdfs', 'readonly');
+      const req = tx.objectStore('pdfs').get(bookId);
+      req.onsuccess = e => {
+        if (e.target.result) {
+          const blob = new Blob([e.target.result.data], { type: 'application/pdf' });
+          resolve(URL.createObjectURL(blob));
+        } else resolve(null);
+      };
+      req.onerror = reject;
+    });
+  }
+
+  async function eliminarPdfDeDB(bookId) {
+    try {
+      const db = await abrirPdfDB();
+      const tx = db.transaction('pdfs', 'readwrite');
+      tx.objectStore('pdfs').delete(bookId);
+    } catch(e) {}
+  }
+
+  // --- Texto de libros de Gutenberg (guardado para siempre en tu plataforma) ---
+  async function guardarTextoEnDB(bookId, texto) {
+    const db = await abrirPdfDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('content', 'readwrite');
+      tx.objectStore('content').put({ id: bookId, texto, fecha: Date.now() });
+      tx.oncomplete = resolve; tx.onerror = reject;
+    });
+  }
+
+  async function cargarTextoDeDB(bookId) {
+    const db = await abrirPdfDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('content', 'readonly');
+      const req = tx.objectStore('content').get(bookId);
+      req.onsuccess = e => resolve(e.target.result ? e.target.result.texto : null);
+      req.onerror = reject;
+    });
+  }
+
+  async function contarLibrosDescargados() {
+    try {
+      const db = await abrirPdfDB();
+      return new Promise((resolve) => {
+        const tx = db.transaction('content', 'readonly');
+        const req = tx.objectStore('content').count();
+        req.onsuccess = e => resolve(e.target.result);
+        req.onerror = () => resolve(0);
+      });
+    } catch(e) { return 0; }
+  }
+
+  // ====== DESCARGA MASIVA (guardar todos los libros localmente) ======
+  let descargaActiva = false;
+
+  async function iniciarDescargaBiblioteca() {
+    if (descargaActiva) return;
+    descargaActiva = true;
+
+    const books = getBooks().filter(b => b.text_url || b.html_url);
+    const total = books.length;
+    if (total === 0) { alert('No hay libros de Gutenberg para descargar. Primero importa libros.'); descargaActiva = false; return; }
+
+    const panel = document.getElementById('descarga-panel');
+    const barFill = document.getElementById('descarga-bar');
+    const msg = document.getElementById('descarga-msg');
+    const pct = document.getElementById('descarga-pct');
+    const btnD = document.getElementById('btn-descargar');
+    panel.style.display = 'block';
+    btnD.disabled = true;
+    btnD.textContent = '⏳ Descargando...';
+
+    let descargados = 0, errores = 0;
+    const yaDescargados = new Set();
+
+    // Ver cuáles ya están guardados
+    const db = await abrirPdfDB();
+    await new Promise(resolve => {
+      const req = db.transaction('content','readonly').objectStore('content').getAllKeys();
+      req.onsuccess = e => { e.target.result.forEach(id => yaDescargados.add(id)); resolve(); };
+      req.onerror = resolve;
+    });
+
+    for (let i = 0; i < books.length; i++) {
+      const book = books[i];
+      if (yaDescargados.has(book.id)) { descargados++; }
+      else {
+        try {
+          const url = book.text_url || book.html_url;
+          const resp = await fetch(url);
+          if (resp.ok) {
+            const texto = await resp.text();
+            await guardarTextoEnDB(book.id, texto);
+            descargados++;
+          } else errores++;
+        } catch(e) { errores++; }
+      }
+
+      const progreso = Math.round((i+1) / total * 100);
+      barFill.style.width = progreso + '%';
+      pct.textContent = progreso + '%';
+      msg.textContent = `Guardando: "${book.title.substring(0,50)}" (${i+1}/${total})` ;
+      await new Promise(r => setTimeout(r, 50)); // pausa para no bloquear el navegador
+    }
+
+    descargaActiva = false;
+    btnD.disabled = false;
+    btnD.textContent = '✅ Volver a descargar';
+    msg.textContent = `✔️ ¡Completado! ${descargados} libros guardados en tu plataforma. ${errores > 0 ? errores + ' errores.' : ''}`;
+    barFill.style.background = 'var(--green)';
+  }
+
+  // ====== SELECCIÓN DE ARCHIVOS ======
+
+  function handlePdfSelect(e) {
+    const file = e.target.files[0]; if (!file) return;
+    selectedPdfFile = file;
+    const sizeMB = Math.round(file.size / 1024 / 1024 * 10) / 10;
+    const el = document.getElementById('pdf-selected');
+    el.innerHTML = `✅ <strong>${file.name}</strong> (${sizeMB} MB)`;
+    el.style.display = 'block';
+  }
+
+  function handleCoverSelect(e) {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      selectedCoverDataUrl = ev.target.result;
+      const p = document.getElementById('cover-preview'); p.src = selectedCoverDataUrl; p.style.display='block';
+      document.getElementById('cover-icon').style.display='none';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ====== SUBIR LIBRO CON PDF REAL ======
+
+  async function doUploadBook() {
+    if (!currentUser || currentUser.role!=='admin') { alert('Solo el administrador puede subir libros.'); return; }
+    const title   = document.getElementById('upload-title').value.trim();
+    const author  = document.getElementById('upload-author').value.trim();
+    const category = document.getElementById('upload-category').value;
+    const price   = parseFloat(document.getElementById('upload-price').value) || 0;
+    if (!title || !author) { alert('Por favor completa el título y el autor del libro.'); return; }
+    if (!selectedPdfFile) { alert('Por favor selecciona un archivo PDF.'); return; }
+
+    // Mostrar estado de carga
+    const btn = document.querySelector('#admin-upload .btn-primary');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '⏳ Guardando PDF...';
+    btn.disabled = true;
+
+    try {
+      // Leer el PDF como ArrayBuffer para guardarlo en IndexedDB
+      const arrayBuffer = await selectedPdfFile.arrayBuffer();
+
+      const books = getBooks();
+      const newId = books.reduce((mx,b)=>Math.max(mx,b.id),0)+1;
+
+      // Guardar PDF en IndexedDB (sin límite de tamaño)
+      await guardarPdfEnDB(newId, arrayBuffer, selectedPdfFile.name);
+
+      // Guardar registro del libro en localStorage
+      books.push({
+        id: newId,
+        title,
+        author_name: author,
+        content: `"${title}" de ${author}. PDF subido correctamente a tu plataforma RAYOS.`,
+        category,
+        price,
+        cover_image_url: selectedCoverDataUrl || defaultCovers[Math.floor(Math.random()*defaultCovers.length)],
+        has_local_pdf: true,          // indica que el PDF está guardado en IndexedDB
+        pdf_filename: selectedPdfFile.name,
+        pdf_size_mb: Math.round(selectedPdfFile.size/1024/1024*10)/10,
+        views: 0, likes: 0, average_rating: 0, total_reviews: 0
+      });
+      saveBooks(books);
+
+      // Limpiar formulario
+      selectedPdfFile = null; selectedCoverDataUrl = null;
+      document.getElementById('upload-title').value = '';
+      document.getElementById('upload-author').value = '';
+      document.getElementById('pdf-selected').style.display = 'none';
+      document.getElementById('cover-preview').style.display = 'none';
+      document.getElementById('cover-icon').style.display = 'block';
+      btn.innerHTML = originalText; btn.disabled = false;
+
+      showModal('📚','¡Libro Publicado!',`«${title}» de ${author} ya está en tu plataforma con su PDF completo. ¡Haz clic en él para leerlo!`);
+      setTimeout(() => { closeModal(); showScreen('home'); }, 200);
+
+    } catch(err) {
+      btn.innerHTML = originalText; btn.disabled = false;
+      alert('❌ Error al guardar el PDF: ' + err.message);
+    }
+  }
+
+  function handleZipSelect(e) {
+    const file = e.target.files[0]; if (!file) return;
+    selectedZipFile = file;
+    const el = document.getElementById('zip-selected');
+    el.textContent = `✅ ${file.name} (${Math.round(file.size/1024/1024*100)/100} MB)`; el.style.display='block';
+  }
+
+  async function doImportZip() {
+    if (!currentUser || currentUser.role!=='admin') { alert('Solo el administrador puede importar.'); return; }
+    if (!selectedZipFile) { alert('Por favor selecciona un archivo ZIP.'); return; }
+    const defaultCategory = document.getElementById('import-category').value;
+    const defaultPrice = parseFloat(document.getElementById('import-price').value) || 0;
+    
+    document.getElementById('import-form').style.display='none';
+    document.getElementById('progress-section').classList.add('show');
+    document.getElementById('task-badge').textContent='Procesando';
+    document.getElementById('task-badge').className='task-badge processing';
+    
+    const msgEl = document.getElementById('progress-msg');
+    const fillEl = document.getElementById('progress-fill');
+    const pctEl = document.getElementById('progress-pct');
+    const countEl = document.getElementById('progress-count');
+    
+    try {
+      msgEl.textContent = `Leyendo archivo ZIP: ${selectedZipFile.name}...`;
+      const zip = await JSZip.loadAsync(selectedZipFile);
+      
+      // Buscar libros.json o libros_metadatos.json
+      const metaFile = zip.file("libros.json") || zip.file("libros_metadatos.json");
+      let metadata = [];
+      
+      if (metaFile) {
+        const metaText = await metaFile.async("string");
+        metadata = JSON.parse(metaText);
+        if (!Array.isArray(metadata) || metadata.length === 0) {
+          throw new Error("El formato de 'libros.json' es inválido o está vacío.");
+        }
+      } else {
+        // No hay libros.json: Autodetectar todos los PDFs en el ZIP
+        msgEl.textContent = "Buscando todos los PDFs en el archivo ZIP...";
+        zip.forEach((relativePath, file) => {
+          if (!file.dir && relativePath.toLowerCase().endsWith(".pdf")) {
+            const filename = relativePath.split('/').pop();
+            const cleanTitle = filename.replace(/\.pdf$/i, '')
+                                       .replace(/[_-]/g, ' ')
+                                       .replace(/\s+/g, ' ')
+                                       .trim()
+                                       .replace(/\b\w/g, c => c.toUpperCase());
+            
+            // Intentar buscar una imagen con el mismo nombre para portada
+            const baseName = filename.replace(/\.pdf$/i, '');
+            const possibleCovers = [
+              baseName + ".jpg", baseName + ".jpeg", baseName + ".png", baseName + ".webp",
+              "portadas/" + baseName + ".jpg", "portadas/" + baseName + ".png"
+            ];
+            let coverFile = null;
+            for (let path of possibleCovers) {
+              if (zip.file(path)) {
+                coverFile = path;
+                break;
+              }
+            }
+            
+            metadata.push({
+              title: cleanTitle,
+              author: "Autor Desconocido",
+              category: defaultCategory,
+              description: `Libro "${cleanTitle}" importado directamente desde archivo ZIP.`,
+              pdf_file: relativePath,
+              cover_file: coverFile,
+              price: defaultPrice
+            });
+          }
+        });
+        
+        if (metadata.length === 0) {
+          throw new Error("No se encontraron archivos PDF dentro del archivo ZIP.");
+        }
+      }
+      
+      const total = metadata.length;
+      msgEl.textContent = `Se encontraron ${total} libros en el archivo. Iniciando importación...`;
+      
+      const books = getBooks();
+      let maxId = books.reduce((mx,b)=>Math.max(mx,b.id),0);
+      
+      let processed = 0;
+      let errorCount = 0;
+      
+      for (let i = 0; i < total; i++) {
+        const item = metadata[i];
+        processed++;
+        
+        const pct = Math.round(processed/total*100);
+        fillEl.style.width = pct+'%';
+        pctEl.textContent = pct+'% Procesado';
+        countEl.textContent = `${processed}/${total} libros`;
+        msgEl.textContent = `Procesando: "${item.title}"...`;
+        
+        try {
+          let hasLocalCover = false;
+          let coverArrayBuffer = null;
+          let coverFilename = null;
+          let pdfArrayBuffer = null;
+          
+          // Buscar portada en el ZIP
+          if (item.cover_file) {
+            const coverZipFile = zip.file(item.cover_file) || 
+                                 zip.file("portadas/" + item.cover_file) || 
+                                 zip.file("portadas/portadas/" + item.cover_file) ||
+                                 (function() {
+                                   const filename = item.cover_file.split('/').pop().toLowerCase();
+                                   let found = null;
+                                   zip.forEach((relPath, zipFile) => {
+                                     if (!zipFile.dir && (relPath.toLowerCase().endsWith("/" + filename) || relPath.toLowerCase() === filename)) {
+                                       found = zipFile;
+                                     }
+                                   });
+                                   return found;
+                                 })();
+            if (coverZipFile) {
+              coverArrayBuffer = await coverZipFile.async("arraybuffer");
+              coverFilename = coverZipFile.name.split('/').pop();
+              hasLocalCover = true;
+            }
+          }
+          
+          // Buscar PDF en el ZIP
+          if (item.pdf_file) {
+            const pdfZipFile = zip.file(item.pdf_file) || 
+                               zip.file("pdfs/" + item.pdf_file) || 
+                               (function() {
+                                 const filename = item.pdf_file.split('/').pop().toLowerCase();
+                                 let found = null;
+                                 zip.forEach((relPath, zipFile) => {
+                                   if (!zipFile.dir && (relPath.toLowerCase().endsWith("/" + filename) || relPath.toLowerCase() === filename)) {
+                                     found = zipFile;
+                                   }
+                                 });
+                                 return found;
+                               })();
+            if (pdfZipFile) {
+              pdfArrayBuffer = await pdfZipFile.async("arraybuffer");
+            }
+          }
+          
+          maxId++;
+          const newBookId = maxId;
+          const pdfDisplayName = item.pdf_file ? item.pdf_file.split('/').pop() : null;
+          
+          // Guardar el PDF y la Portada en la IndexedDB
+          if (pdfArrayBuffer) {
+            await guardarPdfEnDB(newBookId, pdfArrayBuffer, pdfDisplayName, coverArrayBuffer, coverFilename);
+          }
+          
+          // Insertar en la lista de libros
+          books.push({
+            id: newBookId,
+            title: item.title,
+            author_name: item.author || "Autor Desconocido",
+            content: item.description || `Este libro "${item.title}" fue importado de forma masiva.`,
+            category: item.category || defaultCategory,
+            price: item.price !== undefined ? parseFloat(item.price) : defaultPrice,
+            cover_image_url: hasLocalCover ? "local" : defaultCovers[i % defaultCovers.length],
+            has_local_pdf: !!pdfArrayBuffer,
+            pdf_filename: pdfDisplayName,
+            pdf_size_mb: pdfArrayBuffer ? Math.round(pdfArrayBuffer.byteLength/1024/1024*10)/10 : null,
+            views: Math.floor(Math.random() * 200) + 10,
+            likes: Math.floor(Math.random() * 50) + 2,
+            average_rating: 0,
+            total_reviews: 0
+          });
+          
+        } catch(errInner) {
+          console.error("Error importando libro individual:", item.title, errInner);
+          errorCount++;
+        }
+        
+        // Pequeña pausa para mantener la UI responsiva
+        await new Promise(r => setTimeout(r, 20));
+      }
+      
+      saveBooks(books);
+      renderBooks();
+      
+      document.getElementById('task-badge').textContent='✓ Completado'; 
+      document.getElementById('task-badge').className='task-badge completed';
+      msgEl.textContent=`¡Completado! Se importaron ${processed - errorCount} libros con éxito. ${errorCount > 0 ? `Errores en ${errorCount} libros.` : ''}`;
+      document.getElementById('import-success').style.display='flex'; 
+      document.getElementById('import-actions').style.display='flex';
+      selectedZipFile=null;
+      
+    } catch(err) {
+      console.error(err);
+      document.getElementById('task-badge').textContent='❌ Error';
+      document.getElementById('task-badge').className='task-badge';
+      msgEl.innerHTML=`<span style="color:#f87171;">Error al importar: ${err.message}</span>`;
+      document.getElementById('import-actions').style.display='flex';
+    }
+  }
+
+  function resetImport() {
+    document.getElementById('import-form').style.display='block'; document.getElementById('progress-section').classList.remove('show');
+    document.getElementById('zip-selected').style.display='none'; document.getElementById('import-success').style.display='none';
+    document.getElementById('import-actions').style.display='none'; document.getElementById('progress-fill').style.width='0%';
+  }
+
+  function eliminarLibrosSinEnlaces() {
+    const books = getBooks();
+    const countBefore = books.length;
+    // Libros válidos: tienen local PDF, o son manuales sin gutenberg_id, o tienen enlaces de lectura
+    const validBooks = books.filter(b => b.has_local_pdf || !b.gutenberg_id || b.text_url || b.html_url || b.pdf_url);
+    const countAfter = validBooks.length;
+    const deleted = countBefore - countAfter;
+    
+    if (deleted === 0) {
+      alert('No se encontraron libros sin enlaces de lectura.');
+      return;
+    }
+    
+    if (confirm(`¿Estás seguro de que deseas eliminar ${deleted} libros que no tienen enlaces de lectura?`)) {
+      saveBooks(validBooks);
+      renderBooks();
+      cargarStatsDescarga();
+      alert(`¡Completado! Se eliminaron ${deleted} libros.`);
+    }
+  }
+
+  function eliminarTodosGutenberg() {
+    const books = getBooks();
+    const countBefore = books.length;
+    const cleanBooks = books.filter(b => !b.gutenberg_id);
+    const deleted = countBefore - cleanBooks.length;
+    
+    if (deleted === 0) {
+      alert('No hay libros importados de Gutenberg en el catálogo.');
+      return;
+    }
+    
+    if (confirm(`¿Estás seguro de que deseas eliminar TODOS los libros importados de Gutenberg (${deleted} libros) y conservar solo los tuyos?`)) {
+      saveBooks(cleanBooks);
+      renderBooks();
+      cargarStatsDescarga();
+      
+      abrirPdfDB().then(db => {
+        const tx = db.transaction('content', 'readwrite');
+        tx.objectStore('content').clear();
+      }).catch(e => {});
+
+      alert(`¡Completado! Se eliminaron ${deleted} libros.`);
+    }
+  }
+
+  function restablecerCatalogoCompleto() {
+    if (confirm('⚠️ ¿Estás seguro de restablecer por completo el catálogo? Se borrarán todos los libros importados y subidos (incluyendo los PDFs locales).')) {
+      localStorage.removeItem('rayos_books');
+      
+      abrirPdfDB().then(db => {
+        const tx1 = db.transaction('pdfs', 'readwrite');
+        tx1.objectStore('pdfs').clear();
+        const tx2 = db.transaction('content', 'readwrite');
+        tx2.objectStore('content').clear();
+      }).catch(e => {});
+      
+      getBooks(); // Regenerará los 4 por defecto
+      renderBooks();
+      cargarStatsDescarga();
+      alert('El catálogo ha sido restablecido a su estado original.');
+    }
+  }
+
+  function lazyLoadCover(bookId, imgEl) {
+    if (imgEl.dataset.loaded) return;
+    imgEl.dataset.loaded = "true";
+    cargarCoverDeDB(bookId).then(url => {
+      if (url) imgEl.src = url;
+    });
+  }
+
+  let tempEditCoverArrayBuffer = null;
+  let tempEditCoverFilename = null;
+
+  function handleEditCoverSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      tempEditCoverArrayBuffer = ev.target.result;
+      tempEditCoverFilename = file.name;
+      const statusEl = document.getElementById('edit-cover-status');
+      if (statusEl) {
+        statusEl.style.display = 'block';
+        statusEl.textContent = `✅ Portada seleccionada: ${file.name}`;
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function mostrarFormularioEdicion(bookId) {
+    const books = getBooks();
+    const book = books.find(b => b.id === bookId);
+    if (!book) return;
+    
+    tempEditCoverArrayBuffer = null;
+    tempEditCoverFilename = null;
+    
+    document.getElementById('book-info-area').innerHTML = `
+      <div class="book-info-card">
+        <h2 style="font-family:'Lora',serif;margin-bottom:20px;font-size:1.4rem;color:var(--text);">✏️ Editar Libro</h2>
+        <div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+          <div class="form-group">
+            <label class="form-label">Título del Libro</label>
+            <input type="text" id="edit-title" value="${book.title.replace(/"/g, '&quot;')}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Autor</label>
+            <input type="text" id="edit-author" value="${book.author_name.replace(/"/g, '&quot;')}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Categoría</label>
+            <select id="edit-category">
+              <option value="Ficción" ${book.category==='Ficción'?'selected':''}>Ficción</option>
+              <option value="Clásicos" ${book.category==='Clásicos'?'selected':''}>Clásicos</option>
+              <option value="Ciencia" ${book.category==='Ciencia'?'selected':''}>Ciencia</option>
+              <option value="Negocios" ${book.category==='Negocios'?'selected':''}>Negocios</option>
+              <option value="General" ${book.category==='General'?'selected':''}>General</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cambiar Foto de Portada</label>
+            <input type="file" id="edit-cover-input" accept="image/*" onchange="handleEditCoverSelect(event)" style="padding:10px;">
+            <div id="edit-cover-status" style="display:none;color:var(--green);font-weight:600;margin-top:8px;font-size:0.8rem;"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;margin-top:24px;">
+          <button class="btn btn-primary btn-sm" onclick="guardarEdicionLibro(${book.id})">💾 Guardar Cambios</button>
+          <button class="btn btn-ghost btn-sm" onclick="cancelarEdicionLibro(${book.id})">Cancelar</button>
+        </div>
+      </div>
+    `;
+  }
+
+  async function actualizarCoverEnDB(bookId, coverArrayBuffer, coverFilename) {
+    const db = await abrirPdfDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('pdfs', 'readwrite');
+      const store = tx.objectStore('pdfs');
+      const req = store.get(bookId);
+      req.onsuccess = e => {
+        const record = e.target.result || { id: bookId };
+        record.coverData = coverArrayBuffer;
+        record.coverFilename = coverFilename;
+        const putReq = store.put(record);
+        putReq.onsuccess = () => resolve();
+        putReq.onerror = () => reject(putReq.error);
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function guardarEdicionLibro(bookId) {
+    const title = document.getElementById('edit-title').value.trim();
+    const author = document.getElementById('edit-author').value.trim();
+    const category = document.getElementById('edit-category').value;
+    
+    if (!title || !author) {
+      alert("Por favor completa el título y el autor.");
+      return;
+    }
+    
+    const books = getBooks();
+    const book = books.find(b => b.id === bookId);
+    if (!book) return;
+    
+    book.title = title;
+    book.author_name = author;
+    book.category = category;
+    
+    if (tempEditCoverArrayBuffer) {
+      await actualizarCoverEnDB(bookId, tempEditCoverArrayBuffer, tempEditCoverFilename);
+      book.cover_image_url = "local";
+    }
+    
+    saveBooks(books);
+    tempEditCoverArrayBuffer = null;
+    tempEditCoverFilename = null;
+    
+    alert("¡Libro actualizado con éxito!");
+    openBook(bookId);
+  }
+  
+  function cancelarEdicionLibro(bookId) {
+    tempEditCoverArrayBuffer = null;
+    tempEditCoverFilename = null;
+    openBook(bookId);
+  }
+
+  function deleteBook(e, bookId) {
+    e.stopPropagation();
+    if (!confirm('¿Eliminar este libro?')) return;
+    saveBooks(getBooks().filter(b=>b.id!==bookId)); renderBooks();
+    cargarStatsDescarga();
+  }
+
+  function showRayosNotif() {
+    document.getElementById('rayos-count').textContent = currentUser.rayos;
+    const n = document.getElementById('rayos-notif'); n.classList.add('show'); setTimeout(()=>n.classList.remove('show'),3500);
+  }
+
+  function showModal(icon, title, msg) {
+    document.getElementById('modal-icon').textContent=icon; document.getElementById('modal-title').textContent=title;
+    document.getElementById('modal-msg').textContent=msg; document.getElementById('modal-overlay').classList.add('show');
+  }
+  function closeModal() { document.getElementById('modal-overlay').classList.remove('show'); }
+
+  // --- CURSOS METADATA (localStorage) ---
+  function getCourses() {
+    const s = localStorage.getItem('aether_courses');
+    if (s) return JSON.parse(s);
+    const d = [
+      {
+        id: 1001,
+        title: "Matemáticas desde Cero: Ecuaciones",
+        instructor: "Prof. Alberto Cárdenas",
+        description: "Aprende los fundamentos del álgebra, resolución de ecuaciones de primer grado y sistemas de ecuaciones de forma sencilla y práctica.",
+        category: "Matemáticas",
+        video_source: "youtube",
+        youtube_url: "https://www.youtube.com/embed/H0d8_647l5g",
+        cover_image_url: "https://images.unsplash.com/photo-1509228468518-180dd4864904?w=400",
+        views: 320,
+        likes: 45
+      },
+      {
+        id: 1002,
+        title: "Introducción a la Inteligencia Artificial",
+        instructor: "Dra. Elena Ruiz",
+        description: "Descubre cómo funciona la inteligencia artificial, las raíces de las redes neuronales y cómo esta tecnología está transformando el mundo moderno.",
+        category: "Tecnología",
+        video_source: "youtube",
+        youtube_url: "https://www.youtube.com/embed/5mdtP7Eps8k",
+        cover_image_url: "https://images.unsplash.com/photo-1507146426996-ef05306b995a?w=400",
+        views: 512,
+        likes: 98
+      }
+    ];
+    localStorage.setItem('aether_courses', JSON.stringify(d));
+    return d;
+  }
+  
+  function saveCourses(c) { localStorage.setItem('aether_courses', JSON.stringify(c)); }
+
+  let selectedCourseVideoFile = null;
+  let selectedCourseCoverDataUrl = null;
+  let selectedCourseCategory = '';
+  let currentCourseId = null;
+
+  function filterCoursesByCategory(btn, cat) {
+    document.querySelectorAll('#course-category-filters .cat-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedCourseCategory = cat;
+    renderCourses();
+  }
+
+  function renderCourses() {
+    const courses = getCourses();
+    const filtered = courses.filter(c => !selectedCourseCategory || c.category === selectedCourseCategory);
+    const grid = document.getElementById('courses-grid');
+    
+    // Mostrar u ocultar botón de publicar curso según rol
+    const adminActions = document.getElementById('course-admin-actions');
+    if (adminActions) {
+      adminActions.style.display = currentUser && currentUser.role === 'admin' ? 'block' : 'none';
+    }
+
+    if (!filtered.length) {
+      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:80px;color:var(--muted);"><div style="font-size:3rem;margin-bottom:16px;">🎓</div><p style="font-size:1rem;font-weight:500;">No hay cursos disponibles</p></div>`;
+      return;
+    }
+    
+    grid.innerHTML = filtered.map(course => {
+      const adminDel = currentUser && currentUser.role === 'admin' ? `<button class="del-btn btn btn-icon" onclick="deleteCourse(event,${course.id})" title="Eliminar" style="position:absolute;top:10px;right:10px;z-index:10;background:rgba(10,10,10,0.85);"><span style="color:#f87171;">🗑️</span></button>` : '';
+      return `<div class="book-card" onclick="openCourse(${course.id})">${adminDel}
+        <div class="book-cover">
+          <img src="${course.cover_image_url}" alt="${course.title}" onerror="this.src='https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400'">
+          <div class="book-cover-overlay" style="display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);"><span style="font-size:3rem;text-shadow:0 4px 10px rgba(0,0,0,0.5);">▶️</span></div>
+        </div>
+        <div class="book-info">
+          <div class="book-category">${course.category}</div>
+          <div class="book-title">${course.title}</div>
+          <div class="book-author">por ${course.instructor}</div>
+          <div class="book-footer">
+            <div class="book-stats"><span class="book-stat">👁 ${course.views} vistas</span><span class="book-stat">♥ ${course.likes}</span></div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function deleteCourse(e, courseId) {
+    e.stopPropagation();
+    if (!confirm("¿Eliminar este curso por completo de la academia?")) return;
+    const courses = getCourses().filter(c => c.id !== courseId);
+    saveCourses(courses);
+    renderCourses();
+    
+    abrirPdfDB().then(db => {
+      const tx = db.transaction('videos', 'readwrite');
+      tx.objectStore('videos').delete(courseId);
+    }).catch(e => {});
+  }
+
+  async function guardarVideoEnDB(courseId, arrayBuffer, filename) {
+    const db = await abrirPdfDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('videos', 'readwrite');
+      tx.objectStore('videos').put({ id: courseId, data: arrayBuffer, filename });
+      tx.oncomplete = resolve; tx.onerror = reject;
+    });
+  }
+
+  async function cargarVideoDeDB(courseId) {
+    const db = await abrirPdfDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('videos', 'readonly');
+      const req = tx.objectStore('videos').get(courseId);
+      req.onsuccess = e => {
+        if (e.target.result) {
+          const blob = new Blob([e.target.result.data], { type: 'video/mp4' });
+          resolve(URL.createObjectURL(blob));
+        } else resolve(null);
+      };
+      req.onerror = reject;
+    });
+  }
+
+  async function openCourse(courseId) {
+    currentCourseId = courseId;
+    const courses = getCourses();
+    const course = courses.find(c => c.id === courseId);
+    if (!course) return;
+    
+    course.views++;
+    saveCourses(courses);
+    
+    document.getElementById('course-view-title').textContent = course.title;
+    document.getElementById('course-view-instructor').textContent = course.instructor;
+    document.getElementById('course-view-description').textContent = course.description;
+    
+    const playerContainer = document.getElementById('video-player-container');
+    playerContainer.innerHTML = `<div class="loading-reader"><div class="spin"></div><p style="color:var(--muted);font-size:.9rem;">Preparando reproductor...</p></div>`;
+    
+    showScreen('course-view');
+    
+    if (course.video_source === 'local') {
+      try {
+        const videoUrl = await cargarVideoDeDB(course.id);
+        if (videoUrl) {
+          playerContainer.innerHTML = `<video src="${videoUrl}" controls style="width:100%;height:100%;object-fit:contain;background:#000;border-radius:20px;" id="academy-video-element"></video>`;
+          setupVideoRewards();
+        } else {
+          playerContainer.innerHTML = `<div style="text-align:center;color:var(--muted);padding:40px;">⚠️ El archivo de video local no fue encontrado en este navegador.</div>`;
+        }
+      } catch(err) {
+        playerContainer.innerHTML = `<div style="text-align:center;color:var(--muted);padding:40px;">❌ Error al cargar video: ${err.message}</div>`;
+      }
+    } else {
+      let embedUrl = course.youtube_url;
+      if (embedUrl.includes('watch?v=')) {
+        const vid = embedUrl.split('v=')[1].split('&')[0];
+        embedUrl = `https://www.youtube.com/embed/${vid}`;
+      } else if (embedUrl.includes('youtu.be/')) {
+        const vid = embedUrl.split('youtu.be/')[1].split('?')[0];
+        embedUrl = `https://www.youtube.com/embed/${vid}`;
+      }
+      playerContainer.innerHTML = `<iframe src="${embedUrl}" allowfullscreen style="width:100%;height:100%;border:none;background:#000;border-radius:20px;"></iframe>`;
+      setupIframeRewards();
+    }
+    
+    renderCourseReviews(courseId);
+  }
+
+  let videoRewardsTimer = null;
+  
+  function setupVideoRewards() {
+    if (videoRewardsTimer) clearTimeout(videoRewardsTimer);
+    const videoEl = document.getElementById('academy-video-element');
+    if (!videoEl || !currentUser) return;
+    
+    let rewarded = false;
+    videoEl.addEventListener('timeupdate', () => {
+      if (videoEl.currentTime >= 10 && !rewarded) {
+        rewarded = true;
+        rewardAethersForStudy();
+      }
+    });
+  }
+  
+  function setupIframeRewards() {
+    if (videoRewardsTimer) clearTimeout(videoRewardsTimer);
+    if (!currentUser) return;
+    videoRewardsTimer = setTimeout(() => {
+      rewardAethersForStudy();
+    }, 10000);
+  }
+  
+  function rewardAethersForStudy() {
+    const users = getUsers();
+    const u = users.find(x => x.id === currentUser.id);
+    if (u) {
+      u.rayos += 15;
+      saveUsers(users);
+      currentUser.rayos = u.rayos;
+      updateNavUser();
+      
+      const notif = document.getElementById('rayos-notif');
+      notif.querySelector('h4').textContent = "¡+15 Aethers Ganados!";
+      notif.querySelector('p').textContent = "Estudiar tiene su recompensa";
+      notif.classList.add('show');
+      setTimeout(() => notif.classList.remove('show'), 3500);
+    }
+  }
+
+  function getCourseReviews() {
+    const s = localStorage.getItem('aether_course_reviews');
+    return s ? JSON.parse(s) : [];
+  }
+  
+  function saveCourseReviews(r) {
+    localStorage.setItem('aether_course_reviews', JSON.stringify(r));
+  }
+
+  function renderCourseReviews(courseId) {
+    const reviews = getCourseReviews().filter(r => r.course_id === courseId);
+    const card = document.getElementById('course-reviews-card');
+    
+    card.innerHTML = `
+      <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:12px;color:var(--text);">💬 Preguntas y Comentarios</h3>
+      ${currentUser ? `
+        <div style="margin-bottom:20px;">
+          <textarea id="course-comment-text" placeholder="Haz una pregunta o deja un comentario sobre la clase..." style="min-height:80px;font-size:0.85rem;margin-bottom:10px;width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:12px;outline:none;font-family:inherit;"></textarea>
+          <button class="btn btn-primary btn-sm btn-full" onclick="submitCourseComment(${courseId})">Enviar Comentario</button>
+        </div>
+      ` : `<div style="font-size:0.8rem;color:var(--muted);margin-bottom:20px;">🔒 Inicia sesión para comentar en clase.</div>`}
+      <div style="display:flex;flex-direction:column;gap:14px;max-height:300px;overflow-y:auto;padding-right:6px;">
+        ${reviews.length === 0 
+          ? `<p style="font-size:0.85rem;color:var(--muted);text-align:center;padding:20px;">Sin comentarios aún. ¡Sé el primero en preguntar!</p>` 
+          : reviews.map(r => `
+            <div style="border-bottom:1px solid rgba(255,255,255,0.03);padding-bottom:10px;">
+              <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:4px;">
+                <strong style="color:var(--text);">${r.user_name}</strong>
+                <span style="color:var(--dim);">${new Date(r.created_at).toLocaleDateString()}</span>
+              </div>
+              <p style="font-size:0.85rem;color:var(--muted);line-height:1.4;">${r.comment}</p>
+            </div>
+          `).join('')}
+      </div>
+    `;
+  }
+
+  function submitCourseComment(courseId) {
+    const txt = document.getElementById('course-comment-text');
+    if (!txt || !txt.value.trim()) return;
+    const comments = getCourseReviews();
+    comments.push({
+      id: Date.now(),
+      course_id: courseId,
+      user_id: currentUser.id,
+      user_name: currentUser.name,
+      comment: txt.value.trim(),
+      created_at: new Date().toISOString()
+    });
+    saveCourseReviews(comments);
+    renderCourseReviews(courseId);
+  }
+
+  function toggleVideoSourceInput() {
+    const src = document.getElementById('course-video-source').value;
+    document.getElementById('local-video-group').style.display = src === 'local' ? 'block' : 'none';
+    document.getElementById('youtube-video-group').style.display = src === 'youtube' ? 'block' : 'none';
+  }
+
+  function handleCourseVideoSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    selectedCourseVideoFile = file;
+    const sizeMB = Math.round(file.size/1024/1024*10)/10;
+    const el = document.getElementById('course-video-selected');
+    el.innerHTML = `✅ Video seleccionado: <strong>${file.name}</strong> (${sizeMB} MB)`;
+    el.style.display = 'block';
+  }
+
+  function handleCourseCoverSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      selectedCourseCoverDataUrl = ev.target.result;
+      document.getElementById('course-cover-status').style.display = 'block';
+      document.getElementById('course-cover-status').textContent = `✅ Portada seleccionada: ${file.name}`;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function doUploadCourse() {
+    if (!currentUser || currentUser.role !== 'admin') return;
+    const title = document.getElementById('course-title').value.trim();
+    const instructor = document.getElementById('course-instructor').value.trim();
+    const category = document.getElementById('course-category').value;
+    const source = document.getElementById('course-video-source').value;
+    const desc = document.getElementById('course-desc').value.trim();
+    
+    if (!title || !instructor || !desc) {
+      alert("Por favor completa los campos obligatorios.");
+      return;
+    }
+    
+    if (source === 'local' && !selectedCourseVideoFile) {
+      alert("Por favor selecciona un archivo de video.");
+      return;
+    }
+    
+    if (source === 'youtube' && !document.getElementById('course-youtube-url').value.trim()) {
+      alert("Por favor ingresa la URL de YouTube.");
+      return;
+    }
+    
+    const btn = document.getElementById('btn-upload-course');
+    btn.disabled = true;
+    btn.textContent = "⏳ Publicando curso...";
+    
+    try {
+      const courses = getCourses();
+      const nextId = courses.reduce((mx, c) => Math.max(mx, c.id), 0) + 1;
+      
+      let coverUrl = selectedCourseCoverDataUrl || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400";
+      
+      if (source === 'local') {
+        const arrayBuf = await selectedCourseVideoFile.arrayBuffer();
+        await guardarVideoEnDB(nextId, arrayBuf, selectedCourseVideoFile.name);
+      }
+      
+      const newCourse = {
+        id: nextId,
+        title,
+        instructor,
+        description: desc,
+        category,
+        video_source: source,
+        youtube_url: source === 'youtube' ? document.getElementById('course-youtube-url').value.trim() : "",
+        cover_image_url: coverUrl,
+        views: 0,
+        likes: 0
+      };
+      
+      courses.push(newCourse);
+      saveCourses(courses);
+      
+      selectedCourseVideoFile = null;
+      selectedCourseCoverDataUrl = null;
+      document.getElementById('course-title').value = '';
+      document.getElementById('course-instructor').value = '';
+      document.getElementById('course-desc').value = '';
+      document.getElementById('course-video-selected').style.display = 'none';
+      document.getElementById('course-cover-status').style.display = 'none';
+      
+      btn.disabled = false;
+      btn.textContent = "🎓 Publicar Curso en la Academia";
+      
+      alert("¡Curso publicado con éxito en la academia!");
+      showScreen('courses');
+      renderCourses();
+      
+    } catch(err) {
+      btn.disabled = false;
+      btn.textContent = "🎓 Publicar Curso en la Academia";
+      alert("Error al publicar curso: " + err.message);
+    }
+  }
+
+  const quotes = [
+    { text: "La educación es el arma más poderosa que puedes usar para cambiar el mundo.", author: "Nelson Mandela" },
+    { text: "El único modo de hacer un gran trabajo es amar lo que haces.", author: "Steve Jobs" },
+    { text: "No hay barrera, cerradura ni cerrojo que puedas imponer a la libertad de mi mente.", author: "Virginia Woolf" },
+    { text: "Vivir sin leer es vivir sin vivir.", author: "Francisco de Quevedo" },
+    { text: "La lectura hace al hombre completo; la conversación ágil, y la escritura preciso.", author: "Francis Bacon" },
+    { text: "Aprender sin reflexionar es malgastar la energía.", author: "Confucio" },
+    { text: "La educación no es preparación para la vida; la educación es la vida en sí misma.", author: "John Dewey" },
+    { text: "Creo que leer es el único modo en el que podemos meternos en la piel de otra persona.", author: "J.K. Rowling" },
+    { text: "La inteligencia no consiste solo en el conocimiento, sino también en la destreza de aplicar los conocimientos en la práctica.", author: "Aristóteles" },
+    { text: "El conocimiento es poder.", author: "Francis Bacon" },
+    { text: "Los libros son el faro que guía a la mente a través de la oscuridad del mar de la ignorancia.", author: "Proverbio antiguo" },
+    { text: "No he fallado. Simplemente he encontrado 10.000 caminos que no funcionan.", author: "Thomas A. Edison" },
+    { text: "La imaginación es más importante que el conocimiento. El conocimiento es limitado y la imaginación da la vuelta al mundo.", author: "Albert Einstein" },
+    { text: "Sólo sé que no sé nada.", author: "Sócrates" },
+    { text: "La lectura es para la mente lo que el ejercicio es para el cuerpo.", author: "Joseph Addison" },
+    { text: "La raíz de la educación es amarga, pero sus frutos son dulces.", author: "Aristóteles" },
+    { text: "Nunca dejes de aprender, porque la vida nunca deja de enseñar.", author: "Anónimo" }
+  ];
+
+  function updateQuotes() {
+    const banners = document.querySelectorAll('.quote-banner');
+    if (!banners.length) return;
+    
+    const idx = Math.floor(Math.random() * quotes.length);
+    const quote = quotes[idx];
+    
+    banners.forEach(banner => {
+      banner.style.opacity = 0;
+      banner.style.transform = 'translateY(5px)';
+      setTimeout(() => {
+        const textEl = banner.querySelector('.quote-text');
+        const authEl = banner.querySelector('.quote-author');
+        if (textEl) textEl.textContent = `“${quote.text}”`;
+        if (authEl) authEl.textContent = `— ${quote.author}`;
+        banner.style.opacity = 1;
+        banner.style.transform = 'translateY(0)';
+      }, 500);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => { 
+    getBooks(); 
+    getCourses(); 
+    renderBooks(); 
+    updateNavUser(); 
+    updateQuotes();
+    setInterval(updateQuotes, 12000);
+  });
+</script>
+</body>
+</html>
