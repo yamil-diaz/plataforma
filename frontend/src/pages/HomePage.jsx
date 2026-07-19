@@ -50,7 +50,7 @@ export default function HomePage() {
     b.author_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const categories = ['Todos', 'Ficción', 'Clásicos', 'Ciencia', 'Negocios', 'General'];
+  const categories = ['Todos', 'Ficción', 'Clásicos', 'Ciencia Ficción', 'Terror', 'Poesía', 'Historia', 'Filosofía', 'Autoayuda', 'Romance', 'Aventura', 'Ciencia', 'Infantil'];
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] pb-16">

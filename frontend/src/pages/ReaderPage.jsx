@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Navbar } from '../components/Navbar';
-import { ChevronLeft, Heart, Zap, Star, Send } from 'lucide-react';
+import { ChevronLeft, Heart, Zap, Star, Send, Download } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 import { API } from '../config/api';
@@ -183,6 +183,20 @@ export default function ReaderPage() {
                   <span>({book.total_reviews} reseñas)</span>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Botón de Descarga PDF */}
+            <div className="mt-6">
+              <a
+                href={`${API}/books/${book._id || book.id}/download`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-[#D92B2B] hover:bg-[#F03C3C] text-white font-semibold px-6 py-3 rounded-lg transition-all duration-200 shadow-lg shadow-[#D92B2B]/20"
+              >
+                <Download className="w-5 h-5" />
+                Descargar PDF
+              </a>
             </div>
           </div>
 

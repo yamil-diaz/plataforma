@@ -368,6 +368,75 @@ async def delete_book(book_id: str, request: Request):
         raise HTTPException(status_code=400, detail=f"Invalid book ID or error: {str(e)}")
 
 
+@api_router.get("/books/{book_id}/download")
+async def download_book_pdf(book_id: int):
+    """Genera un PDF del contenido del libro y lo devuelve para descarga."""
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM books WHERE id = %s", (book_id,))
+    book = cursor.fetchone()
+    db.close()
+
+    if not book:
+        raise HTTPException(status_code=404, detail="Libro no encontrado")
+
+    # Si el libro ya tiene un PDF almacenado, devolverlo
+    if book["pdf_path"] and os.path.isfile(book["pdf_path"]):
+        return FileResponse(
+            book["pdf_path"],
+            media_type="application/pdf",
+            filename=f"{book['title']}.pdf",
+        )
+
+    # Generar PDF del contenido de texto
+    pdf_filename = f"{uuid.uuid4()}_{book_id}.pdf"
+    pdf_path = os.path.join(STORAGE_BOOKS, pdf_filename)
+
+    try:
+        _generate_text_pdf(pdf_path, book["title"], book["author_name"], book["content"])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generando PDF: {str(e)}")
+
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        filename=f"{book['title']}.pdf",
+    )
+
+
+def _generate_text_pdf(output_path: str, title: str, author: str, content: str):
+    """Genera un PDF con portada y contenido formateado usando fpdf2."""
+    from fpdf import FPDF
+
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=25)
+
+    # Pagina de portada
+    pdf.add_page()
+    pdf.set_font("Helvetica", "B", 28)
+    pdf.ln(60)
+    pdf.cell(0, 15, title, ln=True, align="C")
+    pdf.set_font("Helvetica", "I", 16)
+    pdf.ln(10)
+    pdf.cell(0, 10, f"por {author}", ln=True, align="C")
+    pdf.set_font("Helvetica", "", 10)
+    pdf.ln(20)
+    pdf.cell(0, 10, "Generado por Rayos - Plataforma de Lectura", ln=True, align="C")
+
+    # Paginas de contenido
+    pdf.add_page()
+    pdf.set_font("Helvetica", "", 12)
+
+    paragraphs = content.split("\n")
+    for paragraph in paragraphs:
+        paragraph = paragraph.strip()
+        if paragraph:
+            pdf.multi_cell(0, 7, paragraph)
+            pdf.ln(4)
+
+    pdf.output(output_path)
+
+
 @api_router.post("/books")
 async def create_book(
     title: str = Form(...),
