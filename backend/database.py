@@ -17,12 +17,10 @@ if DATABASE_URL.startswith("postgres://"):
 
 
 def get_db():
-    """Devuelve una conexión a PostgreSQL. Úsala con next(get_db())."""
-    conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
-    try:
-        yield conn
-    finally:
-        conn.close()
+    """Crea y devuelve una conexión nueva a PostgreSQL.
+    El llamador es responsable de hacer conn.close() cuando termine.
+    """
+    return psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
 
 
 def init_db():

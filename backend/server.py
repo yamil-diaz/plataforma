@@ -118,7 +118,7 @@ async def get_current_user(request: Request):
         if not user_id:
             raise HTTPException(status_code=401, detail="Token no válido")
 
-        db = next(get_db())
+        db = get_db()
         cursor = db.cursor()
         cursor.execute(
             "SELECT id, name, email, role, rayos_balance FROM users WHERE id = %s",
@@ -186,7 +186,7 @@ async def debug_files():
                 result["files_in_frontend_dist"].append(os.path.join(root, f))
     # Verificar tablas de BD
     try:
-        db = next(get_db())
+        db = get_db()
         cursor = db.cursor()
         cursor.execute("SELECT tablename FROM pg_tables WHERE schemaname='public'")
         result["db_tables"] = [r["tablename"] for r in cursor.fetchall()]
@@ -198,7 +198,7 @@ async def debug_files():
 
 @api_router.post("/register")
 async def register(user_data: UserRegister, response: Response):
-    db = next(get_db())
+    db = get_db()
     cursor = db.cursor()
 
     cursor.execute("SELECT id FROM users WHERE email = %s", (user_data.email,))
@@ -237,7 +237,7 @@ async def register(user_data: UserRegister, response: Response):
 
 @api_router.post("/login")
 async def login(login_data: UserLogin, response: Response):
-    db = next(get_db())
+    db = get_db()
     cursor = db.cursor()
 
     cursor.execute(
@@ -279,7 +279,7 @@ async def get_me(user=Depends(get_current_user)):
 
 @api_router.get("/books")
 async def get_books(category: Optional[str] = None):
-    db = next(get_db())
+    db = get_db()
     cursor = db.cursor()
 
     query = "SELECT * FROM books WHERE published = 1"
@@ -304,7 +304,7 @@ async def get_books(category: Optional[str] = None):
 @api_router.get("/books/{book_id}")
 async def get_book(book_id: str):
     try:
-        db = next(get_db())
+        db = get_db()
         cursor = db.cursor()
 
         cursor.execute("SELECT * FROM books WHERE id = %s", (int(book_id),))
@@ -335,7 +335,7 @@ async def delete_book(book_id: str, request: Request):
         raise HTTPException(status_code=403, detail="No autorizado para borrar libros")
 
     try:
-        db = next(get_db())
+        db = get_db()
         cursor = db.cursor()
 
         cursor.execute(
@@ -382,7 +382,7 @@ async def create_book(
     if user["role"] != "admin":
         raise HTTPException(status_code=403, detail="No autorizado para crear libros")
 
-    db = next(get_db())
+    db = get_db()
     cursor = db.cursor()
 
     pdf_path = None
@@ -450,7 +450,7 @@ async def create_book(
 def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default_price: float):
     import pypdf
 
-    db = next(get_db())
+    db = get_db()
     cursor = db.cursor()
     task_status = import_tasks[task_id]
 
@@ -604,7 +604,7 @@ async def get_import_status(task_id: str, request: Request):
 @api_router.post("/books/{book_id}/reviews")
 async def create_review(book_id: str, review_data: ReviewCreate, request: Request):
     user = await get_current_user(request)
-    db = next(get_db())
+    db = get_db()
     cursor = db.cursor()
 
     try:
@@ -664,7 +664,7 @@ async def create_review(book_id: str, review_data: ReviewCreate, request: Reques
 @api_router.get("/books/{book_id}/reviews")
 async def get_book_reviews(book_id: str):
     try:
-        db = next(get_db())
+        db = get_db()
         cursor = db.cursor()
         cursor.execute(
             "SELECT * FROM reviews WHERE book_id = %s ORDER BY created_at DESC",
@@ -687,7 +687,7 @@ async def get_book_reviews(book_id: str):
 @api_router.post("/rayos/earn")
 async def earn_rayos(transaction_data: RayosTransaction, request: Request):
     user = await get_current_user(request)
-    db = next(get_db())
+    db = get_db()
     cursor = db.cursor()
 
     try:
@@ -719,7 +719,7 @@ async def earn_rayos(transaction_data: RayosTransaction, request: Request):
 @api_router.get("/rayos/transactions")
 async def get_rayos_transactions(request: Request):
     user = await get_current_user(request)
-    db = next(get_db())
+    db = get_db()
     cursor = db.cursor()
 
     cursor.execute(
