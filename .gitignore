@@ -1,7 +1,6 @@
 node_modules/
 backend/database.db
 backend/storage/
-backend/frontend_dist/
 __pycache__/
 *.pyc
 .env
