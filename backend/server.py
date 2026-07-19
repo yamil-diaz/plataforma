@@ -170,18 +170,29 @@ async def health_check():
 
 @api_router.get("/debug/files")
 async def debug_files():
-    """Endpoint temporal para diagnosticar qué archivos existen en Render."""
+    """Endpoint temporal para diagnosticar qué archivos y tablas existen en Render."""
     result = {
         "base_dir": BASE_DIR,
         "frontend_dir": FRONTEND_DIR,
         "frontend_dir_exists": os.path.isdir(FRONTEND_DIR),
         "index_html_exists": os.path.isfile(os.path.join(FRONTEND_DIR, "index.html")),
         "files_in_frontend_dist": [],
+        "db_tables": [],
+        "db_error": None,
     }
     if os.path.isdir(FRONTEND_DIR):
         for root, dirs, files in os.walk(FRONTEND_DIR):
             for f in files:
                 result["files_in_frontend_dist"].append(os.path.join(root, f))
+    # Verificar tablas de BD
+    try:
+        db = next(get_db())
+        cursor = db.cursor()
+        cursor.execute("SELECT tablename FROM pg_tables WHERE schemaname='public'")
+        result["db_tables"] = [r["tablename"] for r in cursor.fetchall()]
+        db.close()
+    except Exception as e:
+        result["db_error"] = str(e)
     return result
 
 
