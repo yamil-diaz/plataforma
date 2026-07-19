@@ -167,6 +167,23 @@ async def health_check():
     return {"status": "ok"}
 
 
+@api_router.get("/debug/files")
+async def debug_files():
+    """Endpoint temporal para diagnosticar qué archivos existen en Render."""
+    result = {
+        "base_dir": BASE_DIR,
+        "frontend_dir": FRONTEND_DIR,
+        "frontend_dir_exists": os.path.isdir(FRONTEND_DIR),
+        "index_html_exists": os.path.isfile(os.path.join(FRONTEND_DIR, "index.html")),
+        "files_in_frontend_dist": [],
+    }
+    if os.path.isdir(FRONTEND_DIR):
+        for root, dirs, files in os.walk(FRONTEND_DIR):
+            for f in files:
+                result["files_in_frontend_dist"].append(os.path.join(root, f))
+    return result
+
+
 @api_router.post("/register")
 async def register(user_data: UserRegister, response: Response):
     db = next(get_db())
