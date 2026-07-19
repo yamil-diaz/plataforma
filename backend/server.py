@@ -26,11 +26,7 @@ from pydantic import BaseModel, Field, EmailStr
 
 from database import init_db, get_db
 
-init_db()
-
-app = FastAPI(title="Lectura Rayos API")
-api_router = APIRouter()
-
+# ── Directorios de almacenamiento ───────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STORAGE_DIR = os.path.join(BASE_DIR, "storage")
 STORAGE_BOOKS = os.path.join(STORAGE_DIR, "books")
@@ -38,8 +34,16 @@ STORAGE_COVERS = os.path.join(STORAGE_DIR, "covers")
 TEMP_DIR = os.path.join(STORAGE_DIR, "temp")
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend_dist")
 
+# Crear directorios ANTES de que FastAPI los monte como StaticFiles
 for directory in (STORAGE_BOOKS, STORAGE_COVERS, TEMP_DIR, FRONTEND_DIR):
     os.makedirs(directory, exist_ok=True)
+
+# ── Inicializar base de datos ────────────────────────────────────────────────
+init_db()
+
+# ── Aplicación FastAPI ───────────────────────────────────────────────────────
+app = FastAPI(title="Lectura Rayos API")
+api_router = APIRouter()
 
 IS_PRODUCTION = os.getenv("RENDER") == "true" or os.getenv("ENV") == "production"
 SECRET_KEY = os.getenv("SECRET_KEY", "clave-super-secreta-lectura-rayos")
@@ -61,11 +65,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Montar archivos estáticos (directorios ya existen porque se crearon arriba)
 app.mount("/static/covers", StaticFiles(directory=STORAGE_COVERS), name="covers")
 app.mount("/static/books", StaticFiles(directory=STORAGE_BOOKS), name="books")
 
 import_tasks: Dict[str, Dict] = {}
 
+
+# ── Utilidades de autenticación ──────────────────────────────────────────────
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
@@ -113,7 +120,7 @@ async def get_current_user(request: Request):
         db = next(get_db())
         cursor = db.cursor()
         cursor.execute(
-            "SELECT id, name, email, role, rayos_balance FROM users WHERE id = ?",
+            "SELECT id, name, email, role, rayos_balance FROM users WHERE id = %s",
             (user_id,),
         )
         row = cursor.fetchone()
@@ -128,6 +135,8 @@ async def get_current_user(request: Request):
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Token no válido")
 
+
+# ── Modelos Pydantic ─────────────────────────────────────────────────────────
 
 class UserRegister(BaseModel):
     name: str
@@ -151,6 +160,8 @@ class ReviewCreate(BaseModel):
     comment: str
 
 
+# ── Endpoints ────────────────────────────────────────────────────────────────
+
 @api_router.get("/health")
 async def health_check():
     return {"status": "ok"}
@@ -161,7 +172,7 @@ async def register(user_data: UserRegister, response: Response):
     db = next(get_db())
     cursor = db.cursor()
 
-    cursor.execute("SELECT id FROM users WHERE email = ?", (user_data.email,))
+    cursor.execute("SELECT id FROM users WHERE email = %s", (user_data.email,))
     if cursor.fetchone():
         raise HTTPException(status_code=400, detail="El correo ya está registrado")
 
@@ -170,11 +181,11 @@ async def register(user_data: UserRegister, response: Response):
 
     try:
         cursor.execute(
-            "INSERT INTO users (name, email, hashed_password, role, rayos_balance, created_at) VALUES (?, ?, ?, 'user', 100, ?)",
+            "INSERT INTO users (name, email, hashed_password, role, rayos_balance, created_at) VALUES (%s, %s, %s, 'user', 100, %s) RETURNING id",
             (user_data.name, user_data.email, hashed, now),
         )
         db.commit()
-        user_id = cursor.lastrowid
+        user_id = cursor.fetchone()["id"]
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error al registrar usuario: {str(e)}")
@@ -201,7 +212,7 @@ async def login(login_data: UserLogin, response: Response):
     cursor = db.cursor()
 
     cursor.execute(
-        "SELECT id, name, email, hashed_password, role, rayos_balance FROM users WHERE email = ?",
+        "SELECT id, name, email, hashed_password, role, rayos_balance FROM users WHERE email = %s",
         (login_data.email,),
     )
     row = cursor.fetchone()
@@ -245,7 +256,7 @@ async def get_books(category: Optional[str] = None):
     query = "SELECT * FROM books WHERE published = 1"
     params = []
     if category:
-        query += " AND category = ?"
+        query += " AND category = %s"
         params.append(category)
 
     query += " ORDER BY views DESC"
@@ -267,13 +278,13 @@ async def get_book(book_id: str):
         db = next(get_db())
         cursor = db.cursor()
 
-        cursor.execute("SELECT * FROM books WHERE id = ?", (int(book_id),))
+        cursor.execute("SELECT * FROM books WHERE id = %s", (int(book_id),))
         row = cursor.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Book not found")
 
         book = dict(row)
-        cursor.execute("UPDATE books SET views = views + 1 WHERE id = ?", (int(book_id),))
+        cursor.execute("UPDATE books SET views = views + 1 WHERE id = %s", (int(book_id),))
         db.commit()
 
         book["views"] += 1
@@ -299,7 +310,7 @@ async def delete_book(book_id: str, request: Request):
         cursor = db.cursor()
 
         cursor.execute(
-            "SELECT id, pdf_path, cover_image_url FROM books WHERE id = ?",
+            "SELECT id, pdf_path, cover_image_url FROM books WHERE id = %s",
             (int(book_id),),
         )
         row = cursor.fetchone()
@@ -321,7 +332,7 @@ async def delete_book(book_id: str, request: Request):
                 except OSError:
                     pass
 
-        cursor.execute("DELETE FROM books WHERE id = ?", (int(book_id),))
+        cursor.execute("DELETE FROM books WHERE id = %s", (int(book_id),))
         db.commit()
         return {"message": "Book deleted successfully"}
     except Exception as e:
@@ -383,12 +394,13 @@ async def create_book(
         cursor.execute(
             """
             INSERT INTO books (title, author_name, content, category, price, cover_image_url, pdf_path, views, likes, average_rating, total_reviews, published, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0.0, 0, 1, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 0, 0, 0.0, 0, 1, %s)
+            RETURNING id
             """,
             (title, author_name, content, category, price, cover_url, pdf_path, now),
         )
         db.commit()
-        book_id = cursor.lastrowid
+        book_id = cursor.fetchone()["id"]
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error al guardar el libro: {str(e)}")
@@ -490,7 +502,7 @@ def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default
                 cursor.execute(
                     """
                     INSERT INTO books (title, author_name, content, category, price, cover_image_url, pdf_path, views, likes, average_rating, total_reviews, published, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0.0, 0, 1, ?)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, 0, 0, 0.0, 0, 1, %s)
                     """,
                     (title, author, content, default_category, default_price, cover_url, final_pdf_path, now),
                 )
@@ -567,12 +579,12 @@ async def create_review(book_id: str, review_data: ReviewCreate, request: Reques
     cursor = db.cursor()
 
     try:
-        cursor.execute("SELECT id FROM books WHERE id = ?", (int(book_id),))
+        cursor.execute("SELECT id FROM books WHERE id = %s", (int(book_id),))
         if not cursor.fetchone():
             raise HTTPException(status_code=404, detail="Libro no encontrado")
 
         cursor.execute(
-            "SELECT id FROM reviews WHERE book_id = ? AND user_id = ?",
+            "SELECT id FROM reviews WHERE book_id = %s AND user_id = %s",
             (int(book_id), int(user["_id"])),
         )
         if cursor.fetchone():
@@ -582,20 +594,21 @@ async def create_review(book_id: str, review_data: ReviewCreate, request: Reques
         cursor.execute(
             """
             INSERT INTO reviews (book_id, user_id, user_name, rating, comment, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id
             """,
             (int(book_id), int(user["_id"]), user["name"], review_data.rating, review_data.comment, now),
         )
         db.commit()
-        review_id = cursor.lastrowid
+        review_id = cursor.fetchone()["id"]
 
-        cursor.execute("SELECT rating FROM reviews WHERE book_id = ?", (int(book_id),))
+        cursor.execute("SELECT rating FROM reviews WHERE book_id = %s", (int(book_id),))
         ratings = [row["rating"] for row in cursor.fetchall()]
         total_reviews = len(ratings)
         average_rating = sum(ratings) / total_reviews if total_reviews > 0 else 0.0
 
         cursor.execute(
-            "UPDATE books SET average_rating = ?, total_reviews = ? WHERE id = ?",
+            "UPDATE books SET average_rating = %s, total_reviews = %s WHERE id = %s",
             (round(average_rating, 1), total_reviews, int(book_id)),
         )
         db.commit()
@@ -625,7 +638,7 @@ async def get_book_reviews(book_id: str):
         db = next(get_db())
         cursor = db.cursor()
         cursor.execute(
-            "SELECT * FROM reviews WHERE book_id = ? ORDER BY created_at DESC",
+            "SELECT * FROM reviews WHERE book_id = %s ORDER BY created_at DESC",
             (int(book_id),),
         )
         rows = cursor.fetchall()
@@ -653,7 +666,7 @@ async def earn_rayos(transaction_data: RayosTransaction, request: Request):
         cursor.execute(
             """
             INSERT INTO rayos_transactions (user_id, amount, type, description, created_at)
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s)
             """,
             (
                 int(user["_id"]),
@@ -664,7 +677,7 @@ async def earn_rayos(transaction_data: RayosTransaction, request: Request):
             ),
         )
         cursor.execute(
-            "UPDATE users SET rayos_balance = rayos_balance + ? WHERE id = ?",
+            "UPDATE users SET rayos_balance = rayos_balance + %s WHERE id = %s",
             (transaction_data.amount, int(user["_id"])),
         )
         db.commit()
@@ -681,7 +694,7 @@ async def get_rayos_transactions(request: Request):
     cursor = db.cursor()
 
     cursor.execute(
-        "SELECT * FROM rayos_transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 100",
+        "SELECT * FROM rayos_transactions WHERE user_id = %s ORDER BY created_at DESC LIMIT 100",
         (int(user["_id"]),),
     )
     rows = cursor.fetchall()
@@ -695,6 +708,7 @@ async def get_rayos_transactions(request: Request):
     return transactions
 
 
+# ── Montar rutas ─────────────────────────────────────────────────────────────
 app.include_router(api_router, prefix="/api")
 
 if os.path.isdir(FRONTEND_DIR) and os.path.isfile(os.path.join(FRONTEND_DIR, "index.html")):

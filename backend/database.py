@@ -1,26 +1,39 @@
-import sqlite3
 import os
+import psycopg2
+import psycopg2.extras
 from datetime import datetime, timezone
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "database.db")
+# Render inyecta DATABASE_URL automáticamente cuando enlazas una PostgreSQL DB
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError(
+        "La variable de entorno DATABASE_URL no está definida. "
+        "Asegúrate de enlazar una base de datos PostgreSQL en Render."
+    )
+
+# psycopg2 requiere 'postgresql://' en vez de 'postgres://' (que usa Render por defecto)
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row  # Permite acceder a las columnas por nombre (como un diccionario)
-    conn.execute("PRAGMA foreign_keys = ON")
+    """Devuelve una conexión a PostgreSQL. Úsala con next(get_db())."""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
     try:
         yield conn
     finally:
         conn.close()
 
+
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    """Crea las tablas e índices si no existen. Inserta datos semilla si la tabla está vacía."""
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
     cursor = conn.cursor()
-    
-    # Crear tabla de usuarios
+
+    # ── Tabla de usuarios ────────────────────────────────────────────────────
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
         email TEXT UNIQUE NOT NULL,
         hashed_password TEXT NOT NULL,
@@ -29,11 +42,11 @@ def init_db():
         created_at TEXT NOT NULL
     )
     """)
-    
-    # Crear tabla de libros
+
+    # ── Tabla de libros ──────────────────────────────────────────────────────
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS books (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         title TEXT NOT NULL,
         author_name TEXT NOT NULL,
         content TEXT NOT NULL,
@@ -49,11 +62,11 @@ def init_db():
         created_at TEXT NOT NULL
     )
     """)
-    
-    # Crear tabla de reseñas
+
+    # ── Tabla de reseñas ─────────────────────────────────────────────────────
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS reviews (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         book_id INTEGER NOT NULL,
         user_id INTEGER NOT NULL,
         user_name TEXT NOT NULL,
@@ -65,29 +78,34 @@ def init_db():
         UNIQUE(book_id, user_id)
     )
     """)
-    
-    # Crear tabla de transacciones de Rayos
+
+    # ── Tabla de transacciones Rayos ─────────────────────────────────────────
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS rayos_transactions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         amount INTEGER NOT NULL,
-        type TEXT NOT NULL, -- 'earned', 'spent'
+        type TEXT NOT NULL,
         description TEXT NOT NULL,
         created_at TEXT NOT NULL,
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )
     """)
-    
-    # Crear índices
+
+    # ── Índices ──────────────────────────────────────────────────────────────
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_books_category ON books(category)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_reviews_book ON reviews(book_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_reviews_book_user ON reviews(book_id, user_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_rayos_user ON rayos_transactions(user_id)")
-    
-    # Insertar datos semilla si la tabla de libros está vacía
-    cursor.execute("SELECT COUNT(*) FROM books")
-    if cursor.fetchone()[0] == 0:
+
+    conn.commit()
+
+    # ── Datos semilla ────────────────────────────────────────────────────────
+    cursor.execute("SELECT COUNT(*) AS cnt FROM books")
+    row = cursor.fetchone()
+    count = row["cnt"] if row else 0
+
+    if count == 0:
         now = datetime.now(timezone.utc).isoformat()
         books_seed = [
             (
@@ -103,12 +121,12 @@ def init_db():
                 4.5,
                 28,
                 1,
-                now
+                now,
             ),
             (
                 "Cien Años de Soledad",
                 "Gabriel García Márquez",
-                "Muchos años después, frente al pelotón de fusilamiento, el coronel Aureliano Buendía había de recordar aquella tarde remota en que su padre lo llevó a conocer el hielo.\nMacondo era entonces una aldea de veinte casas de barro y cañabrava construidas a la orilla de un río de aguas diáfanas que se precipitaban por un lecho de piedras pulidas, blancas y enormes como huevos prehistóricos.\nEl mundo era tan reciente, que muchas cosas carecían de nombre, y para mencionarlas había que señalarlas con el dedo.",
+                "Muchos años después, frente al pelotón de fusilamiento, el coronel Aureliano Buendía había de recordar aquella tarde remota en que su padre lo llevó a conocer el hielo.\nMacondo era entonces una aldea de veinte casas de barro y cañabrava construidas a la orilla de un río de aguas diáfanas que se precipitaban por un lecho de piedras pulidas, blancas y enormes como huevos prehistóricos.",
                 "Clásicos",
                 0.0,
                 "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400",
@@ -118,12 +136,12 @@ def init_db():
                 4.8,
                 35,
                 1,
-                now
+                now,
             ),
             (
                 "Don Quijote de la Mancha",
                 "Miguel de Cervantes",
-                "En un lugar de la Mancha, de cuyo nombre no quiero acordarme, no ha mucho tiempo que vivía un hidalgo de los de lanza en astillero, adarga antigua, rocín flaco y galgo corredor.\nUna olla de algo más vaca que carnero, salpicón las más noches, duelos y quebrantos los sábados, lantejas los viernes, algún palomino de añadidura los domingos, consumían las tres partes de su hacienda.",
+                "En un lugar de la Mancha, de cuyo nombre no quiero acordarme, no ha mucho tiempo que vivía un hidalgo de los de lanza en astillero, adarga antigua, rocín flaco y galgo corredor.",
                 "Clásicos",
                 0.0,
                 "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=400",
@@ -133,12 +151,12 @@ def init_db():
                 4.2,
                 15,
                 1,
-                now
+                now,
             ),
             (
                 "1984",
                 "George Orwell",
-                "Era un día luminoso y frío de abril y los relojes daban las trece.\nWinston Smith, con la barbilla clavada en el pecho en su esfuerzo por burlar el azote del viento, se deslizó rápidamente por las puertas de cristal de las Casas de la Victoria, aunque no con la suficiente rapidez para evitar que una ráfaga de polvo arenoso se colara con él.\nEl vestíbulo olía a col hervida y a esteras de esparto. Al fondo, un cartel de colores, demasiado grande para estar colgado en una habitación, estaba pegado a la pared. Representaba sólo un rostro enorme, de más de un metro de anchura: el rostro de un hombre de unos cuarenta y cinco años, con un bigote negro y espeso y facciones toscas pero atractivas.",
+                "Era un día luminoso y frío de abril y los relojes daban las trece.\nWinston Smith, con la barbilla clavada en el pecho en su esfuerzo por burlar el azote del viento, se deslizó rápidamente por las puertas de cristal de las Casas de la Victoria.",
                 "Ficción",
                 0.0,
                 "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400",
@@ -148,36 +166,53 @@ def init_db():
                 4.6,
                 22,
                 1,
-                now
-            )
+                now,
+            ),
         ]
-        cursor.executemany("""
-        INSERT INTO books (title, author_name, content, category, price, cover_image_url, pdf_path, views, likes, average_rating, total_reviews, published, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, books_seed)
-        
-        # También agregamos un usuario administrador semilla
-        # Contraseña por defecto: "admin123"
-        # Hashed: "$2b$12$ZUXe6118U1i8m5B.QoD0bO51mly1R063q3Lq0aW/R6f1c/7B6W5mC" (bcrypt)
-        cursor.execute("""
-        INSERT INTO users (name, email, hashed_password, role, rayos_balance, created_at)
-        VALUES ('Administrador', 'admin@plataforma.com', '$2b$12$ZUXe6118U1i8m5B.QoD0bO51mly1R063q3Lq0aW/R6f1c/7B6W5mC', 'admin', 500, ?)
-        """, (now,))
-        
-        # Y un usuario lector normal de prueba
-        # Contraseña: "user123"
-        # Hashed: "$2b$12$L7zWw2kZ8jOQ123aM.Z.0e8w/R7z3Lq0aW/R6f1c/7B6W5mC" (simulado/encriptado con bcrypt)
-        # Generamos una encriptación real de prueba para el lector
-        # bcrypt hash para 'user123': $2b$12$Epy8p8M5J4Z2ZkF72/WbC.O9a7Nn3b3h41gYk/x2XGq26uC9Q40x6
-        cursor.execute("""
-        INSERT INTO users (name, email, hashed_password, role, rayos_balance, created_at)
-        VALUES ('Lector de Prueba', 'lector@plataforma.com', '$2b$12$Epy8p8M5J4Z2ZkF72/WbC.O9a7Nn3b3h41gYk/x2XGq26uC9Q40x6', 'user', 100, ?)
-        """, (now,))
-        
+        cursor.executemany(
+            """
+            INSERT INTO books (title, author_name, content, category, price, cover_image_url,
+                               pdf_path, views, likes, average_rating, total_reviews, published, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            books_seed,
+        )
+
+        # Usuario admin semilla  (contraseña: admin123)
+        cursor.execute(
+            """
+            INSERT INTO users (name, email, hashed_password, role, rayos_balance, created_at)
+            VALUES (%s, %s, %s, 'admin', 500, %s)
+            ON CONFLICT (email) DO NOTHING
+            """,
+            (
+                "Administrador",
+                "admin@plataforma.com",
+                "$2b$12$ZUXe6118U1i8m5B.QoD0bO51mly1R063q3Lq0aW/R6f1c/7B6W5mC",
+                now,
+            ),
+        )
+
+        # Usuario lector semilla  (contraseña: user123)
+        cursor.execute(
+            """
+            INSERT INTO users (name, email, hashed_password, role, rayos_balance, created_at)
+            VALUES (%s, %s, %s, 'user', 100, %s)
+            ON CONFLICT (email) DO NOTHING
+            """,
+            (
+                "Lector de Prueba",
+                "lector@plataforma.com",
+                "$2b$12$Epy8p8M5J4Z2ZkF72/WbC.O9a7Nn3b3h41gYk/x2XGq26uC9Q40x6",
+                now,
+            ),
+        )
+
         conn.commit()
-        
+
     conn.close()
+
 
 if __name__ == "__main__":
     init_db()
-    print("Base de datos inicializada correctamente.")
+    print("Base de datos PostgreSQL inicializada correctamente.")
