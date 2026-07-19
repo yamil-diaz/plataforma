@@ -14,49 +14,6 @@
   <body class="bg-[#0A0A0A] text-[#F5F5F5] font-['Outfit'] antialiased">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-    <div id="globeViz" style="width: 480px; height: 420px; margin: 0 auto;"></div>
-    <!-- Carga de librerías del Globo -->
-<script src="https://unpkg.com/three"></script>
-<script src="https://unpkg.com/globe.gl"></script>
-
-<script>
-  const UNIVERSITIES = [
-    { lat: 42.36, lng: -71.09, name: "MIT", country: "Estados Unidos", top: "Aprendizaje profundo" },
-    { lat: 43.66, lng: -79.39, name: "U. de Toronto", country: "Canadá", top: "Redes neuronales" },
-    { lat: 40.42, lng: -3.70, name: "UCM", country: "España", top: "CRISPR" },
-    { lat: 52.09, lng: 5.12, name: "U. de Utrecht", country: "Países Bajos", top: "Bioinformática" },
-    { lat: 34.14, lng: -118.13, name: "Caltech", country: "Estados Unidos", top: "Cosmología" },
-    { lat: -33.45, lng: -70.66, name: "U. de Chile", country: "Chile", top: "Astronomía austral" },
-    { lat: 35.71, lng: 139.76, name: "U. de Tokio", country: "Japón", top: "IA cuántica" },
-    { lat: 51.75, lng: -1.25, name: "U. de Oxford", country: "Reino Unido", top: "Modelos climáticos" },
-    { lat: -23.56, lng: -46.73, name: "USP", country: "Brasil", top: "Ecosistemas" },
-    { lat: 51.51, lng: -0.12, name: "LSE", country: "Reino Unido", top: "Economía" },
-    { lat: 52.51, lng: 13.33, name: "TU Berlín", country: "Alemania", top: "Física de partículas" },
-    { lat: 37.46, lng: 126.95, name: "U. Nacional de Seúl", country: "Corea del Sur", top: "Materiales" },
-    { lat: 44.49, lng: 11.34, name: "U. de Bolonia", country: "Italia", top: "Historia" },
-    { lat: 30.03, lng: 31.21, name: "U. de El Cairo", country: "Egipto", top: "Arqueología" }
-  ];
-
-  const myGlobe = Globe()
-    (document.getElementById('globeViz'))
-    .width(480)
-    .height(420)
-    .backgroundColor('rgba(0,0,0,0)')
-    .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
-    .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
-    .showAtmosphere(true)
-    .atmosphereColor('#3CEBDD')
-    .atmosphereAltitude(0.2)
-    .pointsData(UNIVERSITIES)
-    .pointLat('lat')
-    .pointLng('lng')
-    .pointColor(() => '#3CEBDD')
-    .pointAltitude(0.012)
-    .pointRadius(0.45);
-
-  const controls = myGlobe.controls();
-  controls.autoRotate = true;
-  controls.autoRotateSpeed = 1.1;
-</script>
   </body>
 </html>
+
