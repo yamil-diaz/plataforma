@@ -4,8 +4,7 @@ import axios from 'axios';
 import { Navbar } from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
 import { Star, Eye, Heart, BookOpen, Search, Trash2 } from 'lucide-react';
-
-const API = 'http://localhost:8000/api';
+import { API } from '../config/api';
 
 export default function HomePage() {
   const [books, setBooks] = useState([]);

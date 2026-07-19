@@ -4,7 +4,7 @@ import axios from 'axios';
 import { Navbar } from '../components/Navbar';
 import { ChevronLeft, Layers, FileArchive, AlertCircle, CheckCircle, Info } from 'lucide-react';
 
-const API = 'http://localhost:8000/api';
+import { API } from '../config/api';
 
 export default function AdminImportPage() {
   const [zipFile, setZipFile] = useState(null);

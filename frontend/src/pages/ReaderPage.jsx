@@ -5,7 +5,7 @@ import { Navbar } from '../components/Navbar';
 import { ChevronLeft, Heart, Zap, Star, Send } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
-const API = 'http://localhost:8000/api';
+import { API } from '../config/api';
 
 const StarRating = ({ rating, onRatingChange, interactive = false }) => {
   const [hoverRating, setHoverRating] = useState(0);
