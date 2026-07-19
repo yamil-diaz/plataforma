@@ -35,7 +35,8 @@ TEMP_DIR = os.path.join(STORAGE_DIR, "temp")
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend_dist")
 
 # Crear directorios ANTES de que FastAPI los monte como StaticFiles
-for directory in (STORAGE_BOOKS, STORAGE_COVERS, TEMP_DIR, FRONTEND_DIR):
+# NOTA: FRONTEND_DIR lo crea el build de npm — no lo creamos aquí
+for directory in (STORAGE_BOOKS, STORAGE_COVERS, TEMP_DIR):
     os.makedirs(directory, exist_ok=True)
 
 # ── Inicializar base de datos ────────────────────────────────────────────────
