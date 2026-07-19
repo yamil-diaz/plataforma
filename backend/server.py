@@ -52,12 +52,25 @@ app.mount("/static/books", StaticFiles(directory=os.path.join(STORAGE_DIR, "book
 
 # 2. LA API SIEMPRE VA ANTES DEL FRONTEND (Esto rompe el 404)
 app.include_router(api_router, prefix="/api")
+import os
 
+# Esto nos dirá dónde está parado Python realmente
+print(f"--- DIRECTORIO DE TRABAJO ACTUAL: {os.getcwd()} ---")
+print(f"--- LISTA DE CARPETAS EN ESTE LUGAR: {os.listdir('.')} ---")
 # 3. Servir el Frontend (Se queda al final para que no interfiera)
-@app.get("/")
-def read_index():
-    index_path = os.path.join(BASE_DIR, "frontend_dist", "index.html")
-    return FileResponse(index_path)
+# 3. Servir el Frontend (Solución definitiva)
+@app.get("/{rest_of_path:path}")
+async def serve_frontend(rest_of_path: str):
+    # Intentamos buscar el index.html
+    # Si BASE_DIR apunta a 'backend', la carpeta 'frontend_dist' 
+    # debe estar un nivel arriba, por eso usamos '..'
+    index_path = os.path.join(BASE_DIR, "..", "frontend_dist", "index.html")
+    
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    else:
+        # Esto te dirá exactamente dónde está buscando el archivo
+        return {"error": f"Archivo no encontrado en: {os.path.abspath(index_path)}"}
 
 # 3. Servir el Frontend (Se queda al final para que no interfiera)
 @app.get("/")
