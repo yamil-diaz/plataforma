@@ -198,7 +198,6 @@ export default function ReaderPage() {
                 Descargar PDF
               </a>
             </div>
-          </div>
 
           {/* Contenido de Lectura */}
           <div className="border-t border-white/10 pt-8">
