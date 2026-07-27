@@ -95,13 +95,21 @@ export default function DashboardPage() {
     }
   };
 
-  const handleBanToggle = async (targetId) => {
-    if (!window.confirm("¿Estás seguro de cambiar el estado de baneo de este usuario?")) return;
+  const handleBanToggle = async (userId) => {
     try {
-      const { data } = await axios.put(`${API}/users/${targetId}/ban`, {}, { withCredentials: true });
-      setUsersList(usersList.map(u => u.id === targetId ? { ...u, is_banned: data.is_banned } : u));
+      const { data } = await axios.put(`${API}/users/${userId}/ban`, {}, { withCredentials: true });
+      setUsersList(usersList.map(u => u.id === userId ? { ...u, is_banned: data.is_banned } : u));
     } catch (error) {
-      alert(error.response?.data?.detail || "Error al banear usuario");
+      alert(error.response?.data?.detail || 'Error al actualizar baneo');
+    }
+  };
+
+  const handleRoleChange = async (userId, newRole) => {
+    try {
+      await axios.put(`${API}/users/${userId}/role`, { role: newRole }, { withCredentials: true });
+      setUsersList(usersList.map(u => u.id === userId ? { ...u, role: newRole } : u));
+    } catch (error) {
+      alert(error.response?.data?.detail || 'Error al cambiar rol');
     }
   };
 
@@ -446,10 +454,16 @@ export default function DashboardPage() {
                         <td className="p-4 text-white font-medium">{u.name}</td>
                         <td className="p-4 text-[#A0A0A0] text-sm">{u.email}</td>
                         <td className="p-4 text-sm">
-                          {u.role === 'admin' 
-                            ? <span className="bg-[#D4AF37]/10 text-[#D4AF37] px-2 py-1 rounded text-xs font-semibold uppercase border border-[#D4AF37]/20">Admin</span>
-                            : <span className="bg-white/5 text-[#A0A0A0] px-2 py-1 rounded text-xs font-semibold uppercase border border-white/10">User</span>
-                          }
+                          <select 
+                            value={u.role} 
+                            onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                            disabled={u.role === 'admin'}
+                            className={`px-2 py-1 rounded text-xs font-semibold uppercase border outline-none cursor-pointer ${u.role === 'admin' ? 'bg-[#D4AF37]/10 text-[#D4AF37] border-[#D4AF37]/20 opacity-80 cursor-not-allowed' : 'bg-white/5 text-[#A0A0A0] border-white/10 hover:border-white/30'}`}
+                          >
+                            <option value="user">Lector</option>
+                            <option value="autor">Autor</option>
+                            <option value="admin">Admin</option>
+                          </select>
                         </td>
                         <td className="p-4 text-[#A0A0A0] text-sm text-center font-medium">
                           {u.books_count > 0 ? <span className="text-emerald-400">{u.books_count}</span> : '0'}
