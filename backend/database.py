@@ -37,9 +37,25 @@ def init_db():
         hashed_password TEXT NOT NULL,
         role TEXT DEFAULT 'user',
         rayos_balance INTEGER DEFAULT 0,
+        historical_rayos INTEGER DEFAULT 0,
+        username VARCHAR(50) UNIQUE,
+        bio TEXT,
+        profile_image_url TEXT,
+        favorite_genres TEXT,
+        reset_token VARCHAR(255),
+        reset_token_expiry TIMESTAMP,
         created_at TEXT NOT NULL
     )
     """)
+    
+    # Migraciones seguras para columnas añadidas posteriormente
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255)")
+        cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expiry TIMESTAMP")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        pass
 
     # ── Tabla de libros ──────────────────────────────────────────────────────
     cursor.execute("""

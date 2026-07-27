@@ -190,7 +190,13 @@ export const Navbar = () => {
                     <span className="text-[#A0A0A0] text-xs">/</span>
                     <span className="bg-[#00D4C5] text-black text-xs font-black px-3 py-1 rounded">PLIN</span>
                   </div>
-                  <p className="text-sm text-[#A0A0A0] mb-1">Para usuarios en Perú</p>
+                  <p className="text-sm text-[#A0A0A0] mb-2">Para usuarios en Perú</p>
+                  
+                  {/* QR de Yape */}
+                  <div className="bg-white p-2 rounded-xl inline-block mb-2">
+                    <img src="/yape-qr.jpg" alt="QR Yape" className="w-32 h-32 object-contain" onError={(e) => e.target.style.display='none'} />
+                  </div>
+                  
                   <p className="text-3xl font-black text-white tracking-widest">931 524 201</p>
                 </div>
 

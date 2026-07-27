@@ -9,6 +9,10 @@ from typing import Optional, Dict, List
 
 import jwt
 import bcrypt
+import smtplib
+import traceback
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from fastapi import (
     FastAPI,
     APIRouter,
@@ -41,6 +45,52 @@ FRONTEND_DIR = os.path.join(BASE_DIR, "frontend_dist")
 # NOTA: FRONTEND_DIR lo crea el build de npm — no lo creamos aquí
 for directory in (STORAGE_BOOKS, STORAGE_COVERS, STORAGE_VIDEOS, TEMP_DIR):
     os.makedirs(directory, exist_ok=True)
+
+# ── Configuración de Correo Electrónico (SMTP Gmail) ──────────────────────────
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+SMTP_USERNAME = "yamildiazzz01@gmail.com"
+SMTP_PASSWORD = "cqfc powb ocqn qgzu"
+
+def send_email_async(to_email: str, subject: str, html_content: str):
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"AETERNUM <{SMTP_USERNAME}>"
+        msg["To"] = to_email
+
+        part = MIMEText(html_content, "html")
+        msg.attach(part)
+
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SMTP_USERNAME, SMTP_PASSWORD)
+        server.sendmail(SMTP_USERNAME, to_email, msg.as_string())
+        server.quit()
+    except Exception as e:
+        print(f"Error enviando correo a {to_email}: {e}")
+        traceback.print_exc()
+
+def send_mass_email_async(bcc_emails: list, subject: str, html_content: str):
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"AETERNUM <{SMTP_USERNAME}>"
+        # To field can be empty or set to the sender for BCC
+        msg["To"] = f"AETERNUM <{SMTP_USERNAME}>"
+
+        part = MIMEText(html_content, "html")
+        msg.attach(part)
+
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SMTP_USERNAME, SMTP_PASSWORD)
+        # The second argument of sendmail is the list of actual recipients (envelope TO)
+        server.sendmail(SMTP_USERNAME, bcc_emails, msg.as_string())
+        server.quit()
+    except Exception as e:
+        print(f"Error enviando correo masivo: {e}")
+        traceback.print_exc()
 
 # ── Inicializar base de datos ────────────────────────────────────────────────
 init_db()
@@ -381,12 +431,23 @@ async def forgot_password(req: ForgotPasswordRequest):
     expires_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
     
     cursor.execute(
-        "INSERT INTO password_resets (user_id, token, expires_at) VALUES (%s, %s, %s)",
-        (row["id"], token, expires_at)
+        "UPDATE users SET reset_token = %s, reset_token_expiry = %s WHERE id = %s",
+        (token, expires_at, row["id"])
     )
     db.commit()
-    # In a real app, send an email. For now, print to console.
-    print(f"[CORREO SIMULADO] Enlace de recuperación para {req.email}: https://aeternum-world.onrender.com/reset-password?token={token}")
+    
+    reset_link = f"https://aeternum-world.onrender.com/reset-password?token={token}"
+    html_content = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; text-align: center;">
+        <h2 style="color: #D92B2B;">AETERNUM - Recuperación de Contraseña</h2>
+        <p>Hemos recibido una solicitud para cambiar tu contraseña.</p>
+        <p>Haz clic en el siguiente botón para restablecerla. El enlace expirará en 1 hora.</p>
+        <a href="{reset_link}" style="display: inline-block; padding: 12px 24px; margin: 20px 0; background-color: #D92B2B; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">Restablecer Contraseña</a>
+        <p style="color: #666; font-size: 12px;">Si no solicitaste esto, puedes ignorar este correo.</p>
+    </div>
+    """
+    send_email_async(req.email, "Recupera tu contraseña en AETERNUM", html_content)
+    
     return {"message": "Si el correo existe, se enviará un enlace de recuperación."}
 
 
@@ -398,19 +459,18 @@ class ResetPasswordRequest(BaseModel):
 async def reset_password(req: ResetPasswordRequest):
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT user_id, expires_at, used FROM password_resets WHERE token = %s", (req.token,))
+    cursor.execute("SELECT id, reset_token_expiry FROM users WHERE reset_token = %s", (req.token,))
     row = cursor.fetchone()
     
-    if not row or row["used"]:
+    if not row:
         raise HTTPException(status_code=400, detail="Enlace inválido o ya utilizado.")
         
-    expires_at = datetime.fromisoformat(row["expires_at"])
+    expires_at = datetime.fromisoformat(row["reset_token_expiry"])
     if datetime.now(timezone.utc) > expires_at:
         raise HTTPException(status_code=400, detail="El enlace ha expirado.")
         
     hashed_pw = get_password_hash(req.new_password)
-    cursor.execute("UPDATE users SET hashed_password = %s WHERE id = %s", (hashed_pw, row["user_id"]))
-    cursor.execute("UPDATE password_resets SET used = TRUE WHERE token = %s", (req.token,))
+    cursor.execute("UPDATE users SET hashed_password = %s, reset_token = NULL, reset_token_expiry = NULL WHERE id = %s", (hashed_pw, row["id"]))
     db.commit()
     return {"message": "Contraseña actualizada exitosamente."}
 
@@ -1579,17 +1639,34 @@ async def create_competition(comp: CompetitionCreate, request: Request):
             )
             
         # Notificar a todos los usuarios
-        cursor.execute("SELECT id FROM users")
+        cursor.execute("SELECT id, email FROM users")
         all_users = cursor.fetchall()
         
         notif_msg = f"¡Nuevo torneo disponible: {comp.title} sobre {comp.book_title}!"
+        emails_list = []
         for u in all_users:
             cursor.execute(
                 "INSERT INTO notifications (user_id, type, content, created_at) VALUES (%s, 'system', %s, %s)",
                 (u["id"], notif_msg, now)
             )
-            
+            if u["email"]:
+                emails_list.append(u["email"])
+                
         db.commit()
+        
+        # Enviar correo masivo
+        if emails_list:
+            email_html = f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; text-align: center;">
+                <h2 style="color: #D4AF37;">¡Nuevo Torneo de Lectura!</h2>
+                <p>Se ha anunciado un nuevo torneo en AETERNUM:</p>
+                <h3 style="color: white; background-color: #121212; padding: 15px; border-radius: 10px;">{comp.title} <br> <span style="color: #A0A0A0; font-size: 14px;">Libro Base: {comp.book_title}</span></h3>
+                <p>Fecha programada: {comp.scheduled_at}</p>
+                <a href="https://aeternum-world.onrender.com/competitions" style="display: inline-block; padding: 12px 24px; margin: 20px 0; background-color: #D4AF37; color: black; text-decoration: none; border-radius: 8px; font-weight: bold;">Ir a la Arena</a>
+            </div>
+            """
+            send_mass_email_async(emails_list, f"Nuevo Torneo: {comp.title}", email_html)
+            
     except Exception as e:
         db.rollback()
         db.close()
