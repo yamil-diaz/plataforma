@@ -16,6 +16,9 @@ import CoursePlayerPage from './pages/CoursePlayerPage';
 import AdminCourseFormPage from './pages/AdminCourseFormPage';
 import AdminGutenbergPage from './pages/AdminGutenbergPage';
 import ProfilePage from './pages/ProfilePage';
+import CompetitionsPage from './pages/CompetitionsPage';
+import CompetitionQuizPage from './pages/CompetitionQuizPage';
+import AdminCompetitionPage from './pages/AdminCompetitionPage';
 
 // Componente para proteger rutas (Debe estar autenticado)
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -52,6 +55,8 @@ function AppRoutes() {
       <Route path="/courses" element={<CoursesPage />} />
       <Route path="/courses/:id" element={<CoursePlayerPage />} />
       <Route path="/profile/:id" element={<ProfilePage />} />
+      <Route path="/competitions" element={<CompetitionsPage />} />
+      <Route path="/competitions/:id" element={<CompetitionQuizPage />} />
       
       {/* Rutas Protegidas de Lectura (Debe estar logueado para ganar Rayos y leer) */}
       <Route 
@@ -103,6 +108,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute adminOnly={true}>
             <AdminGutenbergPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin/competitions/new" 
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminCompetitionPage />
           </ProtectedRoute>
         } 
       />

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Zap, LogOut, BookOpen, Layers, Bell, Video } from 'lucide-react';
+import { Zap, LogOut, BookOpen, Layers, Bell, Video, Trophy } from 'lucide-react';
 import axios from 'axios';
 
 const API = import.meta.env.VITE_API_URL || '/api';

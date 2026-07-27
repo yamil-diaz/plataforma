@@ -5,7 +5,7 @@ import shutil
 import random
 import string
 from datetime import datetime, timezone, timedelta
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 
 import jwt
 import bcrypt
@@ -50,6 +50,8 @@ try:
     migrate_db_phase4.migrate()
     import migrate_username
     migrate_username.migrate()
+    import migrate_db_phase4_2
+    migrate_db_phase4_2.migrate()
 except Exception as e:
     print(f"Error ejecutando migración Fase 4: {e}")
 
@@ -168,6 +170,24 @@ class RayosTransaction(BaseModel):
     amount: int
     type: str
     description: str
+
+class CompetitionQuestionCreate(BaseModel):
+    question_text: str
+    option_a: str
+    option_b: str
+    option_c: str
+    option_d: str
+    correct_option: str
+
+class CompetitionCreate(BaseModel):
+    title: str
+    book_id: int
+    scheduled_at: str
+    questions: List[CompetitionQuestionCreate]
+
+class CompetitionSubmit(BaseModel):
+    score: int
+    time_taken_ms: int
 
 
 class ReviewCreate(BaseModel):
@@ -1493,6 +1513,242 @@ async def fetch_gutenberg_book(book_id: int = Form(...), request: Request = None
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Competencias de Lectura ───────────────────────────────────────────────────
+
+@api_router.post("/admin/competitions")
+async def create_competition(comp: CompetitionCreate, request: Request):
+    user = await get_current_user(request)
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Solo administradores pueden crear competencias.")
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        cursor.execute(
+            "INSERT INTO competitions (title, book_id, scheduled_at, status, created_at) VALUES (%s, %s, %s, 'pending', %s) RETURNING id",
+            (comp.title, comp.book_id, comp.scheduled_at, now)
+        )
+        comp_id = cursor.fetchone()["id"]
+        
+        for q in comp.questions:
+            cursor.execute(
+                "INSERT INTO competition_questions (competition_id, question_text, option_a, option_b, option_c, option_d, correct_option) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                (comp_id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_option)
+            )
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        db.close()
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    db.close()
+    return {"message": "Competencia creada con éxito", "id": comp_id}
+
+@api_router.get("/competitions")
+async def get_competitions():
+    db = get_db()
+    cursor = db.cursor()
+    
+    # Auto-update status based on time
+    now_dt = datetime.now(timezone.utc)
+    
+    cursor.execute("SELECT * FROM competitions")
+    all_comps = cursor.fetchall()
+    
+    for c in all_comps:
+        comp_dt = datetime.fromisoformat(c["scheduled_at"])
+        time_diff = (now_dt - comp_dt).total_seconds()
+        
+        new_status = c["status"]
+        if c["status"] == "pending" and time_diff >= 0:
+            new_status = "active"
+        
+        # If it's been active for more than 15 minutes, auto-complete
+        if c["status"] == "active" and time_diff > 900:
+            new_status = "completed"
+            
+        if new_status != c["status"]:
+            cursor.execute("UPDATE competitions SET status = %s WHERE id = %s", (new_status, c["id"]))
+            c["status"] = new_status
+            
+    db.commit()
+            
+    cursor.execute("""
+        SELECT c.*, b.title as book_title, b.cover_image_url
+        FROM competitions c
+        JOIN books b ON c.book_id = b.id
+        ORDER BY c.scheduled_at DESC
+    """)
+    comps = cursor.fetchall()
+    db.close()
+    return comps
+
+@api_router.get("/competitions/{comp_id}")
+async def get_competition_details(comp_id: int, request: Request):
+    user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    
+    cursor.execute("""
+        SELECT c.*, b.title as book_title, b.cover_image_url
+        FROM competitions c
+        JOIN books b ON c.book_id = b.id
+        WHERE c.id = %s
+    """, (comp_id,))
+    comp = cursor.fetchone()
+    
+    if not comp:
+        db.close()
+        raise HTTPException(status_code=404, detail="Competencia no encontrada")
+        
+    # Check if user is registered
+    cursor.execute("SELECT * FROM competition_participants WHERE competition_id = %s AND user_id = %s", (comp_id, user["id"]))
+    participant = cursor.fetchone()
+    
+    questions = []
+    # If active and registered, return questions
+    if comp["status"] == "active" and participant and participant["status"] == "registered":
+        cursor.execute("SELECT id, question_text, option_a, option_b, option_c, option_d FROM competition_questions WHERE competition_id = %s", (comp_id,))
+        questions = cursor.fetchall()
+        
+    db.close()
+    return {
+        "competition": comp,
+        "participant": participant,
+        "questions": questions
+    }
+
+@api_router.post("/competitions/{comp_id}/join")
+async def join_competition(comp_id: int, request: Request):
+    user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    
+    cursor.execute("SELECT status FROM competitions WHERE id = %s", (comp_id,))
+    comp = cursor.fetchone()
+    if not comp:
+        db.close()
+        raise HTTPException(status_code=404, detail="Competencia no encontrada")
+        
+    if comp["status"] != "pending":
+        db.close()
+        raise HTTPException(status_code=400, detail="La competencia ya inició o finalizó")
+        
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        cursor.execute(
+            "INSERT INTO competition_participants (competition_id, user_id, registered_at) VALUES (%s, %s, %s)",
+            (comp_id, user["id"], now)
+        )
+        db.commit()
+    except psycopg2.errors.UniqueViolation:
+        db.rollback()
+        pass # Ya está registrado
+    finally:
+        db.close()
+        
+    return {"message": "Registrado exitosamente"}
+
+@api_router.post("/competitions/{comp_id}/submit")
+async def submit_competition(comp_id: int, submission: CompetitionSubmit, request: Request):
+    user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    
+    cursor.execute("SELECT status FROM competitions WHERE id = %s", (comp_id,))
+    comp = cursor.fetchone()
+    if not comp or comp["status"] != "active":
+        db.close()
+        raise HTTPException(status_code=400, detail="La competencia no está activa")
+        
+    cursor.execute("SELECT * FROM competition_participants WHERE competition_id = %s AND user_id = %s", (comp_id, user["id"]))
+    participant = cursor.fetchone()
+    
+    if not participant or participant["status"] == "submitted":
+        db.close()
+        raise HTTPException(status_code=400, detail="No puedes enviar respuestas")
+        
+    cursor.execute(
+        "UPDATE competition_participants SET score = %s, time_taken_ms = %s, status = 'submitted' WHERE id = %s",
+        (submission.score, submission.time_taken_ms, participant["id"])
+    )
+    db.commit()
+    db.close()
+    return {"message": "Respuestas enviadas correctamente"}
+
+@api_router.get("/competitions/{comp_id}/leaderboard")
+async def get_competition_leaderboard(comp_id: int):
+    db = get_db()
+    cursor = db.cursor()
+    
+    cursor.execute("""
+        SELECT p.score, p.time_taken_ms, p.status, u.id, u.name, u.username, u.profile_image_url
+        FROM competition_participants p
+        JOIN users u ON p.user_id = u.id
+        WHERE p.competition_id = %s AND p.status = 'submitted'
+        ORDER BY p.score DESC, p.time_taken_ms ASC
+    """, (comp_id,))
+    leaderboard = cursor.fetchall()
+    db.close()
+    
+    return leaderboard
+
+@api_router.post("/admin/competitions/{comp_id}/finish")
+async def finish_competition(comp_id: int, request: Request):
+    user = await get_current_user(request)
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    cursor.execute("SELECT status FROM competitions WHERE id = %s", (comp_id,))
+    comp = cursor.fetchone()
+    if not comp or comp["status"] == "completed":
+        db.close()
+        raise HTTPException(status_code=400, detail="Competencia no válida")
+        
+    cursor.execute("UPDATE competitions SET status = 'completed' WHERE id = %s", (comp_id,))
+    
+    # Repartir premios
+    cursor.execute("""
+        SELECT p.user_id 
+        FROM competition_participants p
+        WHERE p.competition_id = %s AND p.status = 'submitted'
+        ORDER BY p.score DESC, p.time_taken_ms ASC
+        LIMIT 3
+    """, (comp_id,))
+    winners = cursor.fetchall()
+    
+    now = datetime.now(timezone.utc).isoformat()
+    prizes = [100, 50, 25]
+    
+    for i, winner in enumerate(winners):
+        user_id = winner["user_id"]
+        prize = prizes[i]
+        
+        # Add Rayos
+        cursor.execute("UPDATE users SET rayos_balance = rayos_balance + %s, historical_rayos = historical_rayos + %s WHERE id = %s", (prize, prize, user_id))
+        cursor.execute("INSERT INTO rayos_transactions (user_id, amount, type, description, created_at) VALUES (%s, %s, 'earned', %s, %s)", 
+            (user_id, prize, f"Premio {i+1}er lugar en competencia", now))
+            
+        # Add Badge to 1st place
+        if i == 0:
+            cursor.execute("SELECT id FROM badges WHERE criteria_type = 'competition_winner'")
+            badge = cursor.fetchone()
+            if badge:
+                try:
+                    cursor.execute("INSERT INTO user_badges (user_id, badge_id, awarded_at) VALUES (%s, %s, %s)", (user_id, badge["id"], now))
+                except psycopg2.errors.UniqueViolation:
+                    pass
+                    
+    db.commit()
+    db.close()
+    return {"message": "Competencia finalizada y premios repartidos"}
 
 
 # ── Montar rutas ─────────────────────────────────────────────────────────────
