@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import Navbar from '../components/Navbar';
+import { Navbar } from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import { Pencil, Trash2, Plus, FileArchive, X } from 'lucide-react';
