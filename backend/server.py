@@ -31,12 +31,13 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STORAGE_DIR = os.path.join(BASE_DIR, "storage")
 STORAGE_BOOKS = os.path.join(STORAGE_DIR, "books")
 STORAGE_COVERS = os.path.join(STORAGE_DIR, "covers")
+STORAGE_VIDEOS = os.path.join(STORAGE_DIR, "videos")
 TEMP_DIR = os.path.join(STORAGE_DIR, "temp")
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend_dist")
 
 # Crear directorios ANTES de que FastAPI los monte como StaticFiles
 # NOTA: FRONTEND_DIR lo crea el build de npm — no lo creamos aquí
-for directory in (STORAGE_BOOKS, STORAGE_COVERS, TEMP_DIR):
+for directory in (STORAGE_BOOKS, STORAGE_COVERS, STORAGE_VIDEOS, TEMP_DIR):
     os.makedirs(directory, exist_ok=True)
 
 # ── Inicializar base de datos ────────────────────────────────────────────────
@@ -69,6 +70,7 @@ app.add_middleware(
 # Montar archivos estáticos (directorios ya existen porque se crearon arriba)
 app.mount("/static/covers", StaticFiles(directory=STORAGE_COVERS), name="covers")
 app.mount("/static/books", StaticFiles(directory=STORAGE_BOOKS), name="books")
+app.mount("/static/videos", StaticFiles(directory=STORAGE_VIDEOS), name="videos")
 
 import_tasks: Dict[str, Dict] = {}
 

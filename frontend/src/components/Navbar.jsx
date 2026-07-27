@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Zap, LogOut, BookOpen, Layers, Bell } from 'lucide-react';
+import { Zap, LogOut, BookOpen, Layers, Bell, Video } from 'lucide-react';
 import axios from 'axios';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
@@ -61,6 +61,11 @@ export const Navbar = () => {
 
         {/* Enlaces de Navegación */}
         <div className="flex items-center gap-6">
+          <Link to="/courses" className="text-sm font-medium text-[#A0A0A0] hover:text-[#F5F5F5] transition-colors flex items-center gap-1.5">
+            <Video className="w-4 h-4" />
+            Cursos
+          </Link>
+
           <Link to="/" className="text-sm font-medium text-[#A0A0A0] hover:text-[#F5F5F5] transition-colors flex items-center gap-1.5">
             <BookOpen className="w-4 h-4" />
             Catálogo

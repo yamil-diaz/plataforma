@@ -11,6 +11,10 @@ import AdminImportPage from './pages/AdminImportPage';
 import DashboardPage from './pages/DashboardPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import CoursesPage from './pages/CoursesPage';
+import CoursePlayerPage from './pages/CoursePlayerPage';
+import AdminCourseFormPage from './pages/AdminCourseFormPage';
+import AdminGutenbergPage from './pages/AdminGutenbergPage';
 
 // Componente para proteger rutas (Debe estar autenticado)
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -44,6 +48,8 @@ function AppRoutes() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/courses" element={<CoursesPage />} />
+      <Route path="/courses/:id" element={<CoursePlayerPage />} />
       
       {/* Rutas Protegidas de Lectura (Debe estar logueado para ganar Rayos y leer) */}
       <Route 
@@ -79,6 +85,22 @@ function AppRoutes() {
         element={
           <ProtectedRoute adminOnly={true}>
             <AdminImportPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin/new-course" 
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminCourseFormPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin/gutenberg" 
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminGutenbergPage />
           </ProtectedRoute>
         } 
       />
