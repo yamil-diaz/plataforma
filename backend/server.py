@@ -575,7 +575,8 @@ async def update_book(
     title: str = Form(None),
     author_name: str = Form(None),
     category: str = Form(None),
-    price: float = Form(None)
+    price: float = Form(None),
+    cover_image: UploadFile = File(None)
 ):
     user = await get_current_user(request)
     db = get_db()
@@ -606,6 +607,17 @@ async def update_book(
     if price is not None:
         updates.append("price = %s")
         params.append(price)
+        
+    if cover_image is not None:
+        import uuid
+        import shutil
+        cover_ext = cover_image.filename.split('.')[-1]
+        cover_filename = f"{uuid.uuid4().hex}.{cover_ext}"
+        cover_path = os.path.join(STORAGE_IMAGES, cover_filename)
+        with open(cover_path, "wb") as buffer:
+            shutil.copyfileobj(cover_image.file, buffer)
+        updates.append("cover_image_url = %s")
+        params.append(f"/static/images/{cover_filename}")
         
     if not updates:
         db.close()

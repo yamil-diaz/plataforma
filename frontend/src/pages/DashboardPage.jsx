@@ -111,7 +111,8 @@ export default function DashboardPage() {
       title: book.title,
       author_name: book.author_name,
       category: book.category,
-      price: book.price || 0
+      price: book.price || 0,
+      cover_image: null
     });
   };
 
@@ -127,6 +128,9 @@ export default function DashboardPage() {
       formData.append('author_name', editForm.author_name);
       formData.append('category', editForm.category);
       formData.append('price', editForm.price);
+      if (editForm.cover_image) {
+        formData.append('cover_image', editForm.cover_image);
+      }
       
       await axios.put(`${API}/books/${editingBook.id}`, formData, { withCredentials: true });
       
@@ -489,6 +493,10 @@ export default function DashboardPage() {
               </button>
             </div>
             <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Portada (Opcional)</label>
+                <input type="file" accept="image/*" onChange={(e) => setEditForm({...editForm, cover_image: e.target.files[0]})} className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2.5 text-[#A0A0A0] focus:border-[#D92B2B] focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#D92B2B]/10 file:text-[#D92B2B] hover:file:bg-[#D92B2B]/20" />
+              </div>
               <div>
                 <label className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Título</label>
                 <input required type="text" value={editForm.title} onChange={(e) => setEditForm({...editForm, title: e.target.value})} className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2.5 text-[#F5F5F5] focus:border-[#D92B2B] focus:outline-none" />
