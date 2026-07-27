@@ -125,8 +125,10 @@ export const Navbar = () => {
                 <span>{user.rayos_balance} Rayos</span>
               </div>
 
-              {/* Nombre de Usuario */}
-              <span className="text-sm text-[#F5F5F5] font-medium hidden sm:inline">{user.name}</span>
+              {/* Nombre de Usuario / Perfil */}
+              <Link to={`/profile/${user.id}`} className="text-sm text-[#F5F5F5] font-medium hidden sm:inline hover:text-blue-400 transition-colors">
+                {user.name}
+              </Link>
 
               {/* Cerrar Sesión */}
               <button

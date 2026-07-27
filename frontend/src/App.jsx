@@ -15,6 +15,7 @@ import CoursesPage from './pages/CoursesPage';
 import CoursePlayerPage from './pages/CoursePlayerPage';
 import AdminCourseFormPage from './pages/AdminCourseFormPage';
 import AdminGutenbergPage from './pages/AdminGutenbergPage';
+import ProfilePage from './pages/ProfilePage';
 
 // Componente para proteger rutas (Debe estar autenticado)
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -50,6 +51,7 @@ function AppRoutes() {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/courses" element={<CoursesPage />} />
       <Route path="/courses/:id" element={<CoursePlayerPage />} />
+      <Route path="/profile/:id" element={<ProfilePage />} />
       
       {/* Rutas Protegidas de Lectura (Debe estar logueado para ganar Rayos y leer) */}
       <Route 

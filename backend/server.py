@@ -43,6 +43,12 @@ for directory in (STORAGE_BOOKS, STORAGE_COVERS, STORAGE_VIDEOS, TEMP_DIR):
 # ── Inicializar base de datos ────────────────────────────────────────────────
 init_db()
 
+try:
+    import migrate_db_phase4
+    migrate_db_phase4.migrate()
+except Exception as e:
+    print(f"Error ejecutando migración Fase 4: {e}")
+
 # ── Aplicación FastAPI ───────────────────────────────────────────────────────
 app = FastAPI(title="Aeternum API")
 api_router = APIRouter()
@@ -404,6 +410,95 @@ async def toggle_ban_user(target_id: int, request: Request):
     db.commit()
     return {"message": "Estado de baneo actualizado exitosamente", "is_banned": new_status}
 
+@api_router.get("/users/profile/{user_id}")
+async def get_user_profile(user_id: int):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("""
+        SELECT id, name, role, rayos_balance, historical_rayos, bio, favorite_genres, profile_image_url, created_at
+        FROM users WHERE id = %s
+    """, (user_id,))
+    user_data = cursor.fetchone()
+    
+    if not user_data:
+        db.close()
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+    cursor.execute("""
+        SELECT b.*, ub.awarded_at
+        FROM user_badges ub
+        JOIN badges b ON ub.badge_id = b.id
+        WHERE ub.user_id = %s
+    """, (user_id,))
+    badges = cursor.fetchall()
+    
+    cursor.execute("""
+        SELECT id, title, cover_image_url, category, likes, views 
+        FROM books 
+        WHERE uploader_id = %s AND published = 1
+    """, (user_id,))
+    published_books = cursor.fetchall()
+    
+    db.close()
+    
+    return {
+        "profile": user_data,
+        "badges": badges,
+        "books": published_books
+    }
+
+@api_router.put("/users/profile/me")
+async def update_my_profile(
+    request: Request,
+    bio: str = Form(None),
+    favorite_genres: str = Form(None),
+    profile_image: UploadFile = File(None)
+):
+    user = await get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="No autorizado")
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    updates = []
+    params = []
+    
+    if bio is not None:
+        updates.append("bio = %s")
+        params.append(bio)
+    if favorite_genres is not None:
+        updates.append("favorite_genres = %s")
+        params.append(favorite_genres)
+        
+    if profile_image is not None:
+        import uuid
+        import shutil
+        ext = profile_image.filename.split('.')[-1]
+        filename = f"{uuid.uuid4().hex}.{ext}"
+        filepath = os.path.join(STORAGE_IMAGES, filename)
+        with open(filepath, "wb") as buffer:
+            shutil.copyfileobj(profile_image.file, buffer)
+        updates.append("profile_image_url = %s")
+        params.append(f"/static/images/{filename}")
+        
+    if not updates:
+        db.close()
+        return {"detail": "Sin cambios"}
+        
+    params.append(user["id"])
+    query = f"UPDATE users SET {', '.join(updates)} WHERE id = %s"
+    
+    try:
+        cursor.execute(query, tuple(params))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        db.close()
+        
+    return {"message": "Perfil actualizado exitosamente"}
 
 
 @api_router.get("/books/pending")
