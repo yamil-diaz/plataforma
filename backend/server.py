@@ -1192,9 +1192,15 @@ async def fetch_gutenberg_book(book_id: int = Form(...), request: Request = None
     import urllib.request
     import json
     
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+    }
+
     try:
         meta_url = f"https://gutendex.com/books/{book_id}"
-        req = urllib.request.Request(meta_url, headers={'User-Agent': 'Mozilla/5.0'})
+        req = urllib.request.Request(meta_url, headers=headers)
         with urllib.request.urlopen(req) as response:
             meta_data = json.loads(response.read().decode())
             
@@ -1211,9 +1217,19 @@ async def fetch_gutenberg_book(book_id: int = Form(...), request: Request = None
         if not text_url:
             raise HTTPException(status_code=400, detail="No se encontró versión en texto para este libro.")
             
-        req2 = urllib.request.Request(text_url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req2) as response:
-            content = response.read().decode('utf-8', errors='ignore')
+        try:
+            req2 = urllib.request.Request(text_url, headers=headers)
+            with urllib.request.urlopen(req2) as response:
+                content = response.read().decode('utf-8', errors='ignore')
+        except Exception as e:
+            if "403" in str(e):
+                # Fallback to a public proxy if Gutenberg blocks the datacenter IP
+                proxy_url = f"https://api.allorigins.win/raw?url={text_url}"
+                req_proxy = urllib.request.Request(proxy_url, headers=headers)
+                with urllib.request.urlopen(req_proxy) as response:
+                    content = response.read().decode('utf-8', errors='ignore')
+            else:
+                raise e
             
         cover_url = meta_data.get("formats", {}).get("image/jpeg", "https://via.placeholder.com/400x600?text=Gutenberg")
         
