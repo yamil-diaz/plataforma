@@ -22,7 +22,8 @@ export default function DashboardPage() {
 
   const fetchMyBooks = async () => {
     try {
-      const { data } = await axios.get(`${API}/users/me/books`, { withCredentials: true });
+      const endpoint = user?.role === 'admin' ? `${API}/books` : `${API}/users/me/books`;
+      const { data } = await axios.get(endpoint, { withCredentials: true });
       setBooks(data);
     } catch (error) {
       console.error('Error fetching books:', error);
@@ -82,8 +83,14 @@ export default function DashboardPage() {
       <main className="max-w-6xl mx-auto px-6 pt-12">
         <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white font-['Outfit']">Panel de Escritor</h1>
-            <p className="text-sm text-[#A0A0A0] mt-1">Gestiona tus publicaciones y sube nuevo contenido.</p>
+            <h1 className="text-3xl font-bold text-white font-['Outfit']">
+              {user?.role === 'admin' ? 'Panel de Administración' : 'Panel de Escritor'}
+            </h1>
+            <p className="text-sm text-[#A0A0A0] mt-1">
+              {user?.role === 'admin' 
+                ? 'Gestiona todo el catálogo de libros de la plataforma.' 
+                : 'Gestiona tus publicaciones y sube nuevo contenido.'}
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <Link to="/admin/new-book" className="flex items-center gap-2 bg-[#D92B2B] hover:bg-[#F03C3C] text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">

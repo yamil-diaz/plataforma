@@ -38,7 +38,7 @@ export const Navbar = () => {
           {user && (
             <Link to="/dashboard" className="text-sm font-medium text-[#A0A0A0] hover:text-[#F5F5F5] transition-colors flex items-center gap-1.5">
               <Layers className="w-4 h-4" />
-              Panel Escritor
+              {user.role === 'admin' ? 'Panel Admin' : 'Panel Escritor'}
             </Link>
           )}
         </div>
