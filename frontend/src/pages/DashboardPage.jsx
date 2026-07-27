@@ -3,14 +3,16 @@ import { Link } from 'react-router-dom';
 import { Navbar } from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
-import { Pencil, Trash2, Plus, FileArchive, X, Users, BookOpen, ShieldAlert } from 'lucide-react';
+import { Pencil, Trash2, Plus, FileArchive, X, Users, BookOpen, ShieldAlert, CheckCircle, Clock, Settings } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const [books, setBooks] = useState([]);
+  const [pendingBooks, setPendingBooks] = useState([]);
   const [usersList, setUsersList] = useState([]);
+  const [settings, setSettings] = useState({});
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('books');
   
@@ -32,6 +34,12 @@ export default function DashboardPage() {
       } else if (activeTab === 'users' && user?.role === 'admin') {
         const { data } = await axios.get(`${API}/users`, { withCredentials: true });
         setUsersList(data);
+      } else if (activeTab === 'pending' && user?.role === 'admin') {
+        const { data } = await axios.get(`${API}/books/pending`, { withCredentials: true });
+        setPendingBooks(data);
+      } else if (activeTab === 'settings' && user?.role === 'admin') {
+        const { data } = await axios.get(`${API}/settings`, { withCredentials: true });
+        setSettings(data);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -47,6 +55,25 @@ export default function DashboardPage() {
       setBooks(books.filter(b => b.id !== bookId));
     } catch (error) {
       alert("Error al eliminar el libro.");
+    }
+  };
+
+  const handleApprove = async (bookId) => {
+    try {
+      await axios.put(`${API}/books/${bookId}/approve`, {}, { withCredentials: true });
+      setPendingBooks(pendingBooks.filter(b => b.id !== bookId));
+    } catch (error) {
+      alert("Error al aprobar.");
+    }
+  };
+
+  const handleReject = async (bookId) => {
+    if (!window.confirm("¿Rechazar y eliminar esta publicación?")) return;
+    try {
+      await axios.delete(`${API}/books/${bookId}/reject`, { withCredentials: true });
+      setPendingBooks(pendingBooks.filter(b => b.id !== bookId));
+    } catch (error) {
+      alert("Error al rechazar.");
     }
   };
 
@@ -105,7 +132,7 @@ export default function DashboardPage() {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-bold text-white font-['Outfit']">
-              {user?.role === 'admin' ? 'Panel de Administración' : 'Panel de Escritor'}
+              {user?.role === 'admin' ? 'Panel de Administración' : 'Panel de Autor'}
             </h1>
             <p className="text-sm text-[#A0A0A0] mt-1">
               {user?.role === 'admin' 
@@ -127,12 +154,18 @@ export default function DashboardPage() {
         </div>
 
         {user?.role === 'admin' && (
-          <div className="flex gap-4 border-b border-white/10 mb-8">
+          <div className="flex flex-wrap gap-4 border-b border-white/10 mb-8">
             <button 
               onClick={() => setActiveTab('books')}
               className={`pb-3 px-2 text-sm font-semibold transition-colors border-b-2 ${activeTab === 'books' ? 'border-[#D92B2B] text-white' : 'border-transparent text-[#A0A0A0] hover:text-[#F5F5F5]'}`}
             >
-              Publicaciones
+              Catálogo Activo
+            </button>
+            <button 
+              onClick={() => setActiveTab('pending')}
+              className={`pb-3 px-2 text-sm font-semibold transition-colors border-b-2 flex items-center gap-1 ${activeTab === 'pending' ? 'border-orange-500 text-orange-400' : 'border-transparent text-[#A0A0A0] hover:text-[#F5F5F5]'}`}
+            >
+              Pendientes
             </button>
             <button 
               onClick={() => setActiveTab('users')}
@@ -160,7 +193,7 @@ export default function DashboardPage() {
                     <tr className="bg-[#1A1A1A] border-b border-white/10 text-[#A0A0A0] text-xs uppercase tracking-wider">
                       <th className="p-4 font-semibold">Título y Portada</th>
                       <th className="p-4 font-semibold">Autor</th>
-                      <th className="p-4 font-semibold">Categoría</th>
+                      <th className="p-4 font-semibold text-center">Estado</th>
                       <th className="p-4 font-semibold text-center">Interacciones</th>
                       <th className="p-4 font-semibold text-right">Acciones</th>
                     </tr>
@@ -175,8 +208,12 @@ export default function DashboardPage() {
                           </div>
                         </td>
                         <td className="p-4 text-[#A0A0A0] text-sm">{book.author_name}</td>
-                        <td className="p-4 text-[#A0A0A0] text-sm">
-                          <span className="bg-[#D92B2B]/10 text-[#D92B2B] px-2 py-1 rounded text-xs font-semibold uppercase">{book.category}</span>
+                        <td className="p-4 text-center">
+                          {book.published === 1 ? (
+                            <span className="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded-full text-[10px] font-bold uppercase border border-emerald-500/20">Aprobado</span>
+                          ) : (
+                            <span className="bg-orange-500/10 text-orange-400 px-2 py-1 rounded-full text-[10px] font-bold uppercase border border-orange-500/20">Pendiente</span>
+                          )}
                         </td>
                         <td className="p-4 text-[#A0A0A0] text-sm text-center">
                           <span className="text-white font-medium">{book.views}</span> vis / <span className="text-white font-medium">{book.likes}</span> likes
@@ -198,8 +235,41 @@ export default function DashboardPage() {
               </div>
             </div>
           )
+        ) : activeTab === 'pending' && user?.role === 'admin' ? (
+          /* PESTAÑA PENDIENTES (SOLO ADMIN) */
+          pendingBooks.length === 0 ? (
+             <div className="bg-[#121212] border border-white/5 rounded-xl p-12 text-center text-[#A0A0A0]">
+               No hay publicaciones pendientes de aprobación.
+             </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {pendingBooks.map(book => (
+                <div key={book.id} className="bg-[#121212] border border-orange-500/30 p-4 rounded-xl shadow-lg flex flex-col gap-4 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 bg-orange-500 text-white text-[10px] font-bold px-3 py-1 uppercase rounded-bl-xl shadow-lg z-10 flex items-center gap-1">
+                    <Clock className="w-3 h-3" /> Revisión Requerida
+                  </div>
+                  <div className="flex gap-4 items-start">
+                    <img src={book.cover_image_url} alt={book.title} className="w-20 h-28 object-cover rounded shadow-md border border-white/10" />
+                    <div>
+                      <h3 className="text-white font-bold text-lg leading-tight">{book.title}</h3>
+                      <p className="text-[#A0A0A0] text-sm mt-1">{book.author_name}</p>
+                      <span className="inline-block mt-2 bg-white/10 text-[#F5F5F5] px-2 py-0.5 rounded text-[10px] uppercase">{book.category}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-auto">
+                    <button onClick={() => handleApprove(book.id)} className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-1">
+                      <CheckCircle className="w-4 h-4" /> Aprobar
+                    </button>
+                    <button onClick={() => handleReject(book.id)} className="flex-1 bg-transparent hover:bg-red-500/10 text-red-500 border border-red-500/30 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-1">
+                      <X className="w-4 h-4" /> Rechazar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
         ) : (
-          /* PESTAÑA USUARIOS */
+          /* PESTAÑA USUARIOS (SOLO ADMIN) */
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-[#121212] border border-white/10 p-5 rounded-xl shadow-lg">
@@ -212,7 +282,7 @@ export default function DashboardPage() {
               <div className="bg-[#121212] border border-white/10 p-5 rounded-xl shadow-lg">
                 <div className="flex items-center gap-3 text-[#A0A0A0] mb-2">
                   <BookOpen className="w-5 h-5 text-emerald-400" />
-                  <span className="text-sm font-semibold uppercase tracking-wider">Total Escritores</span>
+                  <span className="text-sm font-semibold uppercase tracking-wider">Total Autores</span>
                 </div>
                 <div className="text-3xl font-bold text-white">{totalWriters}</div>
               </div>

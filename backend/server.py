@@ -239,9 +239,24 @@ async def register(user_data: UserRegister, response: Response):
 
 
 @api_router.post("/login")
-async def login(login_data: UserLogin, response: Response):
+async def login(login_data: UserLogin, response: Response, request: Request):
     db = get_db()
     cursor = db.cursor()
+    
+    # Rate Limiting check
+    identifier = login_data.email
+    cursor.execute("SELECT attempts, lockout_until FROM login_attempts WHERE ip_address = %s", (identifier,))
+    attempt_row = cursor.fetchone()
+    now_dt = datetime.now(timezone.utc)
+    
+    if attempt_row and attempt_row["lockout_until"]:
+        lockout_time = datetime.fromisoformat(attempt_row["lockout_until"])
+        if now_dt < lockout_time:
+            remaining = int((lockout_time - now_dt).total_seconds() / 60)
+            raise HTTPException(status_code=429, detail=f"Demasiados intentos. Intenta de nuevo en {remaining} minutos.")
+        else:
+            cursor.execute("UPDATE login_attempts SET attempts = 0, lockout_until = NULL WHERE ip_address = %s", (identifier,))
+            db.commit()
 
     cursor.execute(
         "SELECT id, name, email, hashed_password, role, rayos_balance, is_banned FROM users WHERE email = %s",
@@ -249,7 +264,21 @@ async def login(login_data: UserLogin, response: Response):
     )
     row = cursor.fetchone()
     if not row or not verify_password(login_data.password, row["hashed_password"]):
+        # Increment attempt
+        if attempt_row:
+            new_attempts = attempt_row["attempts"] + 1
+            lockout_until = None
+            if new_attempts >= 5:
+                lockout_until = (now_dt + timedelta(minutes=15)).isoformat()
+            cursor.execute("UPDATE login_attempts SET attempts = %s, lockout_until = %s WHERE ip_address = %s", (new_attempts, lockout_until, identifier))
+        else:
+            cursor.execute("INSERT INTO login_attempts (ip_address, attempts) VALUES (%s, 1)", (identifier,))
+        db.commit()
         raise HTTPException(status_code=400, detail="Credenciales incorrectas")
+        
+    # Reset attempts on success
+    cursor.execute("DELETE FROM login_attempts WHERE ip_address = %s", (identifier,))
+    db.commit()
         
     if row.get("is_banned"):
         raise HTTPException(status_code=403, detail="Tu cuenta ha sido suspendida")
@@ -270,6 +299,56 @@ async def login(login_data: UserLogin, response: Response):
         "rayos_balance": row["rayos_balance"],
     }
 
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+@api_router.post("/forgot-password")
+async def forgot_password(req: ForgotPasswordRequest):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT id FROM users WHERE email = %s", (req.email,))
+    row = cursor.fetchone()
+    if not row:
+        # Prevent email enumeration by always returning success
+        return {"message": "Si el correo existe, se enviará un enlace de recuperación."}
+        
+    token = str(uuid.uuid4())
+    expires_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+    
+    cursor.execute(
+        "INSERT INTO password_resets (user_id, token, expires_at) VALUES (%s, %s, %s)",
+        (row["id"], token, expires_at)
+    )
+    db.commit()
+    # In a real app, send an email. For now, print to console.
+    print(f"[CORREO SIMULADO] Enlace de recuperación para {req.email}: https://aeternum-world.onrender.com/reset-password?token={token}")
+    return {"message": "Si el correo existe, se enviará un enlace de recuperación."}
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+@api_router.post("/reset-password")
+async def reset_password(req: ResetPasswordRequest):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT user_id, expires_at, used FROM password_resets WHERE token = %s", (req.token,))
+    row = cursor.fetchone()
+    
+    if not row or row["used"]:
+        raise HTTPException(status_code=400, detail="Enlace inválido o ya utilizado.")
+        
+    expires_at = datetime.fromisoformat(row["expires_at"])
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(status_code=400, detail="El enlace ha expirado.")
+        
+    hashed_pw = get_password_hash(req.new_password)
+    cursor.execute("UPDATE users SET hashed_password = %s WHERE id = %s", (hashed_pw, row["user_id"]))
+    cursor.execute("UPDATE password_resets SET used = TRUE WHERE token = %s", (req.token,))
+    db.commit()
+    return {"message": "Contraseña actualizada exitosamente."}
 
 @api_router.post("/logout")
 async def logout(response: Response):
@@ -324,6 +403,73 @@ async def toggle_ban_user(target_id: int, request: Request):
     return {"message": "Estado de baneo actualizado exitosamente", "is_banned": new_status}
 
 
+
+@api_router.get("/books/pending")
+async def get_pending_books(request: Request):
+    user = await get_current_user(request)
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM books WHERE published = 0 ORDER BY created_at DESC")
+    return cursor.fetchall()
+
+@api_router.put("/books/{book_id}/approve")
+async def approve_book(book_id: int, request: Request):
+    user = await get_current_user(request)
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("UPDATE books SET published = 1 WHERE id = %s RETURNING uploader_id, title", (book_id,))
+    row = cursor.fetchone()
+    if row:
+        now = datetime.now(timezone.utc).isoformat()
+        cursor.execute("INSERT INTO notifications (user_id, message, created_at) VALUES (%s, %s, %s)",
+                       (row["uploader_id"], f"Tu publicación '{row['title']}' ha sido aprobada y ya es pública.", now))
+    db.commit()
+    return {"message": "Libro aprobado"}
+
+@api_router.delete("/books/{book_id}/reject")
+async def reject_book(book_id: int, request: Request):
+    user = await get_current_user(request)
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT uploader_id, title FROM books WHERE id = %s", (book_id,))
+    row = cursor.fetchone()
+    if row:
+        now = datetime.now(timezone.utc).isoformat()
+        cursor.execute("INSERT INTO notifications (user_id, message, created_at) VALUES (%s, %s, %s)",
+                       (row["uploader_id"], f"Tu publicación '{row['title']}' no fue aprobada y ha sido eliminada.", now))
+        cursor.execute("DELETE FROM books WHERE id = %s", (book_id,))
+    db.commit()
+    return {"message": "Libro rechazado y eliminado"}
+
+@api_router.get("/notifications")
+async def get_notifications(request: Request):
+    user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM notifications WHERE user_id = %s ORDER BY created_at DESC", (user["id"],))
+    return cursor.fetchall()
+
+@api_router.put("/notifications/{notif_id}/read")
+async def read_notification(notif_id: int, request: Request):
+    user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("UPDATE notifications SET is_read = TRUE WHERE id = %s AND user_id = %s", (notif_id, user["id"]))
+    db.commit()
+    return {"message": "Notificación leída"}
+
+@api_router.get("/settings")
+async def get_settings():
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT key, value FROM settings")
+    return {row["key"]: row["value"] for row in cursor.fetchall()}
 
 @api_router.get("/books")
 async def get_books(category: Optional[str] = None):
@@ -615,14 +761,16 @@ async def create_book(
 
     now = datetime.now(timezone.utc).isoformat()
 
+    published_status = 1 if user["role"] == "admin" else 0
+
     try:
         cursor.execute(
             """
             INSERT INTO books (title, author_name, content, category, price, cover_image_url, pdf_path, views, likes, average_rating, total_reviews, published, created_at, uploader_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, 0, 0, 0.0, 0, 1, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 0, 0, 0.0, 0, %s, %s, %s)
             RETURNING id
             """,
-            (title, author_name, content, category, price, cover_url, pdf_path, now, user["id"]),
+            (title, author_name, content, category, price, cover_url, pdf_path, published_status, now, user["id"]),
         )
         db.commit()
         book_id = cursor.fetchone()["id"]
