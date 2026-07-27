@@ -41,12 +41,24 @@ export default function AdminCourseFormPage() {
       data.append('cover_file', coverFile);
 
       await axios.post(`${API}/courses`, data, { 
-        withCredentials: true,
-        headers: { 'Content-Type': 'multipart/form-data' }
+        withCredentials: true
       });
       navigate('/courses');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error al subir el curso');
+      console.error(err);
+      let errorMsg = 'Error al subir el curso';
+      if (err.response?.status === 413) {
+        errorMsg = 'El archivo es demasiado grande (Límite sugerido: 50MB).';
+      } else if (err.response?.data?.detail) {
+        if (typeof err.response.data.detail === 'string') {
+          errorMsg = err.response.data.detail;
+        } else if (Array.isArray(err.response.data.detail)) {
+          errorMsg = 'Faltan campos obligatorios o el formato es incorrecto.';
+        }
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+      setError(errorMsg);
       setLoading(false);
     }
   };

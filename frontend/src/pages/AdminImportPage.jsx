@@ -51,9 +51,6 @@ export default function AdminImportPage() {
 
     try {
       const { data } = await axios.post(`${API}/books/import`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        },
         withCredentials: true
       });
       setTaskId(data.task_id);

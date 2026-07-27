@@ -59,9 +59,6 @@ export default function AdminBookFormPage() {
 
     try {
       await axios.post(`${API}/books`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        },
         withCredentials: true
       });
       alert('Libro subido e importado con éxito.');
