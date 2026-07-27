@@ -195,7 +195,7 @@ export const Navbar = () => {
                 </div>
 
                 {/* PAYPAL (INTERNACIONAL) */}
-                <a href="https://paypal.me/" target="_blank" rel="noopener noreferrer" className="block bg-[#00457C] hover:bg-[#005ea6] rounded-2xl p-5 transition-colors group">
+                <a href="https://paypal.me/Jorgeramos1997" target="_blank" rel="noopener noreferrer" className="block bg-[#00457C] hover:bg-[#005ea6] rounded-2xl p-5 transition-colors group">
                   <div className="flex items-center justify-center gap-2 mb-2">
                     <span className="text-white text-lg font-bold italic">PayPal</span>
                   </div>
