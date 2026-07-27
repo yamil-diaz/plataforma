@@ -22,7 +22,7 @@ from fastapi import (
     BackgroundTasks,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, EmailStr
 
@@ -1500,8 +1500,18 @@ app.include_router(api_router, prefix="/api")
 
 if os.path.isdir(FRONTEND_DIR) and os.path.isfile(os.path.join(FRONTEND_DIR, "index.html")):
     app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
-else:
+    
+    # Catch-all route para SPA (React Router)
+    @app.exception_handler(404)
+    async def custom_404_handler(request: Request, exc: HTTPException):
+        # Si la ruta comienza con /api/, devolver 404 real
+        if request.url.path.startswith("/api/"):
+            return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+        
+        # Para cualquier otra ruta, devolver el index.html de React
+        return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
+else:
     @app.get("/")
     async def root_fallback():
         return {
