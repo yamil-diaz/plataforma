@@ -43,7 +43,7 @@ for directory in (STORAGE_BOOKS, STORAGE_COVERS, TEMP_DIR):
 init_db()
 
 # ── Aplicación FastAPI ───────────────────────────────────────────────────────
-app = FastAPI(title="Lectura Rayos API")
+app = FastAPI(title="Aeternum API")
 api_router = APIRouter()
 
 IS_PRODUCTION = os.getenv("RENDER") == "true" or os.getenv("ENV") == "production"
@@ -331,20 +331,21 @@ async def get_book(book_id: str):
 @api_router.delete("/books/{book_id}")
 async def delete_book(book_id: str, request: Request):
     user = await get_current_user(request)
-    if user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="No autorizado para borrar libros")
-
+    
     try:
         db = get_db()
         cursor = db.cursor()
 
         cursor.execute(
-            "SELECT id, pdf_path, cover_image_url FROM books WHERE id = %s",
+            "SELECT id, pdf_path, cover_image_url, uploader_id FROM books WHERE id = %s",
             (int(book_id),),
         )
         row = cursor.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Libro no encontrado")
+
+        if user["role"] != "admin" and row["uploader_id"] != user["id"]:
+            raise HTTPException(status_code=403, detail="No autorizado para borrar este libro")
 
         if row["pdf_path"] and os.path.exists(row["pdf_path"]):
             try:
@@ -363,9 +364,87 @@ async def delete_book(book_id: str, request: Request):
 
         cursor.execute("DELETE FROM books WHERE id = %s", (int(book_id),))
         db.commit()
-        return {"message": "Book deleted successfully"}
+        return {"detail": "Libro borrado exitosamente"}
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid book ID or error: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+@api_router.put("/books/{book_id}")
+async def update_book(
+    book_id: int,
+    request: Request,
+    title: str = Form(None),
+    author_name: str = Form(None),
+    category: str = Form(None),
+    price: float = Form(None)
+):
+    user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    
+    cursor.execute("SELECT uploader_id FROM books WHERE id = %s", (book_id,))
+    row = cursor.fetchone()
+    if not row:
+        db.close()
+        raise HTTPException(status_code=404, detail="Libro no encontrado")
+        
+    if user["role"] != "admin" and row["uploader_id"] != user["id"]:
+        db.close()
+        raise HTTPException(status_code=403, detail="No autorizado para editar este libro")
+        
+    updates = []
+    params = []
+    
+    if title is not None:
+        updates.append("title = %s")
+        params.append(title)
+    if author_name is not None:
+        updates.append("author_name = %s")
+        params.append(author_name)
+    if category is not None:
+        updates.append("category = %s")
+        params.append(category)
+    if price is not None:
+        updates.append("price = %s")
+        params.append(price)
+        
+    if not updates:
+        db.close()
+        return {"detail": "Sin cambios"}
+        
+    params.append(book_id)
+    query = f"UPDATE books SET {', '.join(updates)} WHERE id = %s"
+    
+    try:
+        cursor.execute(query, tuple(params))
+        db.commit()
+        return {"detail": "Libro actualizado exitosamente"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+@api_router.get("/users/me/books")
+async def get_my_books(request: Request):
+    user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute("SELECT * FROM books WHERE uploader_id = %s ORDER BY created_at DESC", (user["id"],))
+        rows = cursor.fetchall()
+        for row in rows:
+            row["_id"] = str(row["id"])
+            row["id"] = row["_id"]
+        return rows
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
 
 
 @api_router.get("/books/{book_id}/download")
@@ -421,7 +500,7 @@ def _generate_text_pdf(output_path: str, title: str, author: str, content: str):
     pdf.cell(0, 10, f"por {author}", ln=True, align="C")
     pdf.set_font("Helvetica", "", 10)
     pdf.ln(20)
-    pdf.cell(0, 10, "Generado por Rayos - Plataforma de Lectura", ln=True, align="C")
+    pdf.cell(0, 10, "Generado por Aeternum - Plataforma de Lectura", ln=True, align="C")
 
     # Paginas de contenido
     pdf.add_page()
@@ -448,8 +527,8 @@ async def create_book(
     request: Request = None,
 ):
     user = await get_current_user(request)
-    if user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="No autorizado para crear libros")
+    if not user:
+        raise HTTPException(status_code=401, detail="No autorizado")
 
     db = get_db()
     cursor = db.cursor()
@@ -491,11 +570,11 @@ async def create_book(
     try:
         cursor.execute(
             """
-            INSERT INTO books (title, author_name, content, category, price, cover_image_url, pdf_path, views, likes, average_rating, total_reviews, published, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, 0, 0, 0.0, 0, 1, %s)
+            INSERT INTO books (title, author_name, content, category, price, cover_image_url, pdf_path, views, likes, average_rating, total_reviews, published, created_at, uploader_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 0, 0, 0.0, 0, 1, %s, %s)
             RETURNING id
             """,
-            (title, author_name, content, category, price, cover_url, pdf_path, now),
+            (title, author_name, content, category, price, cover_url, pdf_path, now, user["id"]),
         )
         db.commit()
         book_id = cursor.fetchone()["id"]

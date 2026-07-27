@@ -11,7 +11,22 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
   const { user } = useAuth();
+  
+  const heroPhrases = [
+    "Descubre Nuevos Mundos",
+    "Aprende Sin Límites",
+    "Vive Mil Vidas",
+    "Expande Tu Mente"
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentPhraseIndex((prev) => (prev + 1) % heroPhrases.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const loadBooks = async () => {
     setLoading(true);
@@ -60,7 +75,7 @@ export default function HomePage() {
       <header className="max-w-7xl mx-auto px-6 pt-16 pb-12 text-center relative">
         <div className="absolute top-10 left-1/2 -translate-x-1/2 w-80 h-80 bg-[#D92B2B]/5 rounded-full blur-[80px] pointer-events-none"></div>
         <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-white mb-4 font-['Outfit']">
-          Lee Libros, Gana <span className="text-[#D92B2B]">Rayos</span>
+          <span className="text-[#D92B2B] transition-opacity duration-500 ease-in-out">{heroPhrases[currentPhraseIndex]}</span> en Aeternum
         </h1>
         <p className="text-lg md:text-xl text-[#A0A0A0] max-w-2xl mx-auto">
           La primera plataforma donde la lectura tiene recompensa. Acumula Rayos leyendo y deja tus reseñas y opiniones de estrellas.

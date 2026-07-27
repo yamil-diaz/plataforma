@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import AdminBookFormPage from './pages/AdminBookFormPage';
 import AdminImportPage from './pages/AdminImportPage';
+import DashboardPage from './pages/DashboardPage';
 
 // Componente para proteger rutas (Debe estar autenticado)
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -50,11 +51,21 @@ function AppRoutes() {
         } 
       />
 
+      {/* Panel de Escritor / Dashboard */}
+      <Route 
+        path="/dashboard" 
+        element={
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        } 
+      />
+
       {/* Rutas Protegidas de Administrador */}
       <Route 
         path="/admin/new-book" 
         element={
-          <ProtectedRoute adminOnly={true}>
+          <ProtectedRoute>
             <AdminBookFormPage />
           </ProtectedRoute>
         } 

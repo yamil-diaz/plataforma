@@ -25,7 +25,7 @@ export const Navbar = () => {
           <div className="w-8 h-8 rounded-lg bg-[#D92B2B] flex items-center justify-center shadow-lg shadow-[#D92B2B]/20">
             <Zap className="w-5 h-5 text-white fill-white" />
           </div>
-          <span className="text-xl font-bold tracking-wider text-white font-['Outfit']">RAYOS</span>
+          <span className="text-xl font-bold tracking-wider text-white font-['Outfit']">AETERNUM</span>
         </Link>
 
         {/* Enlaces de Navegación */}
@@ -35,17 +35,11 @@ export const Navbar = () => {
             Catálogo
           </Link>
 
-          {user && user.role === 'admin' && (
-            <>
-              <Link to="/admin/new-book" className="text-sm font-medium text-[#A0A0A0] hover:text-[#F5F5F5] transition-colors flex items-center gap-1.5">
-                <Upload className="w-4 h-4" />
-                Subir Libro
-              </Link>
-              <Link to="/admin/import" className="text-sm font-medium text-[#A0A0A0] hover:text-[#F5F5F5] transition-colors flex items-center gap-1.5">
-                <Layers className="w-4 h-4" />
-                Importar ZIP
-              </Link>
-            </>
+          {user && (
+            <Link to="/dashboard" className="text-sm font-medium text-[#A0A0A0] hover:text-[#F5F5F5] transition-colors flex items-center gap-1.5">
+              <Layers className="w-4 h-4" />
+              Panel Escritor
+            </Link>
           )}
         </div>
 
