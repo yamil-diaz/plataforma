@@ -1181,6 +1181,94 @@ async def complete_course(course_id: int, request: Request):
         
     return {"message": f"¡Felicidades! Has ganado {course['reward_amount']} Rayos."}
 
+@api_router.delete("/courses/{course_id}")
+async def delete_course(course_id: int, request: Request):
+    user = await get_current_user(request)
+    if not user or user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        # PostgreSQL CASCADE should handle course_progress table if set, 
+        # but just in case, we can manually delete or rely on cascade.
+        cursor.execute("DELETE FROM course_progress WHERE course_id = %s", (course_id,))
+        cursor.execute("DELETE FROM courses WHERE id = %s RETURNING video_url, cover_url", (course_id,))
+        deleted = cursor.fetchone()
+        
+        if not deleted:
+            db.rollback()
+            raise HTTPException(status_code=404, detail="Curso no encontrado")
+            
+        # Opcional: Eliminar los archivos físicos (video_url, cover_url)
+        # por ahora lo dejamos para no complicar la limpieza de archivos
+        
+        db.commit()
+        return {"message": "Curso eliminado correctamente"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@api_router.put("/courses/{course_id}")
+async def update_course(
+    course_id: int,
+    request: Request,
+    title: str = Form(None),
+    description: str = Form(None),
+    instructor: str = Form(None),
+    category: str = Form(None),
+    reward_amount: int = Form(None)
+):
+    user = await get_current_user(request)
+    if not user or user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    db = get_db()
+    cursor = db.cursor()
+    
+    cursor.execute("SELECT id FROM courses WHERE id = %s", (course_id,))
+    if not cursor.fetchone():
+        db.close()
+        raise HTTPException(status_code=404, detail="Curso no encontrado")
+        
+    updates = []
+    params = []
+    
+    if title is not None:
+        updates.append("title = %s")
+        params.append(title)
+    if description is not None:
+        updates.append("description = %s")
+        params.append(description)
+    if instructor is not None:
+        updates.append("instructor = %s")
+        params.append(instructor)
+    if category is not None:
+        updates.append("category = %s")
+        params.append(category)
+    if reward_amount is not None:
+        updates.append("reward_amount = %s")
+        params.append(reward_amount)
+        
+    if not updates:
+        db.close()
+        return {"message": "No hay cambios para actualizar"}
+        
+    params.append(course_id)
+    query = f"UPDATE courses SET {', '.join(updates)} WHERE id = %s"
+    
+    try:
+        cursor.execute(query, tuple(params))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        db.close()
+        
+    return {"message": "Curso actualizado exitosamente"}
+
 
 # --- GUTENBERG ENDPOINT ---
 @api_router.post("/admin/gutenberg/fetch")

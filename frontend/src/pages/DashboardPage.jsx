@@ -10,15 +10,20 @@ const API = import.meta.env.VITE_API_URL || '/api';
 export default function DashboardPage() {
   const { user } = useAuth();
   const [books, setBooks] = useState([]);
+  const [courses, setCourses] = useState([]);
   const [pendingBooks, setPendingBooks] = useState([]);
   const [usersList, setUsersList] = useState([]);
   const [settings, setSettings] = useState({});
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('books');
   
-  // Modal Edit state
+  // Modal Edit state (Books)
   const [editingBook, setEditingBook] = useState(null);
   const [editForm, setEditForm] = useState({ title: '', author_name: '', category: '', price: 0 });
+
+  // Modal Edit state (Courses)
+  const [editingCourse, setEditingCourse] = useState(null);
+  const [editCourseForm, setEditCourseForm] = useState({ title: '', description: '', instructor: '', category: '', reward_amount: 50 });
 
   useEffect(() => {
     fetchData();
@@ -31,6 +36,9 @@ export default function DashboardPage() {
         const endpoint = user?.role === 'admin' ? `${API}/books` : `${API}/users/me/books`;
         const { data } = await axios.get(endpoint, { withCredentials: true });
         setBooks(data);
+      } else if (activeTab === 'courses' && user?.role === 'admin') {
+        const { data } = await axios.get(`${API}/courses`, { withCredentials: true });
+        setCourses(data);
       } else if (activeTab === 'users' && user?.role === 'admin') {
         const { data } = await axios.get(`${API}/users`, { withCredentials: true });
         setUsersList(data);
@@ -55,6 +63,16 @@ export default function DashboardPage() {
       setBooks(books.filter(b => b.id !== bookId));
     } catch (error) {
       alert("Error al eliminar el libro.");
+    }
+  };
+
+  const handleDeleteCourse = async (courseId) => {
+    if (!window.confirm("¿Seguro que deseas eliminar este curso?")) return;
+    try {
+      await axios.delete(`${API}/courses/${courseId}`, { withCredentials: true });
+      setCourses(courses.filter(c => c.id !== courseId));
+    } catch (error) {
+      alert("Error al eliminar el curso.");
     }
   };
 
@@ -121,6 +139,42 @@ export default function DashboardPage() {
     }
   };
 
+  const openEditCourseModal = (course) => {
+    setEditingCourse(course);
+    setEditCourseForm({
+      title: course.title,
+      description: course.description,
+      instructor: course.instructor,
+      category: course.category,
+      reward_amount: course.reward_amount
+    });
+  };
+
+  const closeEditCourseModal = () => {
+    setEditingCourse(null);
+  };
+
+  const handleEditCourseSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const formData = new FormData();
+      formData.append('title', editCourseForm.title);
+      formData.append('description', editCourseForm.description);
+      formData.append('instructor', editCourseForm.instructor);
+      formData.append('category', editCourseForm.category);
+      formData.append('reward_amount', editCourseForm.reward_amount);
+      
+      await axios.put(`${API}/courses/${editingCourse.id}`, formData, { withCredentials: true });
+      
+      setCourses(courses.map(c => c.id === editingCourse.id ? { ...c, ...editCourseForm } : c));
+      closeEditCourseModal();
+      alert("Curso actualizado con éxito");
+    } catch (error) {
+      alert("Error al actualizar el curso.");
+      console.error(error);
+    }
+  };
+
   const totalWriters = usersList.filter(u => u.books_count > 0).length;
   const totalAdmins = usersList.filter(u => u.role === 'admin').length;
   const totalBanned = usersList.filter(u => u.is_banned).length;
@@ -167,7 +221,13 @@ export default function DashboardPage() {
               onClick={() => setActiveTab('books')}
               className={`pb-3 px-2 text-sm font-semibold transition-colors border-b-2 ${activeTab === 'books' ? 'border-[#D92B2B] text-white' : 'border-transparent text-[#A0A0A0] hover:text-[#F5F5F5]'}`}
             >
-              Catálogo Activo
+              Libros
+            </button>
+            <button 
+              onClick={() => setActiveTab('courses')}
+              className={`pb-3 px-2 text-sm font-semibold transition-colors border-b-2 ${activeTab === 'courses' ? 'border-blue-500 text-white' : 'border-transparent text-[#A0A0A0] hover:text-[#F5F5F5]'}`}
+            >
+              Cursos
             </button>
             <button 
               onClick={() => setActiveTab('pending')}
@@ -232,6 +292,55 @@ export default function DashboardPage() {
                               <Pencil className="w-3.5 h-3.5" /> Editar
                             </button>
                             <button onClick={() => handleDelete(book.id)} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/30 rounded-lg transition-colors text-xs font-semibold">
+                              <Trash2 className="w-3.5 h-3.5" /> Borrar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        ) : activeTab === 'courses' && user?.role === 'admin' ? (
+          /* PESTAÑA CURSOS (SOLO ADMIN) */
+          courses.length === 0 ? (
+            <div className="bg-[#121212] border border-white/5 rounded-xl p-12 text-center">
+              <p className="text-[#A0A0A0] mb-4">No hay cursos aún.</p>
+              <Link to="/admin/new-course" className="text-blue-500 hover:underline font-semibold">Comienza a publicar cursos ahora</Link>
+            </div>
+          ) : (
+            <div className="bg-[#121212] border border-white/10 rounded-xl overflow-hidden shadow-xl">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[800px]">
+                  <thead>
+                    <tr className="bg-[#1A1A1A] border-b border-white/10 text-[#A0A0A0] text-xs uppercase tracking-wider">
+                      <th className="p-4 font-semibold">Título y Portada</th>
+                      <th className="p-4 font-semibold">Instructor</th>
+                      <th className="p-4 font-semibold">Categoría</th>
+                      <th className="p-4 font-semibold text-center">Rayos</th>
+                      <th className="p-4 font-semibold text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {courses.map(course => (
+                      <tr key={course.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                        <td className="p-4 text-white font-medium">
+                          <div className="flex items-center gap-3">
+                            <img src={course.cover_url || 'https://via.placeholder.com/50'} alt={course.title} className="w-16 h-12 object-cover rounded-md border border-white/10 shadow-md" />
+                            <span className="line-clamp-2 max-w-[200px]">{course.title}</span>
+                          </div>
+                        </td>
+                        <td className="p-4 text-[#A0A0A0] text-sm">{course.instructor}</td>
+                        <td className="p-4 text-[#A0A0A0] text-sm"><span className="bg-white/5 px-2 py-1 rounded">{course.category}</span></td>
+                        <td className="p-4 text-center text-[#D4AF37] font-bold">+{course.reward_amount}</td>
+                        <td className="p-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button onClick={() => openEditCourseModal(course)} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#D4AF37]/10 text-[#D4AF37] hover:bg-[#D4AF37]/20 border border-[#D4AF37]/30 rounded-lg transition-colors text-xs font-semibold">
+                              <Pencil className="w-3.5 h-3.5" /> Editar
+                            </button>
+                            <button onClick={() => handleDeleteCourse(course.id)} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/30 rounded-lg transition-colors text-xs font-semibold">
                               <Trash2 className="w-3.5 h-3.5" /> Borrar
                             </button>
                           </div>
@@ -416,6 +525,58 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* EDIT COURSE MODAL */}
+      {editingCourse && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#121212] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-fade-in-up">
+            <div className="flex justify-between items-center p-5 border-b border-white/10 bg-[#1A1A1A]">
+              <h2 className="text-xl font-bold text-white">Editar Curso</h2>
+              <button onClick={closeEditCourseModal} className="text-[#A0A0A0] hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleEditCourseSubmit} className="p-6 space-y-5">
+              <div>
+                <label className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Título del Curso</label>
+                <input required type="text" value={editCourseForm.title} onChange={e => setEditCourseForm({...editCourseForm, title: e.target.value})} className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-blue-500 focus:outline-none" />
+              </div>
+              
+              <div>
+                <label className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Instructor</label>
+                <input required type="text" value={editCourseForm.instructor} onChange={e => setEditCourseForm({...editCourseForm, instructor: e.target.value})} className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-blue-500 focus:outline-none" />
+              </div>
+              
+              <div>
+                <label className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Descripción</label>
+                <textarea required rows="3" value={editCourseForm.description} onChange={e => setEditCourseForm({...editCourseForm, description: e.target.value})} className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-blue-500 focus:outline-none"></textarea>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Categoría</label>
+                  <input required type="text" value={editCourseForm.category} onChange={e => setEditCourseForm({...editCourseForm, category: e.target.value})} className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-blue-500 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Recompensa (Rayos)</label>
+                  <input required type="number" min="0" value={editCourseForm.reward_amount} onChange={e => setEditCourseForm({...editCourseForm, reward_amount: e.target.value})} className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-blue-500 focus:outline-none" />
+                </div>
+              </div>
+              
+              <div className="flex gap-3 pt-4 border-t border-white/10">
+                <button type="button" onClick={closeEditCourseModal} className="flex-1 bg-transparent hover:bg-white/5 border border-white/10 text-white font-semibold py-3 rounded-xl transition-colors">
+                  Cancelar
+                </button>
+                <button type="submit" className="flex-1 bg-[#D4AF37] hover:bg-[#F2D06B] text-black font-bold py-3 rounded-xl transition-all shadow-lg">
+                  Guardar Cambios
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
