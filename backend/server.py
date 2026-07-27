@@ -1083,6 +1083,158 @@ async def get_rayos_transactions(request: Request):
     return transactions
 
 
+# --- CURSOS ENDPOINTS ---
+@api_router.get("/courses")
+async def get_courses():
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM courses ORDER BY created_at DESC")
+    return cursor.fetchall()
+
+@api_router.get("/courses/{course_id}")
+async def get_course(course_id: int):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM courses WHERE id = %s", (course_id,))
+    row = cursor.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Curso no encontrado")
+    return row
+
+@api_router.post("/courses")
+async def create_course(
+    title: str = Form(...),
+    description: str = Form(...),
+    instructor: str = Form(...),
+    category: str = Form(...),
+    reward_amount: int = Form(50),
+    video_file: UploadFile = File(...),
+    cover_file: UploadFile = File(...),
+    request: Request = None,
+):
+    user = await get_current_user(request)
+    if not user or user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    db = get_db()
+    cursor = db.cursor()
+
+    unique_video_name = f"{uuid.uuid4()}_{video_file.filename}"
+    video_path = os.path.join(STORAGE_VIDEOS, unique_video_name)
+    with open(video_path, "wb") as buffer:
+        shutil.copyfileobj(video_file.file, buffer)
+    video_url = f"/static/videos/{unique_video_name}"
+
+    unique_cover_name = f"{uuid.uuid4()}_{cover_file.filename}"
+    cover_path = os.path.join(STORAGE_COVERS, unique_cover_name)
+    with open(cover_path, "wb") as buffer:
+        shutil.copyfileobj(cover_file.file, buffer)
+    cover_url = f"/static/covers/{unique_cover_name}"
+
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        cursor.execute(
+            """
+            INSERT INTO courses (title, description, instructor, category, video_url, cover_url, reward_amount, created_at, uploader_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+            """,
+            (title, description, instructor, category, video_url, cover_url, reward_amount, now, user["id"])
+        )
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    return {"message": "Curso creado exitosamente"}
+
+@api_router.post("/courses/{course_id}/complete")
+async def complete_course(course_id: int, request: Request):
+    user = await get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Debes iniciar sesión para obtener recompensas")
+    
+    db = get_db()
+    cursor = db.cursor()
+    
+    cursor.execute("SELECT reward_amount FROM courses WHERE id = %s", (course_id,))
+    course = cursor.fetchone()
+    if not course:
+        raise HTTPException(status_code=404, detail="Curso no encontrado")
+        
+    cursor.execute("SELECT id FROM course_progress WHERE user_id = %s AND course_id = %s", (user["id"], course_id))
+    if cursor.fetchone():
+        raise HTTPException(status_code=400, detail="Ya reclamaste la recompensa de este curso")
+        
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        cursor.execute(
+            "INSERT INTO course_progress (user_id, course_id, completed_at) VALUES (%s, %s, %s)",
+            (user["id"], course_id, now)
+        )
+        cursor.execute(
+            "UPDATE users SET rayos_balance = rayos_balance + %s WHERE id = %s",
+            (course["reward_amount"], user["id"])
+        )
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Error al procesar la recompensa")
+        
+    return {"message": f"¡Felicidades! Has ganado {course['reward_amount']} Rayos."}
+
+
+# --- GUTENBERG ENDPOINT ---
+@api_router.post("/admin/gutenberg/fetch")
+async def fetch_gutenberg_book(book_id: int = Form(...), request: Request = None):
+    user = await get_current_user(request)
+    if not user or user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    import urllib.request
+    import json
+    
+    try:
+        meta_url = f"https://gutendex.com/books/{book_id}"
+        req = urllib.request.Request(meta_url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req) as response:
+            meta_data = json.loads(response.read().decode())
+            
+        title = meta_data.get("title", f"Gutenberg Book {book_id}")
+        authors = meta_data.get("authors", [])
+        author_name = authors[0]["name"] if authors else "Project Gutenberg"
+        
+        text_url = None
+        for fmt, url in meta_data.get("formats", {}).items():
+            if fmt.startswith("text/plain"):
+                text_url = url
+                break
+                
+        if not text_url:
+            raise HTTPException(status_code=400, detail="No se encontró versión en texto para este libro.")
+            
+        req2 = urllib.request.Request(text_url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req2) as response:
+            content = response.read().decode('utf-8', errors='ignore')
+            
+        cover_url = meta_data.get("formats", {}).get("image/jpeg", "https://via.placeholder.com/400x600?text=Gutenberg")
+        
+        now = datetime.now(timezone.utc).isoformat()
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute(
+            """
+            INSERT INTO books (title, author_name, content, category, price, cover_image_url, pdf_path, views, likes, average_rating, total_reviews, published, created_at, uploader_id)
+            VALUES (%s, %s, %s, %s, 0, %s, NULL, 0, 0, 0.0, 0, 1, %s, %s)
+            RETURNING id
+            """,
+            (title, author_name, content[:100000], "Clásicos", cover_url, now, user["id"])
+        )
+        db.commit()
+        return {"message": f"Libro '{title}' importado exitosamente."}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ── Montar rutas ─────────────────────────────────────────────────────────────
 app.include_router(api_router, prefix="/api")
 
