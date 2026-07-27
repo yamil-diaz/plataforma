@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { API } from '../config/api';
@@ -8,7 +8,8 @@ import { Trophy, BookOpen, Clock, Medal, Edit, X, Save } from 'lucide-react';
 
 export default function ProfilePage() {
   const { id } = useParams();
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { user, refreshUser } = useAuth();
   
   const [profile, setProfile] = useState(null);
   const [badges, setBadges] = useState([]);
@@ -69,10 +70,21 @@ export default function ProfilePage() {
       }
       
       await axios.put(`${API}/users/profile/me`, formData, { withCredentials: true });
+      
+      // Update global user state with new username so Navbar updates
+      if (user) {
+        await refreshUser();
+      }
+
       setIsEditing(false);
-      fetchProfile();
+      
+      if (editForm.username && editForm.username !== id) {
+        navigate(`/profile/${editForm.username}`);
+      } else {
+        fetchProfile();
+      }
     } catch (err) {
-      alert("Error al actualizar el perfil.");
+      alert(err.response?.data?.detail || 'Error al actualizar perfil');
     }
   };
 
