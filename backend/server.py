@@ -1882,6 +1882,57 @@ async def unfollow_user(username: str, request: Request):
     db.close()
     return {"message": "Has dejado de seguir a este usuario"}
 
+class DonationRequest(BaseModel):
+    amount: int = Field(gt=0, description="Cantidad de Rayos a donar")
+
+@api_router.post("/users/{username}/donate-rayos")
+async def donate_rayos(username: str, req: DonationRequest, request: Request):
+    donor = await get_current_user(request)
+    if donor["rayos_balance"] < req.amount:
+        raise HTTPException(status_code=400, detail="No tienes suficientes Rayos")
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    try:
+        cursor.execute("SELECT id, username FROM users WHERE username = %s", (username,))
+        target = cursor.fetchone()
+        
+        if not target:
+            raise HTTPException(status_code=404, detail="Usuario receptor no encontrado")
+            
+        if target["id"] == donor["id"]:
+            raise HTTPException(status_code=400, detail="No puedes donarte Rayos a ti mismo")
+            
+        # Deduct from donor
+        cursor.execute("UPDATE users SET rayos_balance = rayos_balance - %s WHERE id = %s", (req.amount, donor["id"]))
+        
+        # Add to receiver
+        cursor.execute("UPDATE users SET rayos_balance = rayos_balance + %s, historical_rayos = historical_rayos + %s WHERE id = %s", 
+            (req.amount, req.amount, target["id"]))
+            
+        now = datetime.now(timezone.utc).isoformat()
+        
+        # Log transaction for donor
+        cursor.execute("INSERT INTO rayos_transactions (user_id, amount, type, description, created_at) VALUES (%s, %s, 'donation_sent', %s, %s)",
+            (donor["id"], -req.amount, f"Donación enviada a @{target['username']}", now))
+            
+        # Log transaction for receiver
+        cursor.execute("INSERT INTO rayos_transactions (user_id, amount, type, description, created_at) VALUES (%s, %s, 'donation_received', %s, %s)",
+            (target["id"], req.amount, f"Donación recibida de @{donor['username']}", now))
+            
+        # Notify receiver
+        cursor.execute("INSERT INTO notifications (user_id, type, content, created_at) VALUES (%s, 'system', %s, %s)",
+            (target["id"], f"¡Felicidades! @{donor['username']} te ha donado {req.amount} Rayos.", now))
+            
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+        
+    return {"message": f"Has donado {req.amount} Rayos exitosamente"}
 
 # ── Montar rutas ─────────────────────────────────────────────────────────────
 app.include_router(api_router, prefix="/api")

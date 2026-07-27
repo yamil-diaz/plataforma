@@ -4,7 +4,7 @@ import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { API } from '../config/api';
 import { Navbar } from '../components/Navbar';
-import { Trophy, BookOpen, Clock, Medal, Edit, X, Save } from 'lucide-react';
+import { Trophy, BookOpen, Clock, Medal, Edit, X, Save, Zap, Heart } from 'lucide-react';
 
 export default function ProfilePage() {
   const { id } = useParams();
@@ -26,6 +26,10 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({ username: '', bio: '', favorite_genres: '', profile_image: null });
   const [previewImage, setPreviewImage] = useState(null);
+  
+  // Donate Modal state
+  const [showDonateModal, setShowDonateModal] = useState(false);
+  const [donateAmount, setDonateAmount] = useState(10);
 
   const isOwnProfile = user && (user.username === id || user.id === parseInt(id));
 
@@ -116,6 +120,19 @@ export default function ProfilePage() {
     }
   };
 
+  const handleDonateRayos = async (e) => {
+    e.preventDefault();
+    if (!user) return navigate('/login');
+    try {
+      await axios.post(`${API}/users/${profile.username}/donate-rayos`, { amount: parseInt(donateAmount) }, { withCredentials: true });
+      alert(`¡Has donado ${donateAmount} Rayos exitosamente!`);
+      setShowDonateModal(false);
+      refreshUser();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Error al donar Rayos');
+    }
+  };
+
   if (loading) return <div className="min-h-screen bg-[#0A0A0A] text-white flex items-center justify-center">Cargando perfil...</div>;
   if (error) return <div className="min-h-screen bg-[#0A0A0A] text-red-500 flex items-center justify-center">{error}</div>;
 
@@ -160,9 +177,14 @@ export default function ProfilePage() {
                     <Edit className="w-4 h-4" /> Editar Perfil
                   </button>
                 ) : !isOwnProfile && user && (
-                  <button onClick={handleFollowToggle} className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all shadow-lg ${isFollowing ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-blue-600 text-white hover:bg-blue-500'}`}>
-                    {isFollowing ? 'Siguiendo' : 'Seguir'}
-                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={handleFollowToggle} className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all shadow-lg ${isFollowing ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-blue-600 text-white hover:bg-blue-500'}`}>
+                      {isFollowing ? 'Siguiendo' : 'Seguir'}
+                    </button>
+                    <button onClick={() => setShowDonateModal(true)} className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all shadow-lg bg-[#D4AF37] text-black hover:bg-[#F3CE56]">
+                      <Heart className="w-4 h-4" /> Donar
+                    </button>
+                  </div>
                 )}
               </div>
               
@@ -227,16 +249,55 @@ export default function ProfilePage() {
                   <label className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Géneros Favoritos (separados por coma)</label>
                   <input type="text" value={editForm.favorite_genres} onChange={e => setEditForm({...editForm, favorite_genres: e.target.value})} className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-blue-500 focus:outline-none" placeholder="Fantasía, Ciencia Ficción, Misterio..." />
                 </div>
-                <div className="flex gap-3 pt-4 border-t border-white/10">
-                  <button type="button" onClick={() => setIsEditing(false)} className="flex-1 bg-transparent hover:bg-white/5 border border-white/10 text-white font-semibold py-3 rounded-xl transition-colors">Cancelar</button>
-                  <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2">
-                    <Save className="w-4 h-4" /> Guardar Cambios
-                  </button>
-                </div>
-              </form>
-            </div>
+                <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+                <button type="button" onClick={() => setIsEditing(false)} className="px-5 py-2.5 rounded-lg text-sm font-bold text-[#A0A0A0] hover:text-white transition-colors">Cancelar</button>
+                <button type="submit" className="px-5 py-2.5 rounded-lg text-sm font-bold bg-[#D92B2B] text-white hover:bg-[#F03C3C] transition-colors flex items-center gap-2 shadow-lg shadow-[#D92B2B]/20">
+                  <Save className="w-4 h-4" /> Guardar Cambios
+                </button>
+              </div>
+            </form>
           </div>
-        )}
+        </div>
+      )}
+
+      {/* DONATE MODAL */}
+      {showDonateModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#121212] border border-white/10 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+            <div className="flex justify-between items-center p-5 border-b border-white/10 bg-[#1A1A1A]">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <Heart className="w-5 h-5 text-red-500 fill-red-500" /> Donar Rayos
+              </h2>
+              <button onClick={() => setShowDonateModal(false)} className="text-[#A0A0A0] hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleDonateRayos} className="p-6">
+              <p className="text-[#A0A0A0] text-sm mb-6 text-center">
+                Apoya a <b>{profile.name}</b> donándole tus Rayos.
+              </p>
+              
+              <div className="flex items-center justify-center gap-4 mb-8">
+                <button type="button" onClick={() => setDonateAmount(10)} className={`px-4 py-2 rounded-lg font-bold border transition-colors ${donateAmount === 10 ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37]' : 'border-white/10 text-[#A0A0A0] hover:border-white/30'}`}>10</button>
+                <button type="button" onClick={() => setDonateAmount(50)} className={`px-4 py-2 rounded-lg font-bold border transition-colors ${donateAmount === 50 ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37]' : 'border-white/10 text-[#A0A0A0] hover:border-white/30'}`}>50</button>
+                <button type="button" onClick={() => setDonateAmount(100)} className={`px-4 py-2 rounded-lg font-bold border transition-colors ${donateAmount === 100 ? 'bg-[#D4AF37]/20 border-[#D4AF37] text-[#D4AF37]' : 'border-white/10 text-[#A0A0A0] hover:border-white/30'}`}>100</button>
+              </div>
+
+              <div className="text-center mb-6">
+                <label className="text-xs text-[#A0A0A0] uppercase mb-1 block">Otra cantidad:</label>
+                <div className="relative inline-block">
+                  <Zap className="w-4 h-4 text-[#D4AF37] absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input type="number" min="1" max={user.rayos_balance} value={donateAmount} onChange={(e) => setDonateAmount(Number(e.target.value))} className="bg-[#0A0A0A] border border-[#D4AF37]/30 rounded-lg pl-10 pr-4 py-2 text-white font-bold w-32 focus:outline-none focus:border-[#D4AF37]" />
+                </div>
+              </div>
+
+              <button type="submit" className="w-full py-3 rounded-xl font-bold bg-gradient-to-r from-[#D4AF37] to-amber-600 text-black hover:opacity-90 transition-opacity shadow-[0_0_15px_rgba(212,175,55,0.4)]">
+                Enviar {donateAmount} Rayos
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
           
