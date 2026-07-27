@@ -146,7 +146,8 @@ export default function DashboardPage() {
       description: course.description,
       instructor: course.instructor,
       category: course.category,
-      reward_amount: course.reward_amount
+      reward_amount: course.reward_amount,
+      cover_image: null
     });
   };
 
@@ -163,6 +164,9 @@ export default function DashboardPage() {
       formData.append('instructor', editCourseForm.instructor);
       formData.append('category', editCourseForm.category);
       formData.append('reward_amount', editCourseForm.reward_amount);
+      if (editCourseForm.cover_image) {
+        formData.append('cover_image', editCourseForm.cover_image);
+      }
       
       await axios.put(`${API}/courses/${editingCourse.id}`, formData, { withCredentials: true });
       
@@ -203,9 +207,6 @@ export default function DashboardPage() {
               <>
                 <Link to="/admin/new-course" className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-lg">
                   <Video className="w-4 h-4" /> Nuevo Curso
-                </Link>
-                <Link to="/admin/gutenberg" className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-lg">
-                  <BookOpen className="w-4 h-4" /> Gutenberg
                 </Link>
                 <Link to="/admin/import" className="flex items-center gap-2 bg-[#121212] border border-white/10 hover:border-white/20 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-lg">
                   <FileArchive className="w-4 h-4" /> ZIP
@@ -538,6 +539,11 @@ export default function DashboardPage() {
             </div>
             
             <form onSubmit={handleEditCourseSubmit} className="p-6 space-y-5">
+              <div>
+                <label className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Miniatura (Opcional)</label>
+                <input type="file" accept="image/*" onChange={e => setEditCourseForm({...editCourseForm, cover_image: e.target.files[0]})} className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-[#A0A0A0] focus:border-blue-500 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-500/10 file:text-blue-500 hover:file:bg-blue-500/20" />
+              </div>
+              
               <div>
                 <label className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Título del Curso</label>
                 <input required type="text" value={editCourseForm.title} onChange={e => setEditCourseForm({...editCourseForm, title: e.target.value})} className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-blue-500 focus:outline-none" />

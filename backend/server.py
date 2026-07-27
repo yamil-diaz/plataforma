@@ -1218,7 +1218,8 @@ async def update_course(
     description: str = Form(None),
     instructor: str = Form(None),
     category: str = Form(None),
-    reward_amount: int = Form(None)
+    reward_amount: int = Form(None),
+    cover_image: UploadFile = File(None)
 ):
     user = await get_current_user(request)
     if not user or user["role"] != "admin":
@@ -1250,6 +1251,17 @@ async def update_course(
     if reward_amount is not None:
         updates.append("reward_amount = %s")
         params.append(reward_amount)
+        
+    if cover_image is not None:
+        import uuid
+        import shutil
+        cover_ext = cover_image.filename.split('.')[-1]
+        cover_filename = f"{uuid.uuid4().hex}.{cover_ext}"
+        cover_path = os.path.join(STORAGE_IMAGES, cover_filename)
+        with open(cover_path, "wb") as buffer:
+            shutil.copyfileobj(cover_image.file, buffer)
+        updates.append("cover_url = %s")
+        params.append(f"/static/images/{cover_filename}")
         
     if not updates:
         db.close()
