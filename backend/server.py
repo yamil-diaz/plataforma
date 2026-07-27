@@ -2,6 +2,8 @@ import os
 import uuid
 import zipfile
 import shutil
+import random
+import string
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict
 
@@ -46,6 +48,8 @@ init_db()
 try:
     import migrate_db_phase4
     migrate_db_phase4.migrate()
+    import migrate_username
+    migrate_username.migrate()
 except Exception as e:
     print(f"Error ejecutando migración Fase 4: {e}")
 
@@ -129,7 +133,7 @@ async def get_current_user(request: Request):
         db = get_db()
         cursor = db.cursor()
         cursor.execute(
-            "SELECT id, name, email, role, rayos_balance, is_banned FROM users WHERE id = %s",
+            "SELECT id, name, email, role, rayos_balance, is_banned, username FROM users WHERE id = %s",
             (user_id,),
         )
         row = cursor.fetchone()
@@ -139,9 +143,8 @@ async def get_current_user(request: Request):
         if row.get("is_banned"):
             raise HTTPException(status_code=403, detail="Tu cuenta ha sido suspendida")
 
-        user = dict(row)
-        user["_id"] = str(user["id"])
-        return user
+        db.close()
+        return row
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Sesión expirada")
     except jwt.InvalidTokenError:
@@ -176,7 +179,16 @@ class ReviewCreate(BaseModel):
 
 @api_router.get("/health")
 async def health_check():
-    return {"status": "ok"}
+    result = {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("SELECT tablename FROM pg_tables WHERE schemaname='public'")
+        result["db_tables"] = [r["tablename"] for r in cursor.fetchall()]
+        db.close()
+    except Exception as e:
+        result["db_error"] = str(e)
+    return result
 
 
 @api_router.get("/debug/files")
@@ -218,11 +230,15 @@ async def register(user_data: UserRegister, response: Response):
 
     hashed = hash_password(user_data.password)
     now = datetime.now(timezone.utc).isoformat()
+    
+    base_username = "".join(c for c in user_data.name.lower() if c.isalnum())
+    random_suffix = "".join(random.choices(string.digits, k=4))
+    username = f"{base_username}{random_suffix}"
 
     try:
         cursor.execute(
-            "INSERT INTO users (name, email, hashed_password, role, rayos_balance, created_at) VALUES (%s, %s, %s, 'user', 100, %s) RETURNING id",
-            (user_data.name, user_data.email, hashed, now),
+            "INSERT INTO users (name, email, hashed_password, role, rayos_balance, created_at, username) VALUES (%s, %s, %s, 'user', 100, %s, %s) RETURNING id",
+            (user_data.name, user_data.email, hashed, now, username),
         )
         db.commit()
         user_id = cursor.fetchone()["id"]
@@ -410,19 +426,30 @@ async def toggle_ban_user(target_id: int, request: Request):
     db.commit()
     return {"message": "Estado de baneo actualizado exitosamente", "is_banned": new_status}
 
-@api_router.get("/users/profile/{user_id}")
-async def get_user_profile(user_id: int):
+@api_router.get("/users/profile/{username}")
+async def get_user_profile(username: str):
     db = get_db()
     cursor = db.cursor()
-    cursor.execute("""
-        SELECT id, name, role, rayos_balance, historical_rayos, bio, favorite_genres, profile_image_url, created_at
-        FROM users WHERE id = %s
-    """, (user_id,))
+    
+    # Soporte retrocompatible por si acaso aún mandan un ID
+    if username.isdigit():
+        cursor.execute("""
+            SELECT id, name, username, role, rayos_balance, historical_rayos, bio, favorite_genres, profile_image_url, created_at
+            FROM users WHERE id = %s
+        """, (int(username),))
+    else:
+        cursor.execute("""
+            SELECT id, name, username, role, rayos_balance, historical_rayos, bio, favorite_genres, profile_image_url, created_at
+            FROM users WHERE username = %s
+        """, (username,))
+        
     user_data = cursor.fetchone()
     
     if not user_data:
         db.close()
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+    user_id = user_data["id"]
         
     cursor.execute("""
         SELECT b.*, ub.awarded_at
@@ -450,6 +477,7 @@ async def get_user_profile(user_id: int):
 @api_router.put("/users/profile/me")
 async def update_my_profile(
     request: Request,
+    username: str = Form(None),
     bio: str = Form(None),
     favorite_genres: str = Form(None),
     profile_image: UploadFile = File(None)
@@ -464,6 +492,15 @@ async def update_my_profile(
     updates = []
     params = []
     
+    if username is not None:
+        # Check if username is already taken
+        cursor.execute("SELECT id FROM users WHERE username = %s AND id != %s", (username, user["id"]))
+        if cursor.fetchone():
+            db.close()
+            raise HTTPException(status_code=400, detail="Ese nombre de usuario ya está en uso")
+        updates.append("username = %s")
+        params.append(username)
+        
     if bio is not None:
         updates.append("bio = %s")
         params.append(bio)

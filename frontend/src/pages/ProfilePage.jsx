@@ -18,10 +18,10 @@ export default function ProfilePage() {
 
   // Edit Mode state
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ bio: '', favorite_genres: '', profile_image: null });
+  const [editForm, setEditForm] = useState({ username: '', bio: '', favorite_genres: '', profile_image: null });
   const [previewImage, setPreviewImage] = useState(null);
 
-  const isOwnProfile = user && user.id === parseInt(id);
+  const isOwnProfile = user && (user.username === id || user.id === parseInt(id));
 
   useEffect(() => {
     fetchProfile();
@@ -34,7 +34,12 @@ export default function ProfilePage() {
       setProfile(data.profile);
       setBadges(data.badges);
       setBooks(data.books);
-      setEditForm({ bio: data.profile.bio || '', favorite_genres: data.profile.favorite_genres || '', profile_image: null });
+      setEditForm({ 
+        username: data.profile.username || '',
+        bio: data.profile.bio || '', 
+        favorite_genres: data.profile.favorite_genres || '', 
+        profile_image: null 
+      });
     } catch (err) {
       setError('Usuario no encontrado o error del servidor.');
     } finally {
@@ -55,6 +60,7 @@ export default function ProfilePage() {
     e.preventDefault();
     try {
       const formData = new FormData();
+      formData.append('username', editForm.username);
       formData.append('bio', editForm.bio);
       formData.append('favorite_genres', editForm.favorite_genres);
       if (editForm.profile_image) {
@@ -101,6 +107,9 @@ export default function ProfilePage() {
               <div className="flex flex-col md:flex-row md:items-center gap-4 justify-between">
                 <div>
                   <h1 className="text-3xl font-bold text-white font-['Outfit']">{profile.name}</h1>
+                  {profile.username && (
+                    <p className="text-[#3b82f6] font-semibold text-sm mt-1">@{profile.username}</p>
+                  )}
                   <p className="text-[#A0A0A0] text-sm mt-1">
                     Miembro desde {new Date(profile.created_at).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
                   </p>
@@ -138,6 +147,11 @@ export default function ProfilePage() {
                 </button>
               </div>
               <form onSubmit={handleEditSubmit} className="p-6 space-y-5">
+                <div>
+                  <label className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Username (ID Público)</label>
+                  <input type="text" value={editForm.username} onChange={e => setEditForm({...editForm, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')})} className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-blue-500 focus:outline-none" placeholder="tu_usuario" />
+                  <p className="text-[#A0A0A0] text-xs mt-1">Este ID se usa para compartir tu perfil: /profile/{editForm.username}</p>
+                </div>
                 <div>
                   <label className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Foto de Perfil</label>
                   <input type="file" accept="image/*" onChange={(e) => {

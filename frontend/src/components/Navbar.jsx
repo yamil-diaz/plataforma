@@ -126,7 +126,7 @@ export const Navbar = () => {
               </div>
 
               {/* Nombre de Usuario / Perfil */}
-              <Link to={`/profile/${user.id}`} className="text-sm text-[#F5F5F5] font-medium hidden sm:inline hover:text-blue-400 transition-colors">
+              <Link to={`/profile/${user.username || user.id}`} className="text-sm text-[#F5F5F5] font-medium hidden sm:inline hover:text-blue-400 transition-colors">
                 {user.name}
               </Link>
 
