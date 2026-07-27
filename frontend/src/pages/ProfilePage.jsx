@@ -41,7 +41,8 @@ export default function ProfilePage() {
         profile_image: null 
       });
     } catch (err) {
-      setError('Usuario no encontrado o error del servidor.');
+      const errorMessage = err.response?.data?.detail || err.message || 'Error del servidor.';
+      setError(`Usuario no encontrado o error del servidor. Detalle: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
