@@ -121,12 +121,15 @@ async def get_current_user(request: Request):
         db = get_db()
         cursor = db.cursor()
         cursor.execute(
-            "SELECT id, name, email, role, rayos_balance FROM users WHERE id = %s",
+            "SELECT id, name, email, role, rayos_balance, is_banned FROM users WHERE id = %s",
             (user_id,),
         )
         row = cursor.fetchone()
         if not row:
             raise HTTPException(status_code=401, detail="Usuario no encontrado")
+            
+        if row.get("is_banned"):
+            raise HTTPException(status_code=403, detail="Tu cuenta ha sido suspendida")
 
         user = dict(row)
         user["_id"] = str(user["id"])
@@ -241,12 +244,15 @@ async def login(login_data: UserLogin, response: Response):
     cursor = db.cursor()
 
     cursor.execute(
-        "SELECT id, name, email, hashed_password, role, rayos_balance FROM users WHERE email = %s",
+        "SELECT id, name, email, hashed_password, role, rayos_balance, is_banned FROM users WHERE email = %s",
         (login_data.email,),
     )
     row = cursor.fetchone()
     if not row or not verify_password(login_data.password, row["hashed_password"]):
         raise HTTPException(status_code=400, detail="Credenciales incorrectas")
+        
+    if row.get("is_banned"):
+        raise HTTPException(status_code=403, detail="Tu cuenta ha sido suspendida")
 
     user_id = row["id"]
     set_auth_cookies(
@@ -275,6 +281,48 @@ async def logout(response: Response):
 @api_router.get("/me")
 async def get_me(user=Depends(get_current_user)):
     return user
+
+
+@api_router.get("/users")
+async def get_all_users(request: Request):
+    user = await get_current_user(request)
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+        
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("""
+        SELECT u.id, u.name, u.email, u.role, u.is_banned, u.created_at,
+               (SELECT COUNT(*) FROM books b WHERE b.uploader_id = u.id) as books_count
+        FROM users u
+        ORDER BY u.id DESC
+    """)
+    rows = cursor.fetchall()
+    return rows
+
+
+@api_router.put("/users/{target_id}/ban")
+async def toggle_ban_user(target_id: int, request: Request):
+    user = await get_current_user(request)
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    cursor.execute("SELECT role, is_banned FROM users WHERE id = %s", (target_id,))
+    row = cursor.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+    if row["role"] == "admin":
+        raise HTTPException(status_code=400, detail="No se puede banear a otro administrador")
+        
+    new_status = not row.get("is_banned", False)
+    cursor.execute("UPDATE users SET is_banned = %s WHERE id = %s", (new_status, target_id))
+    db.commit()
+    return {"message": "Estado de baneo actualizado exitosamente", "is_banned": new_status}
+
 
 
 @api_router.get("/books")
