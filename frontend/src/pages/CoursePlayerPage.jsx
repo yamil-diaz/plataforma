@@ -5,8 +5,8 @@ import { Navbar } from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
 import { Zap, CheckCircle, ArrowLeft } from 'lucide-react';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-const HOST = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:8000';
+const API = import.meta.env.VITE_API_URL || '/api';
+const HOST = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : '';
 
 export default function CoursePlayerPage() {
   const { id } = useParams();

@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import { Pencil, Trash2, Plus, FileArchive, X, Users, BookOpen, ShieldAlert, CheckCircle, Clock, Settings, Video } from 'lucide-react';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API = import.meta.env.VITE_API_URL || '/api';
 
 export default function DashboardPage() {
   const { user } = useAuth();

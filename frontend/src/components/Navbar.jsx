@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Zap, LogOut, BookOpen, Layers, Bell, Video } from 'lucide-react';
 import axios from 'axios';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API = import.meta.env.VITE_API_URL || '/api';
 
 export const Navbar = () => {
   const { user, logout } = useAuth();
