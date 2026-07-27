@@ -21,7 +21,7 @@ export const Navbar = () => {
   const fetchNotifications = async () => {
     try {
       const { data } = await axios.get(`${API}/notifications`, { withCredentials: true });
-      setNotifications(data);
+      setNotifications(data.notifications || []);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     }
@@ -29,8 +29,8 @@ export const Navbar = () => {
 
   const handleReadNotification = async (notifId) => {
     try {
-      await axios.put(`${API}/notifications/${notifId}/read`, {}, { withCredentials: true });
-      setNotifications(notifications.map(n => n.id === notifId ? { ...n, is_read: true } : n));
+      await axios.put(`${API}/notifications/read`, {}, { withCredentials: true });
+      setNotifications(notifications.map(n => ({ ...n, is_read: true })));
     } catch (error) {
       console.error('Error reading notification:', error);
     }
@@ -109,7 +109,7 @@ export const Navbar = () => {
                             onClick={() => !n.is_read && handleReadNotification(n.id)}
                             className={`px-4 py-3 border-b border-white/5 text-sm transition-colors ${!n.is_read ? 'bg-white/5 cursor-pointer hover:bg-white/10 text-white' : 'text-[#A0A0A0]'}`}
                           >
-                            <p>{n.message}</p>
+                            <p>{n.content}</p>
                             <span className="text-[10px] text-[#A0A0A0] mt-1 block">{new Date(n.created_at).toLocaleString()}</span>
                           </div>
                         ))

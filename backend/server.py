@@ -52,6 +52,8 @@ try:
     migrate_username.migrate()
     import migrate_db_phase4_2
     migrate_db_phase4_2.migrate()
+    import migrate_db_phase4_3
+    migrate_db_phase4_3.migrate()
 except Exception as e:
     print(f"Error ejecutando migración Fase 4: {e}")
 
@@ -110,6 +112,24 @@ def create_refresh_token(user_id: int):
     expire = datetime.now(timezone.utc) + timedelta(days=7)
     return jwt.encode({"sub": str(user_id), "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
 
+
+async def get_current_user_optional(request: Request):
+    token = request.cookies.get("access_token")
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        if not user_id: return None
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("SELECT id, name, email, role, rayos_balance, is_banned, username FROM users WHERE id = %s", (user_id,))
+        row = cursor.fetchone()
+        db.close()
+        if not row or row.get("is_banned"): return None
+        return row
+    except Exception:
+        return None
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str):
     cookie_kwargs = {
@@ -181,7 +201,7 @@ class CompetitionQuestionCreate(BaseModel):
 
 class CompetitionCreate(BaseModel):
     title: str
-    book_id: int
+    book_title: str
     scheduled_at: str
     questions: List[CompetitionQuestionCreate]
 
@@ -447,7 +467,7 @@ async def toggle_ban_user(target_id: int, request: Request):
     return {"message": "Estado de baneo actualizado exitosamente", "is_banned": new_status}
 
 @api_router.get("/users/profile/{username}")
-async def get_user_profile(username: str):
+async def get_user_profile(username: str, request: Request):
     db = get_db()
     cursor = db.cursor()
     
@@ -486,12 +506,30 @@ async def get_user_profile(username: str):
     """, (user_id,))
     published_books = cursor.fetchall()
     
+    # Followers count
+    cursor.execute("SELECT COUNT(*) as count FROM followers WHERE following_id = %s", (user_id,))
+    followers_count = cursor.fetchone()["count"]
+    
+    # Following count
+    cursor.execute("SELECT COUNT(*) as count FROM followers WHERE follower_id = %s", (user_id,))
+    following_count = cursor.fetchone()["count"]
+    
+    # Check if current user is following
+    current_user = await get_current_user_optional(request)
+    is_following = False
+    if current_user:
+        cursor.execute("SELECT 1 FROM followers WHERE follower_id = %s AND following_id = %s", (current_user["id"], user_id))
+        is_following = bool(cursor.fetchone())
+        
     db.close()
     
     return {
         "profile": user_data,
         "badges": badges,
-        "books": published_books
+        "books": published_books,
+        "followers_count": followers_count,
+        "following_count": following_count,
+        "is_following": is_following
     }
 
 @api_router.put("/users/profile/me")
@@ -1529,8 +1567,8 @@ async def create_competition(comp: CompetitionCreate, request: Request):
     now = datetime.now(timezone.utc).isoformat()
     try:
         cursor.execute(
-            "INSERT INTO competitions (title, book_id, scheduled_at, status, created_at) VALUES (%s, %s, %s, 'pending', %s) RETURNING id",
-            (comp.title, comp.book_id, comp.scheduled_at, now)
+            "INSERT INTO competitions (title, book_title, scheduled_at, status, created_at) VALUES (%s, %s, %s, 'pending', %s) RETURNING id",
+            (comp.title, comp.book_title, comp.scheduled_at, now)
         )
         comp_id = cursor.fetchone()["id"]
         
@@ -1539,6 +1577,18 @@ async def create_competition(comp: CompetitionCreate, request: Request):
                 "INSERT INTO competition_questions (competition_id, question_text, option_a, option_b, option_c, option_d, correct_option) VALUES (%s, %s, %s, %s, %s, %s, %s)",
                 (comp_id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_option)
             )
+            
+        # Notificar a todos los usuarios
+        cursor.execute("SELECT id FROM users")
+        all_users = cursor.fetchall()
+        
+        notif_msg = f"¡Nuevo torneo disponible: {comp.title} sobre {comp.book_title}!"
+        for u in all_users:
+            cursor.execute(
+                "INSERT INTO notifications (user_id, type, content, created_at) VALUES (%s, 'system', %s, %s)",
+                (u["id"], notif_msg, now)
+            )
+            
         db.commit()
     except Exception as e:
         db.rollback()
@@ -1546,7 +1596,7 @@ async def create_competition(comp: CompetitionCreate, request: Request):
         raise HTTPException(status_code=500, detail=str(e))
         
     db.close()
-    return {"message": "Competencia creada con éxito", "id": comp_id}
+    return {"message": "Competencia creada con éxito y usuarios notificados", "id": comp_id}
 
 @api_router.get("/competitions")
 async def get_competitions():
@@ -1578,9 +1628,8 @@ async def get_competitions():
     db.commit()
             
     cursor.execute("""
-        SELECT c.*, b.title as book_title, b.cover_image_url
+        SELECT c.*
         FROM competitions c
-        JOIN books b ON c.book_id = b.id
         ORDER BY c.scheduled_at DESC
     """)
     comps = cursor.fetchall()
@@ -1594,9 +1643,8 @@ async def get_competition_details(comp_id: int, request: Request):
     cursor = db.cursor()
     
     cursor.execute("""
-        SELECT c.*, b.title as book_title, b.cover_image_url
+        SELECT c.*
         FROM competitions c
-        JOIN books b ON c.book_id = b.id
         WHERE c.id = %s
     """, (comp_id,))
     comp = cursor.fetchone()
@@ -1749,6 +1797,90 @@ async def finish_competition(comp_id: int, request: Request):
     db.commit()
     db.close()
     return {"message": "Competencia finalizada y premios repartidos"}
+
+
+# ── Social & Notificaciones ───────────────────────────────────────────────────
+
+@api_router.get("/notifications")
+async def get_notifications(request: Request):
+    user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    
+    cursor.execute("""
+        SELECT * FROM notifications 
+        WHERE user_id = %s 
+        ORDER BY created_at DESC 
+        LIMIT 50
+    """, (user["id"],))
+    notifs = cursor.fetchall()
+    
+    # Get unread count
+    cursor.execute("SELECT COUNT(*) as count FROM notifications WHERE user_id = %s AND is_read = FALSE", (user["id"],))
+    unread_count = cursor.fetchone()["count"]
+    
+    db.close()
+    return {"notifications": notifs, "unread_count": unread_count}
+
+@api_router.put("/notifications/read")
+async def mark_notifications_read(request: Request):
+    user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("UPDATE notifications SET is_read = TRUE WHERE user_id = %s", (user["id"],))
+    db.commit()
+    db.close()
+    return {"message": "Notificaciones marcadas como leídas"}
+
+@api_router.post("/users/{username}/follow")
+async def follow_user(username: str, request: Request):
+    current_user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    
+    cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+    target = cursor.fetchone()
+    if not target:
+        db.close()
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+    if current_user["id"] == target["id"]:
+        db.close()
+        raise HTTPException(status_code=400, detail="No puedes seguirte a ti mismo")
+        
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        cursor.execute("INSERT INTO followers (follower_id, following_id, created_at) VALUES (%s, %s, %s)", 
+            (current_user["id"], target["id"], now))
+            
+        # Notificar al usuario seguido
+        cursor.execute("INSERT INTO notifications (user_id, type, content, created_at) VALUES (%s, 'follow', %s, %s)",
+            (target["id"], f"@{current_user['username']} ha empezado a seguirte.", now))
+            
+        db.commit()
+    except psycopg2.errors.UniqueViolation:
+        pass # Already following
+    finally:
+        db.close()
+        
+    return {"message": "Has empezado a seguir a este usuario"}
+
+@api_router.post("/users/{username}/unfollow")
+async def unfollow_user(username: str, request: Request):
+    current_user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    
+    cursor.execute("SELECT id FROM users WHERE username = %s", (username,))
+    target = cursor.fetchone()
+    if not target:
+        db.close()
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+    cursor.execute("DELETE FROM followers WHERE follower_id = %s AND following_id = %s", (current_user["id"], target["id"]))
+    db.commit()
+    db.close()
+    return {"message": "Has dejado de seguir a este usuario"}
 
 
 # ── Montar rutas ─────────────────────────────────────────────────────────────

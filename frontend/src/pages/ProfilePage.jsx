@@ -16,6 +16,11 @@ export default function ProfilePage() {
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Follow System State
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [isFollowing, setIsFollowing] = useState(false);
 
   // Edit Mode state
   const [isEditing, setIsEditing] = useState(false);
@@ -35,6 +40,9 @@ export default function ProfilePage() {
       setProfile(data.profile);
       setBadges(data.badges);
       setBooks(data.books);
+      setFollowersCount(data.followers_count);
+      setFollowingCount(data.following_count);
+      setIsFollowing(data.is_following);
       setEditForm({ 
         username: data.profile.username || '',
         bio: data.profile.bio || '', 
@@ -88,6 +96,26 @@ export default function ProfilePage() {
     }
   };
 
+  const handleFollowToggle = async () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    try {
+      if (isFollowing) {
+        await axios.post(`${API}/users/${profile.username}/unfollow`, {}, { withCredentials: true });
+        setFollowersCount(prev => prev - 1);
+        setIsFollowing(false);
+      } else {
+        await axios.post(`${API}/users/${profile.username}/follow`, {}, { withCredentials: true });
+        setFollowersCount(prev => prev + 1);
+        setIsFollowing(true);
+      }
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Error al actualizar seguidor');
+    }
+  };
+
   if (loading) return <div className="min-h-screen bg-[#0A0A0A] text-white flex items-center justify-center">Cargando perfil...</div>;
   if (error) return <div className="min-h-screen bg-[#0A0A0A] text-red-500 flex items-center justify-center">{error}</div>;
 
@@ -127,11 +155,24 @@ export default function ProfilePage() {
                     Miembro desde {new Date(profile.created_at).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
                   </p>
                 </div>
-                {isOwnProfile && !isEditing && (
+                {isOwnProfile && !isEditing ? (
                   <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors border border-white/10">
                     <Edit className="w-4 h-4" /> Editar Perfil
                   </button>
+                ) : !isOwnProfile && user && (
+                  <button onClick={handleFollowToggle} className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all shadow-lg ${isFollowing ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-blue-600 text-white hover:bg-blue-500'}`}>
+                    {isFollowing ? 'Siguiendo' : 'Seguir'}
+                  </button>
                 )}
+              </div>
+              
+              <div className="mt-3 flex gap-4 text-sm">
+                <div className="text-white">
+                  <span className="font-bold">{followersCount}</span> <span className="text-[#A0A0A0]">Seguidores</span>
+                </div>
+                <div className="text-white">
+                  <span className="font-bold">{followingCount}</span> <span className="text-[#A0A0A0]">Siguiendo</span>
+                </div>
               </div>
               
               <div className="mt-4 text-[#E0E0E0] max-w-2xl text-sm leading-relaxed">

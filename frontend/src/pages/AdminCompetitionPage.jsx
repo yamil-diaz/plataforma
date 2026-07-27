@@ -15,7 +15,7 @@ export default function AdminCompetitionPage() {
 
   const [form, setForm] = useState({
     title: '',
-    book_id: '',
+    book_title: '',
     date: '',
     time: ''
   });
@@ -29,19 +29,8 @@ export default function AdminCompetitionPage() {
       navigate('/dashboard');
       return;
     }
-    fetchBooks();
+    setLoading(false);
   }, [user]);
-
-  const fetchBooks = async () => {
-    try {
-      const { data } = await axios.get(`${API}/users/me/books`); // Admin can see all books
-      setBooks(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const addQuestion = () => {
     setQuestions([...questions, { question_text: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_option: 'A' }]);
@@ -61,7 +50,7 @@ export default function AdminCompetitionPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.book_id || !form.date || !form.time) return alert("Faltan datos de la competencia");
+    if (!form.book_title || !form.date || !form.time) return alert("Faltan datos de la competencia");
     
     // Validar preguntas
     for (let q of questions) {
@@ -78,7 +67,7 @@ export default function AdminCompetitionPage() {
 
       const payload = {
         title: form.title || 'Competencia de Lectura',
-        book_id: parseInt(form.book_id),
+        book_title: form.book_title,
         scheduled_at,
         questions
       };
@@ -121,13 +110,8 @@ export default function AdminCompetitionPage() {
               </div>
               
               <div>
-                <label className="block text-xs font-semibold text-[#A0A0A0] uppercase mb-2">Libro Base</label>
-                <select value={form.book_id} onChange={e => setForm({...form, book_id: e.target.value})} className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none" required>
-                  <option value="">Selecciona un libro...</option>
-                  {books.map(b => (
-                    <option key={b.id} value={b.id}>{b.title}</option>
-                  ))}
-                </select>
+                <label className="block text-xs font-semibold text-[#A0A0A0] uppercase mb-2">Escribe el Libro Base</label>
+                <input type="text" value={form.book_title} onChange={e => setForm({...form, book_title: e.target.value})} className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-white focus:border-purple-500 outline-none" placeholder="Ej: Harry Potter y la Piedra Filosofal" required />
               </div>
               
               <div>
