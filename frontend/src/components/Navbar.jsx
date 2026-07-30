@@ -78,6 +78,10 @@ export const Navbar = () => {
               {user.role === 'admin' ? 'Panel Admin' : 'Panel Autor'}
             </Link>
           )}
+
+          <Link to="/terminos" className="text-sm font-medium text-[#A0A0A0] hover:text-[#F5F5F5] transition-colors flex items-center gap-1.5 ml-2">
+            Términos
+          </Link>
         </div>
 
         {/* Autenticación / Perfil */}
@@ -194,7 +198,7 @@ export const Navbar = () => {
                   
                   {/* QR de Yape */}
                   <div className="bg-white p-2 rounded-xl inline-block mb-2">
-                    <img src="/yape-qr.jpg" alt="QR Yape" className="w-32 h-32 object-contain" onError={(e) => e.target.style.display='none'} />
+                    <img src="/yape-qr.png" alt="QR Yape" className="w-32 h-32 object-contain" onError={(e) => e.target.style.display='none'} />
                   </div>
                   
                   <p className="text-3xl font-black text-white tracking-widest">931 524 201</p>
@@ -209,9 +213,16 @@ export const Navbar = () => {
                 </a>
               </div>
               
-              <p className="text-xs text-[#A0A0A0] mt-8">
+              <p className="text-xs text-[#A0A0A0] mt-8 mb-4">
                 ¡Gracias infinitas por creer en este proyecto! ❤️
               </p>
+              
+              <button 
+                onClick={() => setShowSupportModal(false)}
+                className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 rounded-xl transition-colors border border-white/10"
+              >
+                Cerrar Ventana
+              </button>
             </div>
           </div>
         </div>

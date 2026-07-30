@@ -19,6 +19,7 @@ import ProfilePage from './pages/ProfilePage';
 import CompetitionsPage from './pages/CompetitionsPage';
 import CompetitionQuizPage from './pages/CompetitionQuizPage';
 import AdminCompetitionPage from './pages/AdminCompetitionPage';
+import TermsPage from './pages/TermsPage';
 
 // Componente para proteger rutas (Debe estar autenticado)
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -52,6 +53,7 @@ function AppRoutes() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/terminos" element={<TermsPage />} />
       <Route path="/courses" element={<CoursesPage />} />
       <Route path="/courses/:id" element={<CoursePlayerPage />} />
       <Route path="/profile/:id" element={<ProfilePage />} />

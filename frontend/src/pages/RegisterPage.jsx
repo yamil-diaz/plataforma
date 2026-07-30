@@ -98,6 +98,10 @@ export default function RegisterPage() {
             </div>
           </div>
 
+          <p className="text-xs text-[#A0A0A0] mt-4 mb-4 text-center">
+            Al registrarte, aceptas nuestros <Link to="/terminos" className="text-[#D92B2B] hover:underline">Términos y Condiciones</Link>.
+          </p>
+
           <button
             type="submit"
             disabled={loading}
