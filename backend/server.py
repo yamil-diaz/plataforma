@@ -895,11 +895,11 @@ async def update_book(
         import shutil
         cover_ext = cover_image.filename.split('.')[-1]
         cover_filename = f"{uuid.uuid4().hex}.{cover_ext}"
-        cover_path = os.path.join(STORAGE_IMAGES, cover_filename)
+        cover_path = os.path.join(STORAGE_COVERS, cover_filename)
         with open(cover_path, "wb") as buffer:
             shutil.copyfileobj(cover_image.file, buffer)
         updates.append("cover_image_url = %s")
-        params.append(f"/static/images/{cover_filename}")
+        params.append(f"/static/covers/{cover_filename}")
         
     if not updates:
         db.close()
@@ -1551,11 +1551,11 @@ async def update_course(
         import shutil
         cover_ext = cover_image.filename.split('.')[-1]
         cover_filename = f"{uuid.uuid4().hex}.{cover_ext}"
-        cover_path = os.path.join(STORAGE_IMAGES, cover_filename)
+        cover_path = os.path.join(STORAGE_COVERS, cover_filename)
         with open(cover_path, "wb") as buffer:
             shutil.copyfileobj(cover_image.file, buffer)
         updates.append("cover_url = %s")
-        params.append(f"/static/images/{cover_filename}")
+        params.append(f"/static/covers/{cover_filename}")
         
     if not updates:
         db.close()
