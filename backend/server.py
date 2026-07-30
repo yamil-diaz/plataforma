@@ -526,6 +526,38 @@ async def toggle_ban_user(target_id: int, request: Request):
     db.commit()
     return {"message": "Estado de baneo actualizado exitosamente", "is_banned": new_status}
 
+class RoleUpdateRequest(BaseModel):
+    role: str
+
+@api_router.put("/users/{user_id}/role")
+async def update_user_role(user_id: int, req: RoleUpdateRequest, request: Request):
+    current_user = await get_current_user(request)
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+        
+    valid_roles = ["user", "autor", "admin"]
+    if req.role not in valid_roles:
+        raise HTTPException(status_code=400, detail="Rol inválido")
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    # Obtener rol actual del objetivo
+    cursor.execute("SELECT role FROM users WHERE id = %s", (user_id,))
+    target = cursor.fetchone()
+    if not target:
+        db.close()
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+    if target["role"] == "admin":
+        db.close()
+        raise HTTPException(status_code=400, detail="No puedes modificar el rol de otro Administrador")
+        
+    cursor.execute("UPDATE users SET role = %s WHERE id = %s", (req.role, user_id))
+    db.commit()
+    db.close()
+    return {"message": "Rol actualizado exitosamente"}
+
 @api_router.get("/users/profile/{username}")
 async def get_user_profile(username: str, request: Request):
     db = get_db()
