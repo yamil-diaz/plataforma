@@ -805,6 +805,72 @@ async def get_book(book_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+class InteractRequest(BaseModel):
+    action: str
+
+@api_router.post("/books/{book_id}/interact")
+async def interact_book(book_id: int, req: InteractRequest, request: Request):
+    user = await get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="No autenticado")
+        
+    if req.action not in ["like", "dislike"]:
+        raise HTTPException(status_code=400, detail="Acción inválida")
+        
+    db = get_db()
+    cursor = db.cursor()
+    
+    try:
+        cursor.execute("SELECT interaction_type FROM book_interactions WHERE book_id = %s AND user_id = %s", (book_id, user["id"]))
+        existing = cursor.fetchone()
+        
+        if existing:
+            if existing["interaction_type"] == req.action:
+                # Same action -> toggle off (remove)
+                cursor.execute("DELETE FROM book_interactions WHERE book_id = %s AND user_id = %s", (book_id, user["id"]))
+                cursor.execute(f"UPDATE books SET {req.action}s = GREATEST({req.action}s - 1, 0) WHERE id = %s", (book_id,))
+                action_result = None
+            else:
+                # Switch action
+                cursor.execute("UPDATE book_interactions SET interaction_type = %s WHERE book_id = %s AND user_id = %s", (req.action, book_id, user["id"]))
+                old_action = existing["interaction_type"]
+                cursor.execute(f"UPDATE books SET {req.action}s = {req.action}s + 1, {old_action}s = GREATEST({old_action}s - 1, 0) WHERE id = %s", (book_id,))
+                action_result = req.action
+        else:
+            # New action
+            now = datetime.now(timezone.utc).isoformat()
+            cursor.execute("INSERT INTO book_interactions (book_id, user_id, interaction_type, created_at) VALUES (%s, %s, %s, %s)", (book_id, user["id"], req.action, now))
+            cursor.execute(f"UPDATE books SET {req.action}s = {req.action}s + 1 WHERE id = %s", (book_id,))
+            action_result = req.action
+            
+        db.commit()
+        
+        # Get updated counts
+        cursor.execute("SELECT likes, dislikes FROM books WHERE id = %s", (book_id,))
+        counts = cursor.fetchone()
+        return {"interaction": action_result, "likes": counts["likes"], "dislikes": counts["dislikes"]}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+@api_router.get("/books/{book_id}/interaction")
+async def get_book_interaction(book_id: int, request: Request):
+    user = await get_current_user(request)
+    if not user:
+        return {"interaction": None}
+    
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT interaction_type FROM book_interactions WHERE book_id = %s AND user_id = %s", (book_id, user["id"]))
+    row = cursor.fetchone()
+    db.close()
+    
+    if row:
+        return {"interaction": row["interaction_type"]}
+    return {"interaction": None}
+
 
 @api_router.delete("/books/{book_id}")
 async def delete_book(book_id: str, request: Request):
@@ -1038,7 +1104,7 @@ async def create_book(
         try:
             reader = pypdf.PdfReader(pdf_path)
             extracted_text = ""
-            max_pages = min(len(reader.pages), 30)
+            max_pages = len(reader.pages)
             for page_index in range(max_pages):
                 page_text = reader.pages[page_index].extract_text()
                 if page_text:
@@ -1137,8 +1203,8 @@ def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default
                         title = meta.title
                         author = meta.author
 
-                    extracted_text = ""
-                    max_pages = min(len(reader.pages), 30)
+                    # Extraer texto del PDF 
+                    max_pages = len(reader.pages)
                     for page_index in range(max_pages):
                         page_text = reader.pages[page_index].extract_text()
                         if page_text:

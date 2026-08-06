@@ -66,16 +66,23 @@ def init_db():
         content TEXT NOT NULL,
         category TEXT NOT NULL,
         price REAL DEFAULT 0.0,
-        cover_image_url TEXT,
         pdf_path TEXT,
         views INTEGER DEFAULT 0,
         likes INTEGER DEFAULT 0,
+        dislikes INTEGER DEFAULT 0,
         average_rating REAL DEFAULT 0.0,
         total_reviews INTEGER DEFAULT 0,
         published INTEGER DEFAULT 1,
         created_at TEXT NOT NULL
     )
     """)
+
+    try:
+        cursor.execute("ALTER TABLE books ADD COLUMN IF NOT EXISTS dislikes INTEGER DEFAULT 0")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        pass
 
     # ── Tabla de reseñas ─────────────────────────────────────────────────────
     cursor.execute("""
@@ -111,6 +118,20 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_reviews_book ON reviews(book_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_reviews_book_user ON reviews(book_id, user_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_rayos_user ON rayos_transactions(user_id)")
+
+    # ── Tabla de interacciones (Likes/Dislikes) ──────────────────────────────
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS book_interactions (
+        id SERIAL PRIMARY KEY,
+        book_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        interaction_type TEXT NOT NULL CHECK (interaction_type IN ('like', 'dislike')),
+        created_at TEXT NOT NULL,
+        FOREIGN KEY(book_id) REFERENCES books(id) ON DELETE CASCADE,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE(book_id, user_id)
+    )
+    """)
 
     conn.commit()
 

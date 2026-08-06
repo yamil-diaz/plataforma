@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Navbar } from '../components/Navbar';
-import { ChevronLeft, Heart, Zap, Star, Send, Download } from 'lucide-react';
+import { ChevronLeft, Heart, Zap, Star, Send, Download, Eye, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 import { API } from '../config/api';
@@ -43,14 +43,23 @@ export default function ReaderPage() {
   const [reviews, setReviews] = useState([]);
   const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [userInteraction, setUserInteraction] = useState(null);
   const navigate = useNavigate();
-  const { refreshUser } = useAuth();
+  const { user, refreshUser } = useAuth();
 
   const loadBook = async () => {
     try {
       // Obtener el libro directamente por su ID de SQLite
       const { data: bookDetails } = await axios.get(`${API}/books/${bookId}`);
       setBook(bookDetails);
+      
+      // Obtener interacción actual del usuario si está logueado
+      if (user) {
+        try {
+          const { data: interactData } = await axios.get(`${API}/books/${bookId}/interaction`, { withCredentials: true });
+          setUserInteraction(interactData.interaction);
+        } catch(e) {}
+      }
       
       // Cargar reseñas
       loadReviews(bookDetails._id || bookDetails.id);
@@ -111,6 +120,20 @@ export default function ReaderPage() {
       alert(error.response?.data?.detail || 'Error al publicar el comentario');
     } finally {
       setSubmittingReview(false);
+    }
+  };
+
+  const handleInteract = async (action) => {
+    if (!user) {
+      alert("Debes iniciar sesión para reaccionar");
+      return;
+    }
+    try {
+      const { data } = await axios.post(`${API}/books/${bookId}/interact`, { action }, { withCredentials: true });
+      setUserInteraction(data.interaction);
+      setBook(prev => ({ ...prev, likes: data.likes, dislikes: data.dislikes }));
+    } catch (error) {
+      alert("Error al registrar interacción");
     }
   };
 
@@ -214,6 +237,32 @@ export default function ReaderPage() {
             </div>
           </div>
 
+        </div>
+
+        {/* Barra de Interacciones (Likes/Dislikes/Vistas) */}
+        <div className="bg-[#121212] border border-white/10 rounded-lg p-6 shadow-xl mt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-[#A0A0A0]">
+            <Eye className="w-5 h-5 text-[#00D4C5]" />
+            <span className="font-semibold text-white">{book.views}</span>
+            <span className="text-sm">Vistas totales</span>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => handleInteract('like')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold transition-all ${userInteraction === 'like' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/5 text-[#A0A0A0] hover:bg-white/10 hover:text-white border border-white/5'}`}
+            >
+              <ThumbsUp className={`w-4 h-4 ${userInteraction === 'like' ? 'fill-emerald-400' : ''}`} />
+              {book.likes || 0}
+            </button>
+            <button 
+              onClick={() => handleInteract('dislike')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold transition-all ${userInteraction === 'dislike' ? 'bg-red-500/20 text-red-500 border border-red-500/30' : 'bg-white/5 text-[#A0A0A0] hover:bg-white/10 hover:text-white border border-white/5'}`}
+            >
+              <ThumbsDown className={`w-4 h-4 ${userInteraction === 'dislike' ? 'fill-red-500' : ''}`} />
+              {book.dislikes || 0}
+            </button>
+          </div>
         </div>
 
         {/* Sección de Reseñas */}
