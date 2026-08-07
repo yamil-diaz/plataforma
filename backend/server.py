@@ -451,6 +451,33 @@ async def forgot_password(req: ForgotPasswordRequest):
     return {"message": "Si el correo existe, se enviará un enlace de recuperación."}
 
 
+@api_router.get("/test-email")
+async def test_email_smtp():
+    import traceback
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    
+    to_email = "yamildiazzz01@gmail.com"
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "Prueba AETERNUM desde Render"
+        msg["From"] = f"AETERNUM <{SMTP_USERNAME}>"
+        msg["To"] = to_email
+
+        part = MIMEText("Si ves esto, el servidor de correos funciona desde Render.", "html")
+        msg.attach(part)
+
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SMTP_USERNAME, SMTP_PASSWORD)
+        server.sendmail(SMTP_USERNAME, to_email, msg.as_string())
+        server.quit()
+        return {"status": "SUCCESS", "message": "Correo enviado con éxito"}
+    except Exception as e:
+        return {"status": "ERROR", "error": str(e), "traceback": traceback.format_exc()}
+
+
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
