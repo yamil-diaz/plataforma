@@ -436,7 +436,7 @@ async def forgot_password(req: ForgotPasswordRequest):
     )
     db.commit()
     
-    reset_link = f"https://aeternum-world.onrender.com/reset-password?token={token}"
+    reset_link = f"https://aeternumlibrary.com/reset-password?token={token}"
     html_content = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; text-align: center;">
         <h2 style="color: #D92B2B;">AETERNUM - Recuperación de Contraseña</h2>
