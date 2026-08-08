@@ -47,49 +47,49 @@ for directory in (STORAGE_BOOKS, STORAGE_COVERS, STORAGE_VIDEOS, TEMP_DIR):
     os.makedirs(directory, exist_ok=True)
 
 # ── Configuración de Correo Electrónico (SMTP Gmail) ──────────────────────────
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
-SMTP_USERNAME = "yamildiazzz01@gmail.com"
-SMTP_PASSWORD = "cqfc powb ocqn qgzu"
+import urllib.request
+import json
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 
 def send_email_async(to_email: str, subject: str, html_content: str):
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = f"AETERNUM <{SMTP_USERNAME}>"
-        msg["To"] = to_email
-
-        part = MIMEText(html_content, "html")
-        msg.attach(part)
-
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()
-        server.login(SMTP_USERNAME, SMTP_PASSWORD)
-        server.sendmail(SMTP_USERNAME, to_email, msg.as_string())
-        server.quit()
+        url = "https://api.resend.com/emails"
+        headers = {
+            "Authorization": f"Bearer {RESEND_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "from": "AETERNUM <onboarding@resend.dev>",
+            "to": [to_email],
+            "subject": subject,
+            "html": html_content
+        }
+        req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers=headers, method="POST")
+        with urllib.request.urlopen(req) as response:
+            print("Correo Resend enviado con éxito:", response.read())
     except Exception as e:
-        print(f"Error enviando correo a {to_email}: {e}")
+        print(f"Error enviando correo por Resend a {to_email}: {e}")
         traceback.print_exc()
 
 def send_mass_email_async(bcc_emails: list, subject: str, html_content: str):
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = f"AETERNUM <{SMTP_USERNAME}>"
-        # To field can be empty or set to the sender for BCC
-        msg["To"] = f"AETERNUM <{SMTP_USERNAME}>"
-
-        part = MIMEText(html_content, "html")
-        msg.attach(part)
-
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()
-        server.login(SMTP_USERNAME, SMTP_PASSWORD)
-        # The second argument of sendmail is the list of actual recipients (envelope TO)
-        server.sendmail(SMTP_USERNAME, bcc_emails, msg.as_string())
-        server.quit()
+        url = "https://api.resend.com/emails"
+        headers = {
+            "Authorization": f"Bearer {RESEND_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "from": "AETERNUM <onboarding@resend.dev>",
+            "to": ["onboarding@resend.dev"],
+            "bcc": bcc_emails,
+            "subject": subject,
+            "html": html_content
+        }
+        req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers=headers, method="POST")
+        with urllib.request.urlopen(req) as response:
+            print("Correo Masivo Resend enviado con éxito:", response.read())
     except Exception as e:
-        print(f"Error enviando correo masivo: {e}")
+        print(f"Error enviando correo masivo por Resend: {e}")
         traceback.print_exc()
 
 # ── Inicializar base de datos ────────────────────────────────────────────────
@@ -454,26 +454,22 @@ async def forgot_password(req: ForgotPasswordRequest):
 @api_router.get("/test-email")
 async def test_email_smtp():
     import traceback
-    import smtplib
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.text import MIMEText
-    
     to_email = "yamildiazzz01@gmail.com"
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = "Prueba AETERNUM desde Render"
-        msg["From"] = f"AETERNUM <{SMTP_USERNAME}>"
-        msg["To"] = to_email
-
-        part = MIMEText("Si ves esto, el servidor de correos funciona desde Render.", "html")
-        msg.attach(part)
-
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()
-        server.login(SMTP_USERNAME, SMTP_PASSWORD)
-        server.sendmail(SMTP_USERNAME, to_email, msg.as_string())
-        server.quit()
-        return {"status": "SUCCESS", "message": "Correo enviado con éxito"}
+        url = "https://api.resend.com/emails"
+        headers = {
+            "Authorization": f"Bearer {RESEND_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "from": "AETERNUM <onboarding@resend.dev>",
+            "to": [to_email],
+            "subject": "Prueba AETERNUM desde Render (Resend)",
+            "html": "Si ves esto, el servidor de correos (Resend) funciona desde Render."
+        }
+        req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers=headers, method="POST")
+        with urllib.request.urlopen(req) as response:
+            return {"status": "SUCCESS", "message": "Correo enviado con éxito por Resend"}
     except Exception as e:
         return {"status": "ERROR", "error": str(e), "traceback": traceback.format_exc()}
 
