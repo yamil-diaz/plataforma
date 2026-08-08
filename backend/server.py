@@ -514,6 +514,8 @@ async def reset_password(req: ResetPasswordRequest):
         if not row:
             raise HTTPException(status_code=400, detail="Enlace inválido o ya utilizado.")
         
+        user_id = row["id"]
+        
         # PostgreSQL TIMESTAMP devuelve un objeto datetime directamente
         expires_at = row["reset_token_expiry"]
         if isinstance(expires_at, str):
@@ -529,12 +531,25 @@ async def reset_password(req: ResetPasswordRequest):
             raise HTTPException(status_code=400, detail="El enlace ha expirado.")
             
         hashed_pw = hash_password(req.new_password)
-        cursor.execute("UPDATE users SET hashed_password = %s, reset_token = NULL, reset_token_expiry = NULL WHERE id = %s", (hashed_pw, row["id"]))
+        cursor.execute(
+            "UPDATE users SET hashed_password = %s, reset_token = NULL, reset_token_expiry = NULL WHERE id = %s",
+            (hashed_pw, user_id)
+        )
+        rows_affected = cursor.rowcount
         db.commit()
-        return {"message": "Contraseña actualizada exitosamente."}
+        print(f"[RESET-PASSWORD] Usuario ID={user_id} actualizado. Filas afectadas: {rows_affected}. Hash nuevo empieza con: {hashed_pw[:20]}...")
+        
+        if rows_affected == 0:
+            raise HTTPException(status_code=500, detail="No se pudo actualizar la contraseña.")
+        
+        return {"message": "Contraseña actualizada exitosamente. Redirigiendo al login..."}
     except HTTPException:
+        db.rollback()
         raise
     except Exception as e:
+        db.rollback()
+        print(f"[RESET-PASSWORD] Error: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error al procesar la solicitud: {str(e)}")
     finally:
         db.close()
