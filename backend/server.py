@@ -429,36 +429,44 @@ class ForgotPasswordRequest(BaseModel):
 @api_router.post("/forgot-password")
 async def forgot_password(req: ForgotPasswordRequest):
     db = get_db()
-    cursor = db.cursor()
-    cursor.execute("SELECT id FROM users WHERE email = %s", (req.email,))
-    row = cursor.fetchone()
-    if not row:
-        # Temporary debug: notify user if email doesn't exist
-        raise HTTPException(status_code=400, detail="Este correo NO está registrado en la base de datos. Asegúrate de haberlo escrito correctamente.")
-        
-    token = str(uuid.uuid4())
-    expires_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
-    
-    cursor.execute(
-        "UPDATE users SET reset_token = %s, reset_token_expiry = %s WHERE id = %s",
-        (token, expires_at, row["id"])
-    )
-    db.commit()
-    
-    reset_link = f"https://aeternumlibrary.com/reset-password?token={token}"
-    html_content = f"""
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; text-align: center;">
-        <h2 style="color: #D92B2B;">AETERNUM - Recuperación de Contraseña</h2>
-        <p>Hemos recibido una solicitud para cambiar tu contraseña.</p>
-        <p>Haz clic en el siguiente botón para restablecerla. El enlace expirará en 1 hora.</p>
-        <a href="{reset_link}" style="display: inline-block; padding: 12px 24px; margin: 20px 0; background-color: #D92B2B; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">Restablecer Contraseña</a>
-        <p style="color: #666; font-size: 12px;">Si no solicitaste esto, puedes ignorar este correo.</p>
     try:
-        send_email_async(req.email, "Recupera tu contraseña en AETERNUM", html_content)
+        cursor = db.cursor()
+        cursor.execute("SELECT id FROM users WHERE email = %s", (req.email,))
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=400, detail="Este correo NO está registrado en la base de datos. Asegúrate de haberlo escrito correctamente.")
+            
+        token = str(uuid.uuid4())
+        expires_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+        
+        cursor.execute(
+            "UPDATE users SET reset_token = %s, reset_token_expiry = %s WHERE id = %s",
+            (token, expires_at, row["id"])
+        )
+        db.commit()
+        
+        reset_link = f"https://aeternumlibrary.com/reset-password?token={token}"
+        html_content = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; text-align: center;">
+            <h2 style="color: #D92B2B;">AETERNUM - Recuperación de Contraseña</h2>
+            <p>Hemos recibido una solicitud para cambiar tu contraseña.</p>
+            <p>Haz clic en el siguiente botón para restablecerla. El enlace expirará en 1 hora.</p>
+            <a href="{reset_link}" style="display: inline-block; padding: 12px 24px; margin: 20px 0; background-color: #D92B2B; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">Restablecer Contraseña</a>
+            <p style="color: #666; font-size: 12px;">Si no solicitaste esto, puedes ignorar este correo.</p>
+        </div>
+        """
+        try:
+            send_email_async(req.email, "Recupera tu contraseña en AETERNUM", html_content)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+        
+        return {"message": "Si el correo existe, se enviará un enlace de recuperación."}
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    
-    return {"message": "Si el correo existe, se enviará un enlace de recuperación."}
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
+    finally:
+        db.close()
 
 
 @api_router.get("/test-email")
@@ -498,21 +506,38 @@ class ResetPasswordRequest(BaseModel):
 @api_router.post("/reset-password")
 async def reset_password(req: ResetPasswordRequest):
     db = get_db()
-    cursor = db.cursor()
-    cursor.execute("SELECT id, reset_token_expiry FROM users WHERE reset_token = %s", (req.token,))
-    row = cursor.fetchone()
-    
-    if not row:
-        raise HTTPException(status_code=400, detail="Enlace inválido o ya utilizado.")
+    try:
+        cursor = db.cursor()
+        cursor.execute("SELECT id, reset_token_expiry FROM users WHERE reset_token = %s", (req.token,))
+        row = cursor.fetchone()
         
-    expires_at = datetime.fromisoformat(row["reset_token_expiry"])
-    if datetime.now(timezone.utc) > expires_at:
-        raise HTTPException(status_code=400, detail="El enlace ha expirado.")
+        if not row:
+            raise HTTPException(status_code=400, detail="Enlace inválido o ya utilizado.")
         
-    hashed_pw = get_password_hash(req.new_password)
-    cursor.execute("UPDATE users SET hashed_password = %s, reset_token = NULL, reset_token_expiry = NULL WHERE id = %s", (hashed_pw, row["id"]))
-    db.commit()
-    return {"message": "Contraseña actualizada exitosamente."}
+        # PostgreSQL TIMESTAMP devuelve un objeto datetime directamente
+        expires_at = row["reset_token_expiry"]
+        if isinstance(expires_at, str):
+            expires_at = datetime.fromisoformat(expires_at)
+        
+        # Asegurar que ambos datetimes sean comparables (naive o aware)
+        if expires_at.tzinfo is None:
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+        else:
+            now = datetime.now(timezone.utc)
+        
+        if now > expires_at:
+            raise HTTPException(status_code=400, detail="El enlace ha expirado.")
+            
+        hashed_pw = get_password_hash(req.new_password)
+        cursor.execute("UPDATE users SET hashed_password = %s, reset_token = NULL, reset_token_expiry = NULL WHERE id = %s", (hashed_pw, row["id"]))
+        db.commit()
+        return {"message": "Contraseña actualizada exitosamente."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al procesar la solicitud: {str(e)}")
+    finally:
+        db.close()
 
 @api_router.post("/logout")
 async def logout(response: Response):
