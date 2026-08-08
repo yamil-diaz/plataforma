@@ -56,7 +56,8 @@ def send_email_async(to_email: str, subject: str, html_content: str):
         url = "https://api.resend.com/emails"
         headers = {
             "Authorization": f"Bearer {RESEND_API_KEY}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "User-Agent": "AeternumBackend/1.0"
         }
         data = {
             "from": "AETERNUM <soporte@aeternumlibrary.com>",
@@ -76,7 +77,8 @@ def send_mass_email_async(bcc_emails: list, subject: str, html_content: str):
         url = "https://api.resend.com/emails"
         headers = {
             "Authorization": f"Bearer {RESEND_API_KEY}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "User-Agent": "AeternumBackend/1.0"
         }
         data = {
             "from": "AETERNUM <soporte@aeternumlibrary.com>",
@@ -459,7 +461,8 @@ async def test_email_smtp():
         url = "https://api.resend.com/emails"
         headers = {
             "Authorization": f"Bearer {RESEND_API_KEY}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "User-Agent": "AeternumBackend/1.0"
         }
         data = {
             "from": "AETERNUM <soporte@aeternumlibrary.com>",
