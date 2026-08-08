@@ -69,8 +69,15 @@ def send_email_async(to_email: str, subject: str, html_content: str):
         with urllib.request.urlopen(req) as response:
             print("Correo Resend enviado con éxito:", response.read())
     except Exception as e:
-        print(f"Error enviando correo por Resend a {to_email}: {e}")
+        error_msg = str(e)
+        if hasattr(e, 'read'):
+            try:
+                error_msg = e.read().decode()
+            except:
+                pass
+        print(f"Error enviando correo por Resend a {to_email}: {error_msg}")
         traceback.print_exc()
+        raise Exception(f"Fallo al enviar correo: {error_msg}")
 
 def send_mass_email_async(bcc_emails: list, subject: str, html_content: str):
     try:
@@ -446,9 +453,10 @@ async def forgot_password(req: ForgotPasswordRequest):
         <p>Haz clic en el siguiente botón para restablecerla. El enlace expirará en 1 hora.</p>
         <a href="{reset_link}" style="display: inline-block; padding: 12px 24px; margin: 20px 0; background-color: #D92B2B; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">Restablecer Contraseña</a>
         <p style="color: #666; font-size: 12px;">Si no solicitaste esto, puedes ignorar este correo.</p>
-    </div>
-    """
-    send_email_async(req.email, "Recupera tu contraseña en AETERNUM", html_content)
+    try:
+        send_email_async(req.email, "Recupera tu contraseña en AETERNUM", html_content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     
     return {"message": "Si el correo existe, se enviará un enlace de recuperación."}
 
