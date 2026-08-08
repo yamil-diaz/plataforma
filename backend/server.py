@@ -528,7 +528,7 @@ async def reset_password(req: ResetPasswordRequest):
         if now > expires_at:
             raise HTTPException(status_code=400, detail="El enlace ha expirado.")
             
-        hashed_pw = get_password_hash(req.new_password)
+        hashed_pw = hash_password(req.new_password)
         cursor.execute("UPDATE users SET hashed_password = %s, reset_token = NULL, reset_token_expiry = NULL WHERE id = %s", (hashed_pw, row["id"]))
         db.commit()
         return {"message": "Contraseña actualizada exitosamente."}
