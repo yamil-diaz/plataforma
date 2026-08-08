@@ -105,6 +105,12 @@ def send_mass_email_async(bcc_emails: list, subject: str, html_content: str):
 init_db()
 
 try:
+    import migrate_fix_duplicates
+    migrate_fix_duplicates.migrate()
+except Exception as e:
+    print(f"Error ejecutando migración de duplicados: {e}")
+
+try:
     import migrate_db_phase4
     migrate_db_phase4.migrate()
     import migrate_username
