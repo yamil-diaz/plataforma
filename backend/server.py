@@ -386,7 +386,23 @@ async def login(login_data: UserLogin, response: Response, request: Request):
         (login_data.email,),
     )
     row = cursor.fetchone()
-    if not row or not verify_password(login_data.password, row["hashed_password"]):
+    
+    # Debug logging para diagnosticar problema de reset-password
+    if row:
+        stored_hash = row["hashed_password"]
+        try:
+            pwd_check = verify_password(login_data.password, stored_hash)
+        except Exception as verify_err:
+            print(f"[LOGIN-DEBUG] Error en verify_password: {verify_err}")
+            pwd_check = False
+        print(f"[LOGIN-DEBUG] Usuario ID={row['id']}, email={row['email']}")
+        print(f"[LOGIN-DEBUG] Hash almacenado empieza con: {stored_hash[:25]}...")
+        print(f"[LOGIN-DEBUG] Verificacion resultado: {pwd_check}")
+    else:
+        pwd_check = False
+        print(f"[LOGIN-DEBUG] No se encontro usuario con email: {login_data.email}")
+    
+    if not row or not pwd_check:
         # Increment attempt
         if attempt_row:
             new_attempts = attempt_row["attempts"] + 1
