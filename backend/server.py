@@ -1423,7 +1423,7 @@ async def create_review(book_id: str, review_data: ReviewCreate, request: Reques
 
         cursor.execute(
             "SELECT id FROM reviews WHERE book_id = %s AND user_id = %s",
-            (int(book_id), int(user["_id"])),
+            (int(book_id), int(user["id"])),
         )
         if cursor.fetchone():
             raise HTTPException(status_code=400, detail="Ya has dejado una reseña para este libro")
@@ -1435,7 +1435,7 @@ async def create_review(book_id: str, review_data: ReviewCreate, request: Reques
             VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
-            (int(book_id), int(user["_id"]), user["name"], review_data.rating, review_data.comment, now),
+            (int(book_id), int(user["id"]), user["name"], review_data.rating, review_data.comment, now),
         )
         db.commit()
         review_id = cursor.fetchone()["id"]
@@ -1455,7 +1455,7 @@ async def create_review(book_id: str, review_data: ReviewCreate, request: Reques
             "id": str(review_id),
             "_id": str(review_id),
             "book_id": book_id,
-            "user_id": user["_id"],
+            "user_id": user["id"],
             "user_name": user["name"],
             "rating": review_data.rating,
             "comment": review_data.comment,
