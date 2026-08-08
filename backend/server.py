@@ -471,7 +471,13 @@ async def test_email_smtp():
         with urllib.request.urlopen(req) as response:
             return {"status": "SUCCESS", "message": "Correo enviado con éxito por Resend"}
     except Exception as e:
-        return {"status": "ERROR", "error": str(e), "traceback": traceback.format_exc()}
+        error_details = str(e)
+        if hasattr(e, 'read'):
+            try:
+                error_details = e.read().decode()
+            except:
+                pass
+        return {"status": "ERROR", "error": error_details, "traceback": traceback.format_exc()}
 
 
 class ResetPasswordRequest(BaseModel):
