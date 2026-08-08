@@ -426,8 +426,8 @@ async def forgot_password(req: ForgotPasswordRequest):
     cursor.execute("SELECT id FROM users WHERE email = %s", (req.email,))
     row = cursor.fetchone()
     if not row:
-        # Prevent email enumeration by always returning success
-        return {"message": "Si el correo existe, se enviará un enlace de recuperación."}
+        # Temporary debug: notify user if email doesn't exist
+        raise HTTPException(status_code=400, detail="Este correo NO está registrado en la base de datos. Asegúrate de haberlo escrito correctamente.")
         
     token = str(uuid.uuid4())
     expires_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
