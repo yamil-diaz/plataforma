@@ -460,6 +460,7 @@ async def forgot_password(req: ForgotPasswordRequest):
             (token, expires_at, row["id"])
         )
         db.commit()
+        print(f"[FORGOT-PASSWORD] Token asignado a Usuario ID={row['id']}, email={req.email}, token={token[:8]}...")
         
         reset_link = f"https://aeternumlibrary.com/reset-password?token={token}"
         html_content = f"""
