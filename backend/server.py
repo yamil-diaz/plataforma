@@ -59,7 +59,7 @@ def send_email_async(to_email: str, subject: str, html_content: str):
             "Content-Type": "application/json"
         }
         data = {
-            "from": "AETERNUM <onboarding@resend.dev>",
+            "from": "AETERNUM <soporte@aeternumlibrary.com>",
             "to": [to_email],
             "subject": subject,
             "html": html_content
@@ -79,8 +79,8 @@ def send_mass_email_async(bcc_emails: list, subject: str, html_content: str):
             "Content-Type": "application/json"
         }
         data = {
-            "from": "AETERNUM <onboarding@resend.dev>",
-            "to": ["onboarding@resend.dev"],
+            "from": "AETERNUM <soporte@aeternumlibrary.com>",
+            "to": ["soporte@aeternumlibrary.com"],
             "bcc": bcc_emails,
             "subject": subject,
             "html": html_content
@@ -462,7 +462,7 @@ async def test_email_smtp():
             "Content-Type": "application/json"
         }
         data = {
-            "from": "AETERNUM <onboarding@resend.dev>",
+            "from": "AETERNUM <soporte@aeternumlibrary.com>",
             "to": [to_email],
             "subject": "Prueba AETERNUM desde Render (Resend)",
             "html": "Si ves esto, el servidor de correos (Resend) funciona desde Render."
