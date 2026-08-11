@@ -31,6 +31,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, EmailStr
 
 from database import init_db, get_db
+import psycopg2
 
 # ── Directorios de almacenamiento ───────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -238,6 +239,141 @@ async def get_current_user(request: Request):
         raise HTTPException(status_code=401, detail="Token no válido")
 
 
+# ── Economía de Rayos (FASE 1) ────────────────────────────────────────────────
+# Únicos tipos de transacción permitidos. El backend siempre decide el tipo,
+# el monto y la descripción (el cliente nunca los envía).
+VALID_RAYOS_TYPES = frozenset({
+    "registration_reward",
+    "reading_reward",
+    "book_completion_reward",
+    "course_reward",
+    "competition_reward",
+    "purchase_reward",
+    "donation_sent",
+    "donation_received",
+    "donation_burn",
+})
+
+REGISTRATION_REWARD_AMOUNT = 100
+READING_REWARD_AMOUNT = 10
+MIN_COURSE_REWARD_SECONDS = 30
+MAX_REGISTRATIONS_PER_IP_PER_DAY = 3
+MAX_COMPETITION_TIME_MS = 7200000
+
+
+def compute_donation_split(amount: int):
+    """Función pura de la quema del 10%: el receptor recibe amount - 10%,
+    la diferencia se quema (nunca es progreso de nadie)."""
+    burned = amount // 10
+    received = amount - burned
+    return received, burned
+
+
+def _record_rayos_transaction(
+    cursor,
+    user_id,
+    amount: int,
+    txn_type: str,
+    description: str,
+    book_id=None,
+    course_id=None,
+    competition_id=None,
+):
+    """Registra una transacción de Rayos. El caller ejecuta el commit único."""
+    if txn_type not in VALID_RAYOS_TYPES:
+        raise ValueError(f"Tipo de transacción Rayos no válido: {txn_type}")
+    cursor.execute(
+        """
+        INSERT INTO rayos_transactions
+            (user_id, amount, type, description, book_id, course_id, competition_id, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """,
+        (
+            user_id,
+            amount,
+            txn_type,
+            description,
+            book_id,
+            course_id,
+            competition_id,
+            datetime.now(timezone.utc).isoformat(),
+        ),
+    )
+
+
+def _credit_rayos(
+    cursor,
+    user_id: int,
+    amount: int,
+    txn_type: str,
+    description: str,
+    book_id=None,
+    course_id=None,
+    competition_id=None,
+):
+    """Acredita Rayos al saldo y al progreso histórico (mismo monto) y lo
+    registra en rayos_transactions. Devuelve el nuevo saldo."""
+    cursor.execute(
+        """
+        UPDATE users
+        SET rayos_balance = rayos_balance + %s, historical_rayos = historical_rayos + %s
+        WHERE id = %s
+        RETURNING rayos_balance
+        """,
+        (amount, amount, user_id),
+    )
+    balance_row = cursor.fetchone()
+    _record_rayos_transaction(
+        cursor,
+        user_id,
+        amount,
+        txn_type,
+        description,
+        book_id=book_id,
+        course_id=course_id,
+        competition_id=competition_id,
+    )
+    return balance_row["rayos_balance"]
+
+
+def _debit_rayos_atomic(
+    cursor,
+    user_id: int,
+    amount: int,
+    txn_type: str,
+    description: str,
+    book_id=None,
+    course_id=None,
+    competition_id=None,
+):
+    """Débito atómico condicional: solo debita si el saldo es suficiente
+    (evita TOCTOU y saldos negativos). Devuelve el nuevo saldo o None si
+    el saldo era insuficiente."""
+    cursor.execute(
+        """
+        UPDATE users
+        SET rayos_balance = rayos_balance - %s
+        WHERE id = %s AND rayos_balance >= %s
+        RETURNING rayos_balance
+        """,
+        (amount, user_id, amount),
+    )
+    row = cursor.fetchone()
+    if row is None:
+        return None
+    _record_rayos_transaction(
+        cursor,
+        user_id,
+        -amount,
+        txn_type,
+        description,
+        book_id=book_id,
+        course_id=course_id,
+        competition_id=competition_id,
+    )
+    return row["rayos_balance"]
+
+
 # ── Modelos Pydantic ─────────────────────────────────────────────────────────
 
 class UserRegister(BaseModel):
@@ -250,11 +386,6 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
-
-class RayosTransaction(BaseModel):
-    amount: int
-    type: str
-    description: str
 
 class CompetitionQuestionCreate(BaseModel):
     question_text: str
@@ -270,8 +401,12 @@ class CompetitionCreate(BaseModel):
     scheduled_at: str
     questions: List[CompetitionQuestionCreate]
 
+class CompetitionAnswerSubmit(BaseModel):
+    question_id: int
+    selected: str
+
 class CompetitionSubmit(BaseModel):
-    score: int
+    answers: List[CompetitionAnswerSubmit]
     time_taken_ms: int
 
 
@@ -325,12 +460,27 @@ async def debug_files():
 
 
 @api_router.post("/register")
-async def register(user_data: UserRegister, response: Response):
+async def register(user_data: UserRegister, response: Response, request: Request):
     db = get_db()
     cursor = db.cursor()
 
+    user_ip = (request.client.host if request.client else "unknown")
+
+    # Protección contra abuso: máx. 3 cuentas por IP cada 24 horas
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    cursor.execute(
+        "SELECT COUNT(*) AS cnt FROM users WHERE registration_ip = %s AND created_at >= %s",
+        (user_ip, cutoff),
+    )
+    ip_count_row = cursor.fetchone()
+    ip_count = ip_count_row["cnt"] if ip_count_row else 0
+    if ip_count >= MAX_REGISTRATIONS_PER_IP_PER_DAY:
+        db.close()
+        raise HTTPException(status_code=429, detail="Demasiados registros desde esta IP. Intenta más tarde.")
+
     cursor.execute("SELECT id FROM users WHERE email = %s", (user_data.email,))
     if cursor.fetchone():
+        db.close()
         raise HTTPException(status_code=400, detail="El correo ya está registrado")
 
     hashed = hash_password(user_data.password)
@@ -342,14 +492,25 @@ async def register(user_data: UserRegister, response: Response):
 
     try:
         cursor.execute(
-            "INSERT INTO users (name, email, hashed_password, role, rayos_balance, created_at, username) VALUES (%s, %s, %s, 'user', 100, %s, %s) RETURNING id",
-            (user_data.name, user_data.email, hashed, now, username),
+            "INSERT INTO users (name, email, hashed_password, role, rayos_balance, created_at, username, registration_ip) VALUES (%s, %s, %s, 'user', 0, %s, %s, %s) RETURNING id",
+            (user_data.name, user_data.email, hashed, now, username, user_ip),
+        )
+        user_id = cursor.fetchone()["id"]
+
+        # Recompensa de registro decidida por el backend y registrada en el libro mayor
+        new_balance = _credit_rayos(
+            cursor,
+            user_id,
+            REGISTRATION_REWARD_AMOUNT,
+            "registration_reward",
+            "Recompensa por crear tu cuenta en AETERNUM",
         )
         db.commit()
-        user_id = cursor.fetchone()["id"]
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error al registrar usuario: {str(e)}")
+    finally:
+        db.close()
 
     set_auth_cookies(
         response,
@@ -363,7 +524,7 @@ async def register(user_data: UserRegister, response: Response):
         "email": user_data.email,
         "name": user_data.name,
         "role": "user",
-        "rayos_balance": 100,
+        "rayos_balance": new_balance,
     }
 
 
@@ -1493,36 +1654,53 @@ async def get_book_reviews(book_id: str):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@api_router.post("/rayos/earn")
-async def earn_rayos(transaction_data: RayosTransaction, request: Request):
+@api_router.post("/books/{book_id}/reading-reward")
+async def reading_reward(book_id: int, request: Request):
     user = await get_current_user(request)
     db = get_db()
     cursor = db.cursor()
 
+    cursor.execute("SELECT id, title, published FROM books WHERE id = %s", (book_id,))
+    book = cursor.fetchone()
+    if not book:
+        db.close()
+        raise HTTPException(status_code=404, detail="Libro no encontrado")
+    if not book["published"] and user["role"] != "admin":
+        db.close()
+        raise HTTPException(status_code=403, detail="Este libro no está publicado")
+
+    # Anti-farm: una sola recompensa de lectura por libro y por día
+    today_prefix = datetime.now(timezone.utc).date().isoformat()
+    cursor.execute(
+        "SELECT id FROM rayos_transactions WHERE user_id = %s AND type = 'reading_reward' AND book_id = %s AND created_at LIKE %s",
+        (user["id"], book_id, f"{today_prefix}%"),
+    )
+    if cursor.fetchone():
+        db.close()
+        return {"rewarded": False, "amount": 0, "balance": user["rayos_balance"], "message": "Ya reclamaste la recompensa de lectura para este libro hoy"}
+
     try:
-        now = datetime.now(timezone.utc).isoformat()
-        cursor.execute(
-            """
-            INSERT INTO rayos_transactions (user_id, amount, type, description, created_at)
-            VALUES (%s, %s, %s, %s, %s)
-            """,
-            (
-                int(user["_id"]),
-                transaction_data.amount,
-                transaction_data.type,
-                transaction_data.description,
-                now,
-            ),
-        )
-        cursor.execute(
-            "UPDATE users SET rayos_balance = rayos_balance + %s WHERE id = %s",
-            (transaction_data.amount, int(user["_id"])),
+        new_balance = _credit_rayos(
+            cursor,
+            user["id"],
+            READING_REWARD_AMOUNT,
+            "reading_reward",
+            f"Recompensa por leer '{book['title']}'",
+            book_id=book_id,
         )
         db.commit()
-        return {"success": True, "message": "Puntos Rayos sumados con éxito"}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+    return {
+        "rewarded": True,
+        "amount": READING_REWARD_AMOUNT,
+        "balance": new_balance,
+        "message": f"¡Has ganado {READING_REWARD_AMOUNT} Rayos por leer!",
+    }
 
 
 @api_router.get("/rayos/transactions")
@@ -1533,7 +1711,7 @@ async def get_rayos_transactions(request: Request):
 
     cursor.execute(
         "SELECT * FROM rayos_transactions WHERE user_id = %s ORDER BY created_at DESC LIMIT 100",
-        (int(user["_id"]),),
+        (user["id"],),
     )
     rows = cursor.fetchall()
 
@@ -1543,6 +1721,7 @@ async def get_rayos_transactions(request: Request):
         transaction["id"] = str(transaction["id"])
         transactions.append(transaction)
 
+    db.close()
     return transactions
 
 
@@ -1609,6 +1788,40 @@ async def create_course(
         raise HTTPException(status_code=500, detail=str(e))
     return {"message": "Curso creado exitosamente"}
 
+@api_router.post("/courses/{course_id}/start")
+async def start_course(course_id: int, request: Request):
+    user = await get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Debes iniciar sesión para iniciar un curso")
+
+    db = get_db()
+    cursor = db.cursor()
+
+    cursor.execute("SELECT id FROM courses WHERE id = %s", (course_id,))
+    if not cursor.fetchone():
+        db.close()
+        raise HTTPException(status_code=404, detail="Curso no encontrado")
+
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        cursor.execute(
+            """
+            INSERT INTO course_progress (user_id, course_id, started_at)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (user_id, course_id) DO UPDATE SET started_at = course_progress.started_at
+            """,
+            (user["id"], course_id, now),
+        )
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Error al iniciar el curso")
+    finally:
+        db.close()
+
+    return {"message": "Curso iniciado. Buen estudio!"}
+
+
 @api_router.post("/courses/{course_id}/complete")
 async def complete_course(course_id: int, request: Request):
     user = await get_current_user(request)
@@ -1618,31 +1831,61 @@ async def complete_course(course_id: int, request: Request):
     db = get_db()
     cursor = db.cursor()
     
-    cursor.execute("SELECT reward_amount FROM courses WHERE id = %s", (course_id,))
-    course = cursor.fetchone()
-    if not course:
-        raise HTTPException(status_code=404, detail="Curso no encontrado")
-        
-    cursor.execute("SELECT id FROM course_progress WHERE user_id = %s AND course_id = %s", (user["id"], course_id))
-    if cursor.fetchone():
-        raise HTTPException(status_code=400, detail="Ya reclamaste la recompensa de este curso")
-        
-    now = datetime.now(timezone.utc).isoformat()
     try:
+        cursor.execute("SELECT id, title, reward_amount FROM courses WHERE id = %s FOR UPDATE", (course_id,))
+        course = cursor.fetchone()
+        if not course:
+            raise HTTPException(status_code=404, detail="Curso no encontrado")
+            
         cursor.execute(
-            "INSERT INTO course_progress (user_id, course_id, completed_at) VALUES (%s, %s, %s)",
-            (user["id"], course_id, now)
+            "SELECT id, started_at, completed_at FROM course_progress WHERE user_id = %s AND course_id = %s FOR UPDATE",
+            (user["id"], course_id),
         )
+        progress = cursor.fetchone()
+        if not progress:
+            raise HTTPException(status_code=400, detail="Debes iniciar el curso antes de completarlo")
+
+        # Sin doble reclamo (también cubre registros previos a la FASE 1)
+        if progress["completed_at"] is not None:
+            raise HTTPException(status_code=400, detail="Ya reclamaste la recompensa de este curso")
+        if not progress["started_at"]:
+            raise HTTPException(status_code=400, detail="Debes iniciar el curso antes de completarlo")
+
+        # Tiempo mínimo de visualización anti-farm (el backend lo decide)
+        started = datetime.fromisoformat(progress["started_at"])
+        if started.tzinfo is None:
+            started = started.replace(tzinfo=timezone.utc)
+        elapsed_seconds = (datetime.now(timezone.utc) - started).total_seconds()
+        if elapsed_seconds < MIN_COURSE_REWARD_SECONDS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Debes ver al menos {MIN_COURSE_REWARD_SECONDS} segundos del curso antes de reclamar la recompensa",
+            )
+
+        now = datetime.now(timezone.utc).isoformat()
         cursor.execute(
-            "UPDATE users SET rayos_balance = rayos_balance + %s WHERE id = %s",
-            (course["reward_amount"], user["id"])
+            "UPDATE course_progress SET completed_at = %s WHERE id = %s",
+            (now, progress["id"]),
+        )
+        new_balance = _credit_rayos(
+            cursor,
+            user["id"],
+            course["reward_amount"],
+            "course_reward",
+            f"Recompensa por completar el curso '{course['title']}'",
+            course_id=course_id,
         )
         db.commit()
+    except HTTPException as e:
+        db.rollback()
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail="Error al procesar la recompensa")
+    finally:
+        db.close()
         
-    return {"message": f"¡Felicidades! Has ganado {course['reward_amount']} Rayos."}
+    return {"message": f"¡Felicidades! Has ganado {course['reward_amount']} Rayos.", "balance": new_balance}
 
 @api_router.delete("/courses/{course_id}")
 async def delete_course(course_id: int, request: Request):
@@ -1991,20 +2234,44 @@ async def submit_competition(comp_id: int, submission: CompetitionSubmit, reques
         db.close()
         raise HTTPException(status_code=400, detail="La competencia no está activa")
         
-    cursor.execute("SELECT * FROM competition_participants WHERE competition_id = %s AND user_id = %s", (comp_id, user["id"]))
+    cursor.execute("SELECT id, status FROM competition_participants WHERE competition_id = %s AND user_id = %s", (comp_id, user["id"]))
     participant = cursor.fetchone()
     
     if not participant or participant["status"] == "submitted":
         db.close()
         raise HTTPException(status_code=400, detail="No puedes enviar respuestas")
-        
+
+    # El puntaje SIEMPRE lo calcula el servidor comparando contra la respuesta
+    # correcta real (el cliente jamás envía su propio score)
+    cursor.execute("SELECT id, correct_option FROM competition_questions WHERE competition_id = %s", (comp_id,))
+    correct_map = {
+        q["id"]: (q["correct_option"] or "").strip().upper()
+        for q in cursor.fetchall()
+    }
+    score = 0
+    for answer in submission.answers:
+        if answer.question_id in correct_map and answer.selected.strip().upper() == correct_map[answer.question_id]:
+            score += 10
+
+    # Tiempo acotado por el servidor (anti-abuso)
+    try:
+        time_taken_ms = int(submission.time_taken_ms)
+    except (TypeError, ValueError):
+        time_taken_ms = 0
+    time_taken_ms = max(0, min(time_taken_ms, MAX_COMPETITION_TIME_MS))
+
+    # Reclamo atómico: solo se acepta la primera entrega
     cursor.execute(
-        "UPDATE competition_participants SET score = %s, time_taken_ms = %s, status = 'submitted' WHERE id = %s",
-        (submission.score, submission.time_taken_ms, participant["id"])
+        "UPDATE competition_participants SET score = %s, time_taken_ms = %s, status = 'submitted' WHERE id = %s AND status = 'registered'",
+        (score, time_taken_ms, participant["id"])
     )
+    if cursor.rowcount != 1:
+        db.rollback()
+        db.close()
+        raise HTTPException(status_code=400, detail="No puedes enviar respuestas")
     db.commit()
     db.close()
-    return {"message": "Respuestas enviadas correctamente"}
+    return {"message": "Respuestas enviadas correctamente", "score": score}
 
 @api_router.get("/competitions/{comp_id}/leaderboard")
 async def get_competition_leaderboard(comp_id: int):
@@ -2059,8 +2326,10 @@ async def finish_competition(comp_id: int, request: Request):
         
         # Add Rayos
         cursor.execute("UPDATE users SET rayos_balance = rayos_balance + %s, historical_rayos = historical_rayos + %s WHERE id = %s", (prize, prize, user_id))
-        cursor.execute("INSERT INTO rayos_transactions (user_id, amount, type, description, created_at) VALUES (%s, %s, 'earned', %s, %s)", 
-            (user_id, prize, f"Premio {i+1}er lugar en competencia", now))
+        cursor.execute(
+            "INSERT INTO rayos_transactions (user_id, amount, type, description, created_at, competition_id) VALUES (%s, %s, 'competition_reward', %s, %s, %s)",
+            (user_id, prize, f"Premio {i+1}er lugar en competencia", now, comp_id)
+        )
             
         # Add Badge to 1st place
         if i == 0:
@@ -2166,51 +2435,133 @@ class DonationRequest(BaseModel):
 @api_router.post("/users/{username}/donate-rayos")
 async def donate_rayos(username: str, req: DonationRequest, request: Request):
     donor = await get_current_user(request)
-    if donor["rayos_balance"] < req.amount:
-        raise HTTPException(status_code=400, detail="No tienes suficientes Rayos")
-        
+
     db = get_db()
     cursor = db.cursor()
-    
+
     try:
         cursor.execute("SELECT id, username FROM users WHERE username = %s", (username,))
         target = cursor.fetchone()
-        
+
         if not target:
             raise HTTPException(status_code=404, detail="Usuario receptor no encontrado")
-            
+
         if target["id"] == donor["id"]:
             raise HTTPException(status_code=400, detail="No puedes donarte Rayos a ti mismo")
-            
-        # Deduct from donor
-        cursor.execute("UPDATE users SET rayos_balance = rayos_balance - %s WHERE id = %s", (req.amount, donor["id"]))
-        
-        # Add to receiver
-        cursor.execute("UPDATE users SET rayos_balance = rayos_balance + %s, historical_rayos = historical_rayos + %s WHERE id = %s", 
-            (req.amount, req.amount, target["id"]))
-            
+
+        received, burned = compute_donation_split(req.amount)
+
+        # Débito atómico condicional: nunca deja el saldo en negativo
+        new_donor_balance = _debit_rayos_atomic(
+            cursor,
+            donor["id"],
+            req.amount,
+            "donation_sent",
+            f"Donación enviada a @{target['username']}",
+        )
+        if new_donor_balance is None:
+            raise HTTPException(status_code=400, detail="No tienes suficientes Rayos")
+
+        # El receptor recibe el monto menos la quema (nunca crea Rayos nuevos)
+        _credit_rayos(
+            cursor,
+            target["id"],
+            received,
+            "donation_received",
+            f"Donación recibida de @{donor['username']}",
+        )
+
+        # La quema del 10% se registra a nivel de sistema (user_id NULL):
+        # esos Rayos desaparecen del ecosistema, nunca son progreso de nadie
+        if burned > 0:
+            _record_rayos_transaction(
+                cursor,
+                None,
+                -burned,
+                "donation_burn",
+                f"Quema del 10% por donación de @{donor['username']} a @{target['username']}",
+            )
+
         now = datetime.now(timezone.utc).isoformat()
-        
-        # Log transaction for donor
-        cursor.execute("INSERT INTO rayos_transactions (user_id, amount, type, description, created_at) VALUES (%s, %s, 'donation_sent', %s, %s)",
-            (donor["id"], -req.amount, f"Donación enviada a @{target['username']}", now))
-            
-        # Log transaction for receiver
-        cursor.execute("INSERT INTO rayos_transactions (user_id, amount, type, description, created_at) VALUES (%s, %s, 'donation_received', %s, %s)",
-            (target["id"], req.amount, f"Donación recibida de @{donor['username']}", now))
-            
-        # Notify receiver
         cursor.execute("INSERT INTO notifications (user_id, type, content, created_at) VALUES (%s, 'system', %s, %s)",
-            (target["id"], f"¡Felicidades! @{donor['username']} te ha donado {req.amount} Rayos.", now))
-            
+            (target["id"], f"¡Felicidades! @{donor['username']} te ha donado {received} Rayos.", now))
+
         db.commit()
+    except HTTPException as e:
+        db.rollback()
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         db.close()
-        
-    return {"message": f"Has donado {req.amount} Rayos exitosamente"}
+
+    return {"message": f"Has donado {req.amount} Rayos exitosamente", "received": received, "burned": burned}
+
+
+# ── Auditoría de Rayos (FASE 1) ───────────────────────────────────────────────
+
+@api_router.get("/admin/rayos/audit")
+async def admin_rayos_audit(request: Request):
+    user = await get_current_user(request)
+    if not user or user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        # Ledger real vs saldo declarado por usuario
+        cursor.execute("""
+            SELECT u.id, u.username, u.rayos_balance, u.historical_rayos,
+                   COALESCE(SUM(t.amount), 0) AS ledger_sum
+            FROM users u
+            LEFT JOIN rayos_transactions t ON t.user_id = u.id
+            GROUP BY u.id, u.username, u.rayos_balance, u.historical_rayos
+            ORDER BY u.id
+        """)
+        rows = cursor.fetchall()
+
+        cursor.execute("SELECT COALESCE(SUM(amount), 0) AS s FROM rayos_transactions")
+        total_ledger = cursor.fetchone()["s"]
+        cursor.execute("SELECT COALESCE(SUM(amount), 0) AS s FROM rayos_transactions WHERE type = 'donation_burn'")
+        total_burned = cursor.fetchone()["s"]
+        cursor.execute("SELECT COALESCE(SUM(rayos_balance), 0) AS s FROM users")
+        total_balance = cursor.fetchone()["s"]
+    except Exception as e:
+        db.rollback()
+        db.close()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+    users_audit = []
+    mismatches = []
+    for row in rows:
+        entry = {
+            "user_id": row["id"],
+            "username": row["username"],
+            "balance": row["rayos_balance"],
+            "historical_rayos": row["historical_rayos"],
+            "ledger_sum": row["ledger_sum"],
+            "delta": row["rayos_balance"] - row["ledger_sum"],
+        }
+        users_audit.append(entry)
+        if row["rayos_balance"] != row["ledger_sum"]:
+            mismatches.append({
+                **entry,
+                "note": "Crédito previo a la FASE 1 (semilla o recompensa antigua) sin transacción registrada en el libro mayor",
+            })
+
+    return {
+        "audit_time": datetime.now(timezone.utc).isoformat(),
+        "total_users_balance": total_balance,
+        "total_ledger": total_ledger,
+        "total_burned": total_burned,
+        "net_supply": total_ledger + total_burned,
+        "users": users_audit,
+        "mismatches": mismatches,
+        "note": "Los deltas legacy (semillas 500/100 y acreditaciones pre-FASE 1) se reportan pero no se corrigen automáticamente.",
+    }
 
 # ── Montar rutas ─────────────────────────────────────────────────────────────
 app.include_router(api_router, prefix="/api")

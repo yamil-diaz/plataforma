@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { API } from '../config/api';
@@ -16,13 +16,23 @@ export default function CompetitionQuizPage() {
   
   // Quiz state
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
-  const [score, setScore] = useState(0);
-  const [timeTakenMs, setTimeTakenMs] = useState(0);
   const [timeLeft, setTimeLeft] = useState(15);
-  const [startTime, setStartTime] = useState(null);
+  const [finalScore, setFinalScore] = useState(null);
+  const currentIdxRef = useRef(0);
+  const answersRef = useRef([]);
+  const dataRef = useRef(null);
+  const startTimeRef = useRef(null);
   
   // Leaderboard state
   const [leaderboard, setLeaderboard] = useState([]);
+
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
+  useEffect(() => {
+    currentIdxRef.current = currentQuestionIdx;
+  }, [currentQuestionIdx]);
 
   useEffect(() => {
     fetchData();
@@ -31,12 +41,11 @@ export default function CompetitionQuizPage() {
   useEffect(() => {
     // If we are in quiz mode, run the timer
     if (data?.competition?.status === 'active' && data?.participant?.status === 'registered' && data?.questions?.length > 0) {
-      if (!startTime) setStartTime(Date.now());
+      if (!startTimeRef.current) startTimeRef.current = Date.now();
       
       const timer = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
-            // Auto advance
             handleAnswer(null);
             return 15;
           }
@@ -45,7 +54,7 @@ export default function CompetitionQuizPage() {
       }, 1000);
       return () => clearInterval(timer);
     }
-  }, [data, currentQuestionIdx, startTime]);
+  }, [data]);
 
   const fetchData = async () => {
     try {
@@ -73,33 +82,30 @@ export default function CompetitionQuizPage() {
   };
 
   const handleAnswer = async (selectedOption) => {
-    const q = data.questions[currentQuestionIdx];
-    let newScore = score;
+    const quizData = dataRef.current;
+    const idx = currentIdxRef.current;
+    const q = quizData.questions[idx];
     
-    if (selectedOption === q.correct_option) {
-      newScore += 10; // 10 points per correct answer
-    }
+    answersRef.current.push({ question_id: q.id, selected: selectedOption || '' });
     
-    if (currentQuestionIdx < data.questions.length - 1) {
-      setScore(newScore);
-      setCurrentQuestionIdx(currentQuestionIdx + 1);
+    if (idx < quizData.questions.length - 1) {
+      setCurrentQuestionIdx(idx + 1);
       setTimeLeft(15);
     } else {
-      // Finished
-      clearInterval();
-      const finalTime = Date.now() - startTime;
-      setScore(newScore);
-      setTimeTakenMs(finalTime);
-      submitResult(newScore, finalTime);
+      // Finished: el puntaje lo calcula el servidor
+      const finalTime = Date.now() - (startTimeRef.current || Date.now());
+      submitResult(finalTime);
     }
   };
 
-  const submitResult = async (finalScore, finalTime) => {
+  const submitResult = async (finalTime) => {
     try {
-      await axios.post(`${API}/competitions/${id}/submit`, {
-        score: finalScore,
+      const res = await axios.post(`${API}/competitions/${id}/submit`, {
+        answers: answersRef.current,
         time_taken_ms: finalTime
       }, { withCredentials: true });
+      
+      setFinalScore(res.data.score);
       
       // Update local state to show leaderboard
       setData(prev => ({
@@ -201,6 +207,13 @@ export default function CompetitionQuizPage() {
           <h1 className="text-4xl font-extrabold text-white font-['Outfit'] mb-2">Tabla de Clasificación</h1>
           <p className="text-[#A0A0A0] text-lg">Torneo: {competition.title}</p>
         </div>
+
+        {finalScore !== null && (
+          <div className="max-w-4xl mx-auto mb-6 bg-[#D4AF37]/10 border border-[#D4AF37]/30 rounded-xl px-6 py-4 flex items-center justify-center gap-3">
+            <CheckCircle2 className="w-6 h-6 text-[#D4AF37]" />
+            <span className="text-white font-bold">¡Resultado enviado! Tu puntaje: {finalScore}</span>
+          </div>
+        )}
 
         <div className="bg-[#121212] rounded-2xl border border-white/10 overflow-hidden">
           <table className="w-full text-left">

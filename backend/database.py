@@ -44,6 +44,8 @@ def init_db():
         favorite_genres TEXT,
         reset_token VARCHAR(255),
         reset_token_expiry TIMESTAMP,
+        is_banned BOOLEAN DEFAULT FALSE,
+        registration_ip TEXT,
         created_at TEXT NOT NULL
     )
     """)
@@ -52,6 +54,8 @@ def init_db():
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255)")
         cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expiry TIMESTAMP")
+        cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE")
+        cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS registration_ip TEXT")
         conn.commit()
     except Exception as e:
         conn.rollback()
@@ -101,23 +105,89 @@ def init_db():
     """)
 
     # ── Tabla de transacciones Rayos ─────────────────────────────────────────
+    # FASE 1: user_id puede ser NULL (la quema del 10% se registra a nivel de
+    # sistema); la FK se conserva para el resto de transacciones.
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS rayos_transactions (
         id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL,
+        user_id INTEGER,
         amount INTEGER NOT NULL,
         type TEXT NOT NULL,
         description TEXT NOT NULL,
+        book_id INTEGER,
+        course_id INTEGER,
+        competition_id INTEGER,
         created_at TEXT NOT NULL,
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )
     """)
+
+    # Migraciones idempotentes (compatibles con BDs existentes y deploys frescos)
+    try:
+        cursor.execute("ALTER TABLE rayos_transactions ADD COLUMN IF NOT EXISTS book_id INTEGER")
+        cursor.execute("ALTER TABLE rayos_transactions ADD COLUMN IF NOT EXISTS course_id INTEGER")
+        cursor.execute("ALTER TABLE rayos_transactions ADD COLUMN IF NOT EXISTS competition_id INTEGER")
+        cursor.execute("ALTER TABLE rayos_transactions ALTER COLUMN user_id DROP NOT NULL")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        pass
 
     # ── Índices ──────────────────────────────────────────────────────────────
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_books_category ON books(category)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_reviews_book ON reviews(book_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_reviews_book_user ON reviews(book_id, user_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_rayos_user ON rayos_transactions(user_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_rayos_user_type ON rayos_transactions(user_id, type)")
+
+    # ── Cursos (FASE 1: se crean aquí para que un deploy fresco funcione) ────
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS courses (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        instructor TEXT NOT NULL,
+        category TEXT NOT NULL,
+        video_url TEXT NOT NULL,
+        cover_url TEXT NOT NULL,
+        reward_amount INTEGER NOT NULL DEFAULT 50,
+        views INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL,
+        uploader_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS course_progress (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+        completed BOOLEAN DEFAULT TRUE,
+        started_at TEXT,
+        completed_at TEXT,
+        UNIQUE(user_id, course_id)
+    )
+    """)
+
+    try:
+        cursor.execute("ALTER TABLE course_progress ADD COLUMN IF NOT EXISTS started_at TEXT")
+        cursor.execute("ALTER TABLE course_progress ALTER COLUMN completed_at DROP NOT NULL")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        pass
+
+    # ── Notificaciones (FASE 1: necesarias para donaciones en deploy fresco) ─
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        type TEXT,
+        content TEXT,
+        is_read BOOLEAN DEFAULT FALSE,
+        created_at TEXT NOT NULL
+    )
+    """)
 
     # ── Tabla de interacciones (Likes/Dislikes) ──────────────────────────────
     cursor.execute("""

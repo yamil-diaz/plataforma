@@ -11,7 +11,7 @@ const HOST = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace
 export default function CoursePlayerPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, fetchProfile } = useAuth();
+  const { user, refreshUser } = useAuth();
   
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -28,6 +28,10 @@ export default function CoursePlayerPage() {
     try {
       const { data } = await axios.get(`${API}/courses/${id}`);
       setCourse(data);
+      // Registrar el inicio del curso en el backend (lo usarán las recompensas)
+      try {
+        await axios.post(`${API}/courses/${id}/start`, {}, { withCredentials: true });
+      } catch (startErr) {}
     } catch (err) {
       setError('Curso no encontrado');
     } finally {
@@ -51,7 +55,7 @@ export default function CoursePlayerPage() {
     try {
       const { data } = await axios.post(`${API}/courses/${id}/complete`, {}, { withCredentials: true });
       setMessage(data.message);
-      await fetchProfile(); // Update Rayos balance in context
+      await refreshUser(); // Update Rayos balance in context
     } catch (err) {
       setError(err.response?.data?.detail || 'Error al completar el curso');
     } finally {

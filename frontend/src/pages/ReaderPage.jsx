@@ -64,21 +64,19 @@ export default function ReaderPage() {
       // Cargar reseñas
       loadReviews(bookDetails._id || bookDetails.id);
       
-      // Ganar Rayos por leer
+      // Ganar Rayos por leer (el monto y la regla los decide el backend)
       setTimeout(async () => {
         try {
-          await axios.post(
-            `${API}/rayos/earn`,
-            {
-              amount: 10,
-              type: 'earned',
-              description: `Leyó "${bookDetails.title}"`
-            },
+          const { data: rewardData } = await axios.post(
+            `${API}/books/${bookId}/reading-reward`,
+            {},
             { withCredentials: true }
           );
-          setShowReward(true);
-          refreshUser();
-          setTimeout(() => setShowReward(false), 3000);
+          if (rewardData.rewarded) {
+            setShowReward(true);
+            refreshUser();
+            setTimeout(() => setShowReward(false), 3000);
+          }
         } catch (error) {
           console.error('Error earning Rayos:', error);
         }
