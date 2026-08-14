@@ -4,6 +4,7 @@ import zipfile
 import shutil
 import random
 import string
+import threading
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, List
 
@@ -32,6 +33,7 @@ from pydantic import BaseModel, Field, EmailStr
 
 from database import init_db, get_db
 import psycopg2
+import lectura
 
 # ── Directorios de almacenamiento ───────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -122,6 +124,18 @@ try:
     migrate_db_phase4_3.migrate()
 except Exception as e:
     print(f"Error ejecutando migración Fase 4: {e}")
+
+# FASE 2: el backfill de páginas corre en segundo plano (daemon) para no
+# bloquear el arranque de FastAPI con bibliotecas grandes. La migración sigue
+# siendo standalone e idempotente.
+def _run_fase2_lectura_migration():
+    try:
+        import migrate_db_fase2_lectura
+        migrate_db_fase2_lectura.migrate()
+    except Exception as e:
+        print(f"Error ejecutando migración Fase 2 (Lectura): {e}")
+
+threading.Thread(target=_run_fase2_lectura_migration, daemon=True).start()
 
 # ── Aplicación FastAPI ───────────────────────────────────────────────────────
 app = FastAPI(title="Aeternum API")
@@ -245,6 +259,7 @@ async def get_current_user(request: Request):
 VALID_RAYOS_TYPES = frozenset({
     "registration_reward",
     "reading_reward",
+    "daily_goal_reward",
     "book_completion_reward",
     "course_reward",
     "competition_reward",
@@ -256,6 +271,9 @@ VALID_RAYOS_TYPES = frozenset({
 
 REGISTRATION_REWARD_AMOUNT = 100
 READING_REWARD_AMOUNT = 10
+DAILY_GOAL_PAGES = 15
+DAILY_GOAL_REWARD_AMOUNT = 20
+MIN_SECONDS_BETWEEN_PAGE_REPORTS = 5
 MIN_COURSE_REWARD_SECONDS = 30
 MAX_REGISTRATIONS_PER_IP_PER_DAY = 3
 MAX_COMPETITION_TIME_MS = 7200000
@@ -1358,25 +1376,27 @@ async def create_book(
     cover_url = "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400"
 
     if pdf_file:
-        import pypdf
-
         unique_pdf_name = f"{uuid.uuid4()}_{pdf_file.filename}"
         pdf_path = os.path.join(STORAGE_BOOKS, unique_pdf_name)
         with open(pdf_path, "wb") as buffer:
             shutil.copyfileobj(pdf_file.file, buffer)
 
+    # FASE 2: extracción por páginas (sin límite) + detección de capítulos.
+    # El contenido completo se mantiene en books.content para compatibilidad.
+    paginas_libro = []
+    capitulos_libro = []
+    if pdf_path and os.path.exists(pdf_path):
         try:
-            reader = pypdf.PdfReader(pdf_path)
-            extracted_text = ""
-            max_pages = len(reader.pages)
-            for page_index in range(max_pages):
-                page_text = reader.pages[page_index].extract_text()
-                if page_text:
-                    extracted_text += page_text + "\n"
-            if extracted_text.strip():
-                content = extracted_text
+            paginas_libro = lectura.extraer_paginas(pdf_path)
+            capitulos_libro = lectura.detectar_capitulos(paginas_libro)
+            content = "\n".join(paginas_libro)
         except Exception as e:
             content = f"Error al extraer texto del PDF: {str(e)}"
+            paginas_libro = []
+            capitulos_libro = []
+    else:
+        paginas_libro = lectura.paginar_desde_contenido(content)
+        capitulos_libro = []
 
     if cover_file:
         unique_cover_name = f"{uuid.uuid4()}_{cover_file.filename}"
@@ -1403,6 +1423,15 @@ async def create_book(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error al guardar el libro: {str(e)}")
+
+    if paginas_libro:
+        try:
+            _guardar_paginas_libro(cursor, book_id, paginas_libro, capitulos_libro)
+            cursor.execute("UPDATE books SET page_count = %s WHERE id = %s", (len(paginas_libro), book_id))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"Error guardando páginas del libro {book_id}: {e}")
 
     return {
         "_id": str(book_id),
@@ -1460,6 +1489,8 @@ def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default
                 author = None
                 content = "Contenido de texto no disponible."
 
+                paginas_libro = []
+                capitulos_libro = []
                 try:
                     reader = pypdf.PdfReader(pdf)
                     meta = reader.metadata
@@ -1467,16 +1498,18 @@ def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default
                         title = meta.title
                         author = meta.author
 
-                    # Extraer texto del PDF 
-                    max_pages = len(reader.pages)
-                    for page_index in range(max_pages):
-                        page_text = reader.pages[page_index].extract_text()
-                        if page_text:
-                            extracted_text += page_text + "\n"
+                    # FASE 2: extraer por páginas (fix: extracted_text ya inicializado)
+                    paginas_libro = lectura.extraer_paginas(pdf)
+                    capitulos_libro = lectura.detectar_capitulos(paginas_libro)
+                    extracted_text = "\n".join(paginas_libro)
                     if extracted_text.strip():
                         content = extracted_text
-                except Exception:
-                    pass
+                except Exception as e:
+                    task_status["errors"].append(f"Advertencia extracción {filename}: {str(e)}")
+
+                if not paginas_libro:
+                    paginas_libro = lectura.paginar_desde_contenido(content)
+                    capitulos_libro = []
 
                 if not title:
                     title = name_without_ext.replace("_", " ").replace("-", " ").title()
@@ -1502,9 +1535,14 @@ def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default
                     """
                     INSERT INTO books (title, author_name, content, category, price, cover_image_url, pdf_path, views, likes, average_rating, total_reviews, published, created_at)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, 0, 0, 0.0, 0, 1, %s)
+                    RETURNING id
                     """,
                     (title, author, content, default_category, default_price, cover_url, final_pdf_path, now),
                 )
+                new_book_id = cursor.fetchone()["id"]
+                if paginas_libro:
+                    _guardar_paginas_libro(cursor, new_book_id, paginas_libro, capitulos_libro)
+                    cursor.execute("UPDATE books SET page_count = %s WHERE id = %s", (len(paginas_libro), new_book_id))
                 db.commit()
 
                 task_status["processed"] += 1
@@ -1701,6 +1739,342 @@ async def reading_reward(book_id: int, request: Request):
         "balance": new_balance,
         "message": f"¡Has ganado {READING_REWARD_AMOUNT} Rayos por leer!",
     }
+
+
+# ── FASE 2: Lectura por páginas y meta diaria ────────────────────────────────
+# El backend decide TODO sobre Rayos: página válida, progreso, páginas únicas,
+# 15/15 y la recompensa. El frontend solo reporta qué página está leyendo.
+
+def _guardar_paginas_libro(cursor, book_id, paginas, capitulos):
+    capitulo_ids = {}
+    for cap in capitulos:
+        cursor.execute(
+            "INSERT INTO chapters (book_id, title, start_page) VALUES (%s, %s, %s) RETURNING id",
+            (book_id, cap["title"], cap["page"]),
+        )
+        capitulo_ids[cap["page"]] = cursor.fetchone()["id"]
+    for i, texto in enumerate(paginas, start=1):
+        cursor.execute(
+            "INSERT INTO book_pages (book_id, page_number, content, chapter_id) VALUES (%s, %s, %s, %s)",
+            (book_id, i, texto, capitulo_ids.get(i)),
+        )
+
+
+def _get_daily_progress(cursor, user_id, day):
+    cursor.execute(
+        "SELECT COUNT(*) AS total FROM reading_daily_pages WHERE user_id = %s AND day = %s",
+        (user_id, day),
+    )
+    pages = cursor.fetchone()["total"]
+    cursor.execute(
+        """
+        SELECT rdp.book_id, b.title, COUNT(*) AS pages
+        FROM reading_daily_pages rdp
+        JOIN books b ON b.id = rdp.book_id
+        WHERE rdp.user_id = %s AND rdp.day = %s
+        GROUP BY rdp.book_id, b.title
+        """,
+        (user_id, day),
+    )
+    books = cursor.fetchall()
+    cursor.execute(
+        "SELECT id FROM rayos_transactions WHERE user_id = %s AND type = 'daily_goal_reward' AND created_at LIKE %s",
+        (user_id, f"{day}%"),
+    )
+    reward_claimed = bool(cursor.fetchone())
+    return {
+        "day": day,
+        "pages": pages,
+        "goal": DAILY_GOAL_PAGES,
+        "completed": pages >= DAILY_GOAL_PAGES,
+        "reward_claimed": reward_claimed,
+        "books": books,
+    }
+
+
+class ProgressRequest(BaseModel):
+    page: int
+
+
+@api_router.post("/books/{book_id}/start")
+async def start_reading_session(book_id: int, request: Request):
+    user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute("SELECT id, title, published, page_count FROM books WHERE id = %s", (book_id,))
+        book = cursor.fetchone()
+        if not book:
+            raise HTTPException(status_code=404, detail="Libro no encontrado")
+        if not book["published"] and user["role"] != "admin":
+            raise HTTPException(status_code=403, detail="Este libro no está publicado")
+
+        now = datetime.now(timezone.utc).isoformat()
+        cursor.execute(
+            """
+            INSERT INTO reading_sessions (user_id, book_id, started_at, last_active_at, status)
+            VALUES (%s, %s, %s, %s, 'active')
+            ON CONFLICT (user_id, book_id)
+            DO UPDATE SET last_active_at = EXCLUDED.last_active_at
+            """,
+            (user["id"], book_id, now, now),
+        )
+        cursor.execute(
+            "SELECT page_number FROM reading_progress WHERE user_id = %s AND book_id = %s",
+            (user["id"], book_id),
+        )
+        last_page_row = cursor.fetchone()
+        db.commit()
+        return {
+            "session_started": True,
+            "last_page": last_page_row["page_number"] if last_page_row else None,
+            "total_pages": book["page_count"] or 0,
+        }
+    except HTTPException:
+        raise
+    finally:
+        db.close()
+
+
+@api_router.post("/books/{book_id}/progress")
+async def report_page_progress(book_id: int, req: ProgressRequest, request: Request):
+    user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute("SELECT id, title, published, page_count FROM books WHERE id = %s", (book_id,))
+        book = cursor.fetchone()
+        if not book:
+            raise HTTPException(status_code=404, detail="Libro no encontrado")
+        if not book["published"] and user["role"] != "admin":
+            raise HTTPException(status_code=403, detail="Este libro no está publicado")
+
+        total_pages = book["page_count"] or 0
+        now = datetime.now(timezone.utc)
+        now_iso = now.isoformat()
+        day = now.date().isoformat()
+
+        if total_pages <= 0:
+            db.commit()
+            return {
+                "accepted": False,
+                "counted": False,
+                "page": req.page,
+                "message": "Este libro aún no tiene paginación",
+                "daily": _get_daily_progress(cursor, user["id"], day),
+            }
+
+        if req.page < 1 or req.page > total_pages:
+            raise HTTPException(status_code=400, detail=f"Página fuera de rango (1-{total_pages})")
+
+        cursor.execute(
+            "SELECT page_number, reached_at FROM reading_progress WHERE user_id = %s AND book_id = %s",
+            (user["id"], book_id),
+        )
+        last_row = cursor.fetchone()
+        last_page = last_row["page_number"] if last_row else 0
+
+        if req.page < last_page:
+            db.commit()
+            return {
+                "accepted": False,
+                "counted": False,
+                "page": req.page,
+                "message": "No se puede retroceder en el progreso",
+                "daily": _get_daily_progress(cursor, user["id"], day),
+            }
+
+        counted = False
+        if req.page > last_page:
+            if last_row:
+                last_active = datetime.fromisoformat(last_row["reached_at"])
+                if (now - last_active).total_seconds() < MIN_SECONDS_BETWEEN_PAGE_REPORTS:
+                    db.commit()
+                    return {
+                        "accepted": True,
+                        "counted": False,
+                        "page": req.page,
+                        "message": "Reporte demasiado rápido",
+                        "daily": _get_daily_progress(cursor, user["id"], day),
+                    }
+            cursor.execute(
+                """
+                INSERT INTO reading_daily_pages (user_id, book_id, page_number, day)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT DO NOTHING
+                """,
+                (user["id"], book_id, req.page, day),
+            )
+            counted = cursor.rowcount > 0
+            cursor.execute(
+                """
+                INSERT INTO reading_progress (user_id, book_id, page_number, reached_at)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (user_id, book_id)
+                DO UPDATE SET page_number = EXCLUDED.page_number, reached_at = EXCLUDED.reached_at
+                """,
+                (user["id"], book_id, req.page, now_iso),
+            )
+            cursor.execute(
+                """
+                INSERT INTO reading_sessions (user_id, book_id, started_at, last_active_at, status)
+                VALUES (%s, %s, %s, %s, 'active')
+                ON CONFLICT (user_id, book_id)
+                DO UPDATE SET last_active_at = EXCLUDED.last_active_at
+                """,
+                (user["id"], book_id, now_iso, now_iso),
+            )
+
+        # Serializa recompensas concurrentes por usuario: el segundo txn espera
+        # a que el primero haga commit y ya ve su transacción de recompensa.
+        cursor.execute("SELECT id FROM users WHERE id = %s FOR UPDATE", (user["id"],))
+        daily = _get_daily_progress(cursor, user["id"], day)
+        rewarded = False
+        reward_amount = 0
+        new_balance = user["rayos_balance"]
+        if daily["completed"] and not daily["reward_claimed"]:
+            new_balance = _credit_rayos(
+                cursor,
+                user["id"],
+                DAILY_GOAL_REWARD_AMOUNT,
+                "daily_goal_reward",
+                f"¡Meta diaria de {DAILY_GOAL_PAGES} páginas completada!",
+                book_id=book_id,
+            )
+            rewarded = True
+            reward_amount = DAILY_GOAL_REWARD_AMOUNT
+            daily["reward_claimed"] = True
+
+        db.commit()
+        return {
+            "accepted": True,
+            "counted": counted,
+            "page": req.page,
+            "last_page": req.page if req.page > last_page else last_page,
+            "rewarded": rewarded,
+            "reward_amount": reward_amount,
+            "balance": new_balance,
+            "message": "Progreso registrado",
+            "daily": daily,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+@api_router.get("/books/{book_id}/progress")
+async def get_reading_progress(book_id: int, request: Request):
+    user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute("SELECT id, published, page_count FROM books WHERE id = %s", (book_id,))
+        book = cursor.fetchone()
+        if not book:
+            raise HTTPException(status_code=404, detail="Libro no encontrado")
+        if not book["published"] and user["role"] != "admin":
+            raise HTTPException(status_code=403, detail="Este libro no está publicado")
+
+        cursor.execute(
+            "SELECT page_number FROM reading_progress WHERE user_id = %s AND book_id = %s",
+            (user["id"], book_id),
+        )
+        last_row = cursor.fetchone()
+        day = datetime.now(timezone.utc).date().isoformat()
+        return {
+            "book_id": book_id,
+            "last_page": last_row["page_number"] if last_row else 1,
+            "total_pages": book["page_count"] or 0,
+            "daily": _get_daily_progress(cursor, user["id"], day),
+        }
+    except HTTPException:
+        raise
+    finally:
+        db.close()
+
+
+@api_router.get("/books/{book_id}/chapters")
+async def get_book_chapters(book_id: int, request: Request):
+    user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute("SELECT id, title, published FROM books WHERE id = %s", (book_id,))
+        book = cursor.fetchone()
+        if not book:
+            raise HTTPException(status_code=404, detail="Libro no encontrado")
+        if not book["published"] and user["role"] != "admin":
+            raise HTTPException(status_code=403, detail="Este libro no está publicado")
+        cursor.execute(
+            "SELECT id, title, start_page FROM chapters WHERE book_id = %s ORDER BY start_page",
+            (book_id,),
+        )
+        return cursor.fetchall()
+    except HTTPException:
+        raise
+    finally:
+        db.close()
+
+
+@api_router.get("/books/{book_id}/pages/{page}")
+async def get_book_page(book_id: int, page: int, request: Request):
+    user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute("SELECT id, published, page_count FROM books WHERE id = %s", (book_id,))
+        book = cursor.fetchone()
+        if not book:
+            raise HTTPException(status_code=404, detail="Libro no encontrado")
+        if not book["published"] and user["role"] != "admin":
+            raise HTTPException(status_code=403, detail="Este libro no está publicado")
+
+        total_pages = book["page_count"] or 0
+        if total_pages <= 0:
+            raise HTTPException(status_code=404, detail="Libro sin paginación")
+        if page < 1 or page > total_pages:
+            raise HTTPException(status_code=400, detail=f"Página fuera de rango (1-{total_pages})")
+
+        cursor.execute(
+            """
+            SELECT p.page_number, p.content, c.title AS chapter_title
+            FROM book_pages p
+            LEFT JOIN chapters c ON c.id = p.chapter_id
+            WHERE p.book_id = %s AND p.page_number = %s
+            """,
+            (book_id, page),
+        )
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Página no encontrada")
+        return {
+            "book_id": book_id,
+            "page_number": row["page_number"],
+            "content": row["content"],
+            "chapter_title": row["chapter_title"],
+            "total_pages": total_pages,
+            "has_next": page < total_pages,
+        }
+    except HTTPException:
+        raise
+    finally:
+        db.close()
+
+
+@api_router.get("/reading/today")
+async def get_reading_today(request: Request):
+    user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        day = datetime.now(timezone.utc).date().isoformat()
+        return _get_daily_progress(cursor, user["id"], day)
+    finally:
+        db.close()
 
 
 @api_router.get("/rayos/transactions")
@@ -2050,6 +2424,11 @@ async def fetch_gutenberg_book(book_id: int = Form(...), request: Request = None
             """,
             (title, author_name, content[:100000], "Clásicos", cover_url, now, user["id"])
         )
+        new_book_id = cursor.fetchone()["id"]
+        paginas_libro = lectura.paginar_desde_contenido(content[:100000])
+        if paginas_libro:
+            _guardar_paginas_libro(cursor, new_book_id, paginas_libro, [])
+            cursor.execute("UPDATE books SET page_count = %s WHERE id = %s", (len(paginas_libro), new_book_id))
         db.commit()
         return {"message": f"Libro '{title}' importado exitosamente."}
         

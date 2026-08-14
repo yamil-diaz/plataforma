@@ -83,6 +83,8 @@ def init_db():
 
     try:
         cursor.execute("ALTER TABLE books ADD COLUMN IF NOT EXISTS dislikes INTEGER DEFAULT 0")
+        cursor.execute("ALTER TABLE books ADD COLUMN IF NOT EXISTS page_count INTEGER DEFAULT 0")
+        cursor.execute("ALTER TABLE books ADD COLUMN IF NOT EXISTS paginated_at TEXT")
         conn.commit()
     except Exception as e:
         conn.rollback()
@@ -202,6 +204,71 @@ def init_db():
         UNIQUE(book_id, user_id)
     )
     """)
+
+    # ── FASE 2: Lectura por páginas y meta diaria ────────────────────────────
+    # Capítulos: solo organización y navegación, NO son unidad de recompensa.
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS chapters (
+        id SERIAL PRIMARY KEY,
+        book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        start_page INTEGER NOT NULL,
+        UNIQUE(book_id, start_page)
+    )
+    """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS book_pages (
+        id SERIAL PRIMARY KEY,
+        book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+        page_number INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        chapter_id INTEGER REFERENCES chapters(id) ON DELETE SET NULL,
+        UNIQUE(book_id, page_number)
+    )
+    """)
+
+    # Sesiones de lectura: una por usuario y libro (se reactiva al volver).
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS reading_sessions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+        started_at TEXT NOT NULL,
+        last_active_at TEXT NOT NULL,
+        status TEXT DEFAULT 'active',
+        UNIQUE(user_id, book_id)
+    )
+    """)
+
+    # Última página alcanzada (resume). Solo avanza, nunca retrocede.
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS reading_progress (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+        page_number INTEGER NOT NULL,
+        reached_at TEXT NOT NULL,
+        UNIQUE(user_id, book_id)
+    )
+    """)
+
+    # Páginas únicas por día (meta diaria anti-farm: una página cuenta una
+    # vez por día aunque se vuelva a visitar).
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS reading_daily_pages (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+        page_number INTEGER NOT NULL,
+        day TEXT NOT NULL,
+        UNIQUE(user_id, book_id, page_number, day)
+    )
+    """)
+
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_book_pages_book ON book_pages(book_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_chapters_book ON chapters(book_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_reading_daily_user_day ON reading_daily_pages(user_id, day)")
 
     conn.commit()
 
