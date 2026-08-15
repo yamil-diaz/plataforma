@@ -70,7 +70,7 @@ def test_create_book_con_pdf_sin_texto_genera_placeholder_y_una_pagina(fake_db, 
         assert p[2].strip(), "no debe haber páginas vacías"
 
 
-def test_create_book_sin_pdf_genera_placeholder_y_una_pagina(fake_db, as_uploader):
+def test_create_book_sin_pdf_devuelve_422(fake_db, as_uploader):
     resp = as_uploader.post(
         "/api/books",
         data={
@@ -80,14 +80,9 @@ def test_create_book_sin_pdf_genera_placeholder_y_una_pagina(fake_db, as_uploade
             "price": 0.0,
         },
     )
-    assert resp.status_code == 200, resp.text
-    book_id = int(resp.json()["id"])
-    book = fake_db.state["books"][book_id]
-    assert book["content"] == "Contenido de texto no disponible."
-    assert book["page_count"] == 1
-    paginas_guardadas = [p for p in fake_db.state["book_pages"] if p[0] == book_id]
-    assert len(paginas_guardadas) == 1
-    assert paginas_guardadas[0][2] == "Contenido de texto no disponible."
+    assert resp.status_code == 422, resp.text
+    assert "PDF" in resp.json()["detail"]
+    assert fake_db.state["books"] == {k: v for k, v in fake_db.state["books"].items() if v["title"] != "Libro sin pdf"}
 
 
 def test_create_book_pdf_sin_texto_de_admin_queda_publicado_con_placeholder(fake_db, as_admin):

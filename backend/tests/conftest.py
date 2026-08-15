@@ -76,3 +76,9 @@ def as_uploader(client):
 def as_third_party(client):
     client.cookies.set("access_token", _auth_token(3, "tercero@test.com"))
     return client
+
+
+@pytest.fixture()
+def as_autor(client):
+    client.cookies.set("access_token", _auth_token(4, "autora@test.com"))
+    return client

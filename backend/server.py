@@ -1064,7 +1064,7 @@ async def get_books(category: Optional[str] = None):
 
 
 @api_router.get("/books/{book_id}")
-async def get_book(book_id: str):
+async def get_book(book_id: str, request: Request):
     try:
         db = get_db()
         cursor = db.cursor()
@@ -1075,6 +1075,12 @@ async def get_book(book_id: str):
             raise HTTPException(status_code=404, detail="Book not found")
 
         book = dict(row)
+        # Un tercero (o un no autenticado) no puede ver un libro pendiente
+        # solo conociendo su ID: solo publicado, admin o el propio uploader.
+        user = await get_current_user_optional(request)
+        if not _puede_acceder_libro(book, user):
+            raise HTTPException(status_code=403, detail="Este libro no está publicado")
+
         cursor.execute("UPDATE books SET views = views + 1 WHERE id = %s", (int(book_id),))
         db.commit()
 
@@ -1356,6 +1362,37 @@ def _generate_text_pdf(output_path: str, title: str, author: str, content: str):
     pdf.output(output_path)
 
 
+MAX_PDF_SIZE_MB = 50
+MAX_PDF_SIZE_BYTES = MAX_PDF_SIZE_MB * 1024 * 1024
+
+
+def _validar_archivo_pdf(pdf_file: Optional[UploadFile]) -> None:
+    """Valida el PDF por contenido (magic bytes %PDF) y por tamaño, NUNCA por
+    extensión. HTTP 413 si excede el límite; HTTP 422 si no es un PDF real."""
+    if not pdf_file or not pdf_file.filename:
+        raise HTTPException(status_code=422, detail="Debes adjuntar un archivo PDF del libro.")
+
+    total = 0
+    cabecera = b""
+    while True:
+        chunk = pdf_file.file.read(64 * 1024)
+        if not chunk:
+            break
+        if total < 1024:
+            cabecera += chunk[: 1024 - total]
+        total += len(chunk)
+        if total > MAX_PDF_SIZE_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"El archivo supera el límite de {MAX_PDF_SIZE_MB} MB.",
+            )
+
+    if b"%PDF" not in cabecera[:1024]:
+        raise HTTPException(status_code=422, detail="El archivo no es un PDF válido.")
+
+    pdf_file.file.seek(0)
+
+
 @api_router.post("/books")
 async def create_book(
     title: str = Form(...),
@@ -1370,40 +1407,45 @@ async def create_book(
     if not user:
         raise HTTPException(status_code=401, detail="No autorizado")
 
+    # Validación de PDF por contenido (magic bytes) y tamaño, antes de escribir nada.
+    _validar_archivo_pdf(pdf_file)
+
     db = get_db()
     cursor = db.cursor()
 
     pdf_path = None
-    content = "Contenido de texto no disponible."
+    cover_path = None
+    content = lectura.CONTENIDO_NO_DISPONIBLE
     cover_url = "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400"
-
-    if pdf_file:
-        unique_pdf_name = f"{uuid.uuid4()}_{pdf_file.filename}"
-        pdf_path = os.path.join(STORAGE_BOOKS, unique_pdf_name)
-        with open(pdf_path, "wb") as buffer:
-            shutil.copyfileobj(pdf_file.file, buffer)
 
     # FASE 2: extracción por páginas (sin límite) + detección de capítulos.
     # El contenido completo se mantiene en books.content para compatibilidad.
     paginas_libro = []
     capitulos_libro = []
-    if pdf_path and os.path.exists(pdf_path):
-        content, paginas_libro, capitulos_libro = lectura.extraer_contenido_libro(pdf_path)
-    else:
-        paginas_libro, capitulos_libro = lectura.paginar_desde_contenido_con_capitulos(content)
-
-    if cover_file:
-        unique_cover_name = f"{uuid.uuid4()}_{cover_file.filename}"
-        cover_path = os.path.join(STORAGE_COVERS, unique_cover_name)
-        with open(cover_path, "wb") as buffer:
-            shutil.copyfileobj(cover_file.file, buffer)
-        cover_url = f"/static/covers/{unique_cover_name}"
-
-    now = datetime.now(timezone.utc).isoformat()
-
-    published_status = 1 if user["role"] == "admin" else 0
 
     try:
+        unique_pdf_name = f"{uuid.uuid4()}_{pdf_file.filename}"
+        pdf_path = os.path.join(STORAGE_BOOKS, unique_pdf_name)
+        with open(pdf_path, "wb") as buffer:
+            shutil.copyfileobj(pdf_file.file, buffer)
+
+        content, paginas_libro, capitulos_libro = lectura.extraer_contenido_libro(pdf_path)
+
+        if cover_file:
+            unique_cover_name = f"{uuid.uuid4()}_{cover_file.filename}"
+            cover_path = os.path.join(STORAGE_COVERS, unique_cover_name)
+            with open(cover_path, "wb") as buffer:
+                shutil.copyfileobj(cover_file.file, buffer)
+            cover_url = f"/static/covers/{unique_cover_name}"
+
+        now = datetime.now(timezone.utc).isoformat()
+
+        # Admin y autor publican directamente; el resto queda pendiente de aprobación.
+        published_status = 1 if user["role"] in ("admin", "autor") else 0
+
+        # Transacción única: INSERT + páginas + capítulos + page_count/paginated_at
+        # se confirman juntos; si cualquier paso falla, rollback completo (sin
+        # libros fantasma ni libros sin páginas).
         cursor.execute(
             """
             INSERT INTO books (title, author_name, content, category, price, cover_image_url, pdf_path, views, likes, average_rating, total_reviews, published, created_at, uploader_id)
@@ -1412,20 +1454,28 @@ async def create_book(
             """,
             (title, author_name, content, category, price, cover_url, pdf_path, published_status, now, user["id"]),
         )
-        db.commit()
         book_id = cursor.fetchone()["id"]
+
+        if paginas_libro:
+            _guardar_paginas_libro(cursor, book_id, paginas_libro, capitulos_libro)
+            cursor.execute(
+                "UPDATE books SET page_count = %s, paginated_at = %s WHERE id = %s",
+                (len(paginas_libro), now, book_id),
+            )
+
+        db.commit()
     except Exception as e:
         db.rollback()
+        # Sin filas huérfanas en BD (rollback) y sin archivos huérfanos en disco.
+        for ruta in (pdf_path, cover_path):
+            if ruta and os.path.exists(ruta):
+                try:
+                    os.remove(ruta)
+                except OSError:
+                    pass
         raise HTTPException(status_code=500, detail=f"Error al guardar el libro: {str(e)}")
-
-    if paginas_libro:
-        try:
-            _guardar_paginas_libro(cursor, book_id, paginas_libro, capitulos_libro)
-            cursor.execute("UPDATE books SET page_count = %s WHERE id = %s", (len(paginas_libro), book_id))
-            db.commit()
-        except Exception as e:
-            db.rollback()
-            print(f"Error guardando páginas del libro {book_id}: {e}")
+    finally:
+        db.close()
 
     return {
         "_id": str(book_id),
@@ -1437,6 +1487,8 @@ async def create_book(
         "cover_image_url": cover_url,
         "average_rating": 0.0,
         "total_reviews": 0,
+        "published": published_status,
+        "status": "published" if published_status == 1 else "pending",
     }
 
 
@@ -1741,9 +1793,11 @@ async def reading_reward(book_id: int, request: Request):
 def _puede_acceder_libro(book, user):
     """Un libro se puede leer si está publicado, si el usuario es admin o si
     el usuario es el propio uploader (previsualización de libros pendientes).
-    El resto (terceros) no puede leer un libro pendiente."""
+    El resto (terceros y no autenticados) no puede leer un libro pendiente."""
     if book["published"]:
         return True
+    if not user:
+        return False
     if user["role"] == "admin":
         return True
     return book.get("uploader_id") is not None and book["uploader_id"] == user["id"]
@@ -1757,10 +1811,14 @@ def _guardar_paginas_libro(cursor, book_id, paginas, capitulos):
             (book_id, cap["title"], cap["page"]),
         )
         capitulo_ids[cap["page"]] = cursor.fetchone()["id"]
-    for i, texto in enumerate(paginas, start=1):
-        cursor.execute(
+    filas = [
+        (book_id, i, texto, capitulo_ids.get(i))
+        for i, texto in enumerate(paginas, start=1)
+    ]
+    if filas:
+        cursor.executemany(
             "INSERT INTO book_pages (book_id, page_number, content, chapter_id) VALUES (%s, %s, %s, %s)",
-            (book_id, i, texto, capitulo_ids.get(i)),
+            filas,
         )
 
 

@@ -62,7 +62,7 @@ export default function DashboardPage() {
       await axios.delete(`${API}/books/${bookId}`, { withCredentials: true });
       setBooks(books.filter(b => b.id !== bookId));
     } catch (error) {
-      alert("Error al eliminar el libro.");
+      alert(error.response?.data?.detail || "Error al eliminar el libro.");
     }
   };
 
@@ -72,7 +72,7 @@ export default function DashboardPage() {
       await axios.delete(`${API}/courses/${courseId}`, { withCredentials: true });
       setCourses(courses.filter(c => c.id !== courseId));
     } catch (error) {
-      alert("Error al eliminar el curso.");
+      alert(error.response?.data?.detail || "Error al eliminar el curso.");
     }
   };
 
@@ -81,7 +81,7 @@ export default function DashboardPage() {
       await axios.put(`${API}/books/${bookId}/approve`, {}, { withCredentials: true });
       setPendingBooks(pendingBooks.filter(b => b.id !== bookId));
     } catch (error) {
-      alert("Error al aprobar.");
+      alert(error.response?.data?.detail || "Error al aprobar.");
     }
   };
 
@@ -91,7 +91,7 @@ export default function DashboardPage() {
       await axios.delete(`${API}/books/${bookId}/reject`, { withCredentials: true });
       setPendingBooks(pendingBooks.filter(b => b.id !== bookId));
     } catch (error) {
-      alert("Error al rechazar.");
+      alert(error.response?.data?.detail || "Error al rechazar.");
     }
   };
 
@@ -202,11 +202,11 @@ export default function DashboardPage() {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-bold text-white font-['Outfit']">
-              {user?.role === 'admin' ? 'Panel de Administración' : 'Panel de Autor'}
+              {user?.role === 'admin' ? 'Panel de Administración' : user?.role === 'autor' ? 'Panel de Autor' : 'Mis Publicaciones'}
             </h1>
             <p className="text-sm text-[#A0A0A0] mt-1">
-              {user?.role === 'admin' 
-                ? 'Gestiona todo el catálogo de libros y los usuarios de la plataforma.' 
+              {user?.role === 'admin'
+                ? 'Gestiona todo el catálogo de libros y los usuarios de la plataforma.'
                 : 'Gestiona tus publicaciones y sube nuevo contenido.'}
             </p>
           </div>

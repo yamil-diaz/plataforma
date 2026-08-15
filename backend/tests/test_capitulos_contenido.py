@@ -64,7 +64,5 @@ def test_create_book_sin_pdf_no_crea_capitulos_artificiales(fake_db, as_uploader
             "price": 0.0,
         },
     )
-    assert resp.status_code == 200, resp.text
-    book_id = int(resp.json()["id"])
-    capitulos = [c for c in fake_db.state["chapters"] if c[0] == book_id]
-    assert capitulos == []
+    assert resp.status_code == 422, resp.text
+    assert fake_db.state["chapters"] == []

@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Navbar } from '../components/Navbar';
-import { ChevronLeft, BookOpen, AlertCircle, Image as ImageIcon, FileText } from 'lucide-react';
+import { ChevronLeft, BookOpen, AlertCircle, CheckCircle, Image as ImageIcon, FileText } from 'lucide-react';
 
 import { API } from '../config/api';
+
+const MAX_PDF_SIZE_MB = 50;
 
 export default function AdminBookFormPage() {
   const [title, setTitle] = useState('');
@@ -16,6 +18,7 @@ export default function AdminBookFormPage() {
   
   const [coverPreview, setCoverPreview] = useState(null);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(null);
   const [loading, setLoading] = useState(false);
   
   const navigate = useNavigate();
@@ -38,9 +41,18 @@ export default function AdminBookFormPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess(null);
     
     if (!pdfFile) {
       setError('Por favor, selecciona un archivo PDF del libro.');
+      return;
+    }
+    if (pdfFile.size > MAX_PDF_SIZE_MB * 1024 * 1024) {
+      setError(`El archivo supera el límite de ${MAX_PDF_SIZE_MB} MB.`);
+      return;
+    }
+    if (pdfFile.type && pdfFile.type !== 'application/pdf' && !pdfFile.name.toLowerCase().endsWith('.pdf')) {
+      setError('El archivo seleccionado no es un PDF válido.');
       return;
     }
 
@@ -58,14 +70,24 @@ export default function AdminBookFormPage() {
     }
 
     try {
-      await axios.post(`${API}/books`, formData, {
+      const { data } = await axios.post(`${API}/books`, formData, {
         withCredentials: true
       });
-      alert('Libro subido e importado con éxito.');
-      navigate('/');
+      const published = data.published === 1;
+      setSuccess({
+        published,
+        title: published ? '¡Libro publicado!' : 'Enviado, esperando aprobación',
+        message: published
+          ? 'Tu libro fue publicado correctamente y ya está disponible en el catálogo.'
+          : 'Tu libro fue enviado y está pendiente de aprobación por un administrador. Te avisaremos cuando se revise.',
+      });
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.detail || 'Error al subir el libro. Asegúrate de estar logueado como Admin.');
+      const detail = err.response?.data?.detail;
+      const detailMsg = Array.isArray(detail)
+        ? detail.map(d => d.msg || JSON.stringify(d)).join(' · ')
+        : detail;
+      setError(detailMsg || 'Error al subir el libro. Verifica el archivo e inténtalo de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -102,6 +124,23 @@ export default function AdminBookFormPage() {
             <div className="mb-6 p-4 bg-red-950/20 border border-red-500/30 rounded-lg flex items-start gap-3 text-red-400 text-sm">
               <AlertCircle className="w-5 h-5 shrink-0" />
               <span>{error}</span>
+            </div>
+          )}
+
+          {success && (
+            <div className="mb-6 p-4 bg-emerald-950/20 border border-emerald-500/30 rounded-lg flex items-start gap-3 text-sm">
+              <CheckCircle className="w-5 h-5 shrink-0 text-emerald-400" />
+              <div className="flex-1">
+                <p className="font-semibold text-emerald-400">{success.title}</p>
+                <p className="text-emerald-400/80 mt-0.5">{success.message}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/dashboard')}
+                className="shrink-0 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 rounded-lg text-xs font-semibold transition-colors"
+              >
+                Ir a Mis Publicaciones
+              </button>
             </div>
           )}
 
@@ -172,7 +211,7 @@ export default function AdminBookFormPage() {
               <div className="border-2 border-dashed border-white/10 rounded-xl p-6 text-center hover:border-white/20 transition-colors flex flex-col items-center justify-center min-h-[180px]">
                 <FileText className="w-10 h-10 text-[#A0A0A0] mb-3" />
                 <span className="text-sm font-semibold text-white">Archivo PDF del Libro</span>
-                <span className="text-xs text-[#606060] mt-1 mb-4">Obligatorio (Sube el contenido del libro)</span>
+                <span className="text-xs text-[#606060] mt-1 mb-4">Obligatorio · Máximo {MAX_PDF_SIZE_MB} MB (Sube el contenido del libro)</span>
                 <input
                   type="file"
                   accept=".pdf"

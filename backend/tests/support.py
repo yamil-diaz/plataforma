@@ -193,6 +193,10 @@ class FakeCursor:
                 f"FakeCursor no implementado para la query: {query!r} con params {params!r}"
             )
 
+    def executemany(self, query, seq_of_params):
+        for params in seq_of_params:
+            self.execute(query, params)
+
     def fetchone(self):
         result = self._last_result
         self._last_result = None
@@ -219,6 +223,7 @@ class FakeDb:
             (1, "Admin", "admin@test.com", "admin"),
             (2, "Uploader", "uploader@test.com", "user"),
             (3, "Tercero", "tercero@test.com", "user"),
+            (4, "Autora", "autora@test.com", "autor"),
         ]:
             self.state["users"][uid] = _make_user(uid, name, email, role)
 
