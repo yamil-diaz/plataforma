@@ -29,7 +29,8 @@ if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-STORAGE_BOOKS = os.path.join(BASE_DIR, "storage", "books")
+STORAGE_DIR = os.path.abspath(os.getenv("STORAGE_DIR") or os.path.join(BASE_DIR, "storage"))
+STORAGE_BOOKS = os.path.join(STORAGE_DIR, "books")
 
 
 def _crear_tablas(cursor):

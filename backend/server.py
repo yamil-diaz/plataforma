@@ -37,7 +37,11 @@ import lectura
 
 # ── Directorios de almacenamiento ───────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-STORAGE_DIR = os.path.join(BASE_DIR, "storage")
+DEFAULT_STORAGE_DIR = os.path.join(BASE_DIR, "storage")
+# STORAGE_DIR permite apuntar el almacenamiento a un medio persistente (p. ej.
+# el Persistent Disk de Render montado en /var/data/aeternum). Sin la variable
+# se mantiene exactamente el comportamiento actual (backend/storage).
+STORAGE_DIR = os.path.abspath(os.getenv("STORAGE_DIR") or DEFAULT_STORAGE_DIR)
 STORAGE_BOOKS = os.path.join(STORAGE_DIR, "books")
 STORAGE_COVERS = os.path.join(STORAGE_DIR, "covers")
 STORAGE_VIDEOS = os.path.join(STORAGE_DIR, "videos")
@@ -48,6 +52,51 @@ FRONTEND_DIR = os.path.join(BASE_DIR, "frontend_dist")
 # NOTA: FRONTEND_DIR lo crea el build de npm — no lo creamos aquí
 for directory in (STORAGE_BOOKS, STORAGE_COVERS, STORAGE_VIDEOS, TEMP_DIR):
     os.makedirs(directory, exist_ok=True)
+
+
+def _migrar_storage_legacy():
+    """Copia idempotente (NUNCA mueve ni borra) de los archivos del directorio
+    por defecto al directorio configurado vía STORAGE_DIR (p. ej. el Persistent
+    Disk de Render). Se ejecuta en cada arranque: si el destino ya tiene el
+    archivo, no se vuelve a copiar; si el origen no existe, no hace nada."""
+    if os.path.abspath(STORAGE_DIR) == os.path.abspath(DEFAULT_STORAGE_DIR):
+        return
+    for subdir in ("books", "covers", "videos"):
+        origen = os.path.join(DEFAULT_STORAGE_DIR, subdir)
+        destino = os.path.join(STORAGE_DIR, subdir)
+        if not os.path.isdir(origen):
+            continue
+        os.makedirs(destino, exist_ok=True)
+        for nombre in os.listdir(origen):
+            ruta_origen = os.path.join(origen, nombre)
+            if os.path.isfile(ruta_origen):
+                ruta_destino = os.path.join(destino, nombre)
+                if not os.path.exists(ruta_destino):
+                    try:
+                        shutil.copy2(ruta_origen, ruta_destino)
+                    except OSError:
+                        pass
+
+
+_migrar_storage_legacy()
+
+
+def _resolver_pdf_path(pdf_path):
+    """Resuelve un pdf_path almacenado en la BD contra el almacenamiento actual.
+
+    - Ruta absoluta que existe -> se usa tal cual (compatibilidad con la BD actual).
+    - Ruta absoluta inexistente -> se intenta el nombre de archivo dentro de
+      STORAGE_BOOKS (cubre PDFs migrados a un nuevo directorio persistente).
+    - Ruta relativa -> se busca dentro de STORAGE_BOOKS.
+    Devuelve la ruta resuelta o None si no existe ningún archivo."""
+    if not pdf_path:
+        return None
+    if os.path.isabs(pdf_path) and os.path.isfile(pdf_path):
+        return pdf_path
+    candidata = os.path.join(STORAGE_BOOKS, os.path.basename(pdf_path))
+    if os.path.isfile(candidata):
+        return candidata
+    return None
 
 # ── Configuración de Correo Electrónico (SMTP Gmail) ──────────────────────────
 import urllib.request
@@ -1181,9 +1230,10 @@ async def delete_book(book_id: str, request: Request):
         if user["role"] != "admin" and row["uploader_id"] != user["id"]:
             raise HTTPException(status_code=403, detail="No autorizado para borrar este libro")
 
-        if row["pdf_path"] and os.path.exists(row["pdf_path"]):
+        pdf_resuelto = _resolver_pdf_path(row["pdf_path"])
+        if pdf_resuelto:
             try:
-                os.remove(row["pdf_path"])
+                os.remove(pdf_resuelto)
             except OSError:
                 pass
 
@@ -1306,9 +1356,10 @@ async def download_book_pdf(book_id: int):
         raise HTTPException(status_code=404, detail="Libro no encontrado")
 
     # Si el libro ya tiene un PDF almacenado, devolverlo
-    if book["pdf_path"] and os.path.isfile(book["pdf_path"]):
+    pdf_resuelto = _resolver_pdf_path(book["pdf_path"])
+    if pdf_resuelto:
         return FileResponse(
-            book["pdf_path"],
+            pdf_resuelto,
             media_type="application/pdf",
             filename=f"{book['title']}.pdf",
         )
@@ -1847,11 +1898,9 @@ async def repaginate_book(book_id: int, request: Request):
             db.rollback()
             raise HTTPException(status_code=404, detail="Libro no encontrado")
 
-        pdf_path = book["pdf_path"]
-        if pdf_path and not os.path.isabs(pdf_path):
-            pdf_path = os.path.join(STORAGE_BOOKS, pdf_path)
+        pdf_path = _resolver_pdf_path(book["pdf_path"])
 
-        if pdf_path and os.path.exists(pdf_path):
+        if pdf_path:
             try:
                 paginas, capitulos = lectura.extraer_paginas_pdf(pdf_path)
             except Exception as e:

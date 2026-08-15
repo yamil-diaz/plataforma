@@ -10,6 +10,12 @@ services:
     runtime: python
     buildCommand: pip install -r backend/requirements.txt && npm --prefix frontend ci && npm --prefix frontend run build
     startCommand: cd backend && uvicorn server:app --host 0.0.0.0 --port $PORT
+    # Disco persistente: los PDFs (backend/storage/books) sobreviven a
+    # redeploys/restarts. El código usa STORAGE_DIR para apuntar ahí.
+    disk:
+      name: aeternum-storage
+      mountPath: /var/data/aeternum
+      sizeGB: 1
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.9"
@@ -23,3 +29,5 @@ services:
           property: connectionString
       - key: CORS_ORIGINS
         value: "https://aeternum-world.onrender.com"
+      - key: STORAGE_DIR
+        value: /var/data/aeternum
