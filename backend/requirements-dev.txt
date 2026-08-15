@@ -1,0 +1,14 @@
+# Dependencias SOLO para desarrollo/pruebas (no se instalan en producción).
+# Instalar en un venv:  pip install -r requirements-dev.txt
+# NOTA: las pruebas usan un stub de psycopg2, no requieren PostgreSQL.
+# Si quieres probar contra una BD real, instala además psycopg2-binary.
+pytest>=8
+httpx>=0.27
+reportlab>=4
+fastapi>=0.115
+pydantic>=2.10
+python-multipart>=0.0.9
+pyjwt>=2.8
+bcrypt>=4.1
+pypdf>=4.2
+email-validator>=2

@@ -3,5 +3,6 @@ backend/database.db
 backend/storage/
 __pycache__/
 *.pyc
+.pytest_cache/
 .env
 .env.*

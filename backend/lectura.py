@@ -38,6 +38,39 @@ def extraer_paginas(pdf_path: str):
     return paginas
 
 
+CONTENIDO_NO_DISPONIBLE = "Contenido de texto no disponible."
+
+
+def extraer_contenido_libro(pdf_path: str):
+    """Extrae el contenido completo de un PDF junto con sus páginas y capítulos.
+
+    Comportamiento (equivalente al de ZIP/migración):
+    - PDF con capa de texto: content = texto completo, páginas reales.
+    - PDF sin capa de texto (texto vacío o solo espacios): content =
+      CONTENIDO_NO_DISPONIBLE y una única página placeholder.
+    - Error de extracción: mismo placeholder + página placeholder.
+    Nunca devuelve páginas vacías.
+    Devuelve (content, paginas, capitulos)."""
+    content = CONTENIDO_NO_DISPONIBLE
+    paginas = []
+    capitulos = []
+    try:
+        paginas = extraer_paginas(pdf_path)
+        capitulos = detectar_capitulos(paginas)
+        texto = "\n".join(paginas)
+        if texto.strip():
+            content = texto
+        else:
+            paginas = []
+            capitulos = []
+    except Exception:
+        paginas = []
+        capitulos = []
+    if not paginas:
+        paginas = paginar_desde_contenido(content)
+    return content, paginas, capitulos
+
+
 def _linea_es_encabezado(linea: str) -> bool:
     """True si la línea es un encabezado de capítulo y es corta (estilo título)."""
     linea = linea.strip()

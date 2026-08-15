@@ -991,8 +991,9 @@ async def approve_book(book_id: int, request: Request):
     row = cursor.fetchone()
     if row:
         now = datetime.now(timezone.utc).isoformat()
-        cursor.execute("INSERT INTO notifications (user_id, message, created_at) VALUES (%s, %s, %s)",
-                       (row["uploader_id"], f"Tu publicación '{row['title']}' ha sido aprobada y ya es pública.", now))
+        if row["uploader_id"] is not None:
+            cursor.execute("INSERT INTO notifications (user_id, message, created_at) VALUES (%s, %s, %s)",
+                           (row["uploader_id"], f"Tu publicación '{row['title']}' ha sido aprobada y ya es pública.", now))
     db.commit()
     return {"message": "Libro aprobado"}
 
@@ -1007,8 +1008,9 @@ async def reject_book(book_id: int, request: Request):
     row = cursor.fetchone()
     if row:
         now = datetime.now(timezone.utc).isoformat()
-        cursor.execute("INSERT INTO notifications (user_id, message, created_at) VALUES (%s, %s, %s)",
-                       (row["uploader_id"], f"Tu publicación '{row['title']}' no fue aprobada y ha sido eliminada.", now))
+        if row["uploader_id"] is not None:
+            cursor.execute("INSERT INTO notifications (user_id, message, created_at) VALUES (%s, %s, %s)",
+                           (row["uploader_id"], f"Tu publicación '{row['title']}' no fue aprobada y ha sido eliminada.", now))
         cursor.execute("DELETE FROM books WHERE id = %s", (book_id,))
     db.commit()
     return {"message": "Libro rechazado y eliminado"}
@@ -1386,14 +1388,7 @@ async def create_book(
     paginas_libro = []
     capitulos_libro = []
     if pdf_path and os.path.exists(pdf_path):
-        try:
-            paginas_libro = lectura.extraer_paginas(pdf_path)
-            capitulos_libro = lectura.detectar_capitulos(paginas_libro)
-            content = "\n".join(paginas_libro)
-        except Exception as e:
-            content = f"Error al extraer texto del PDF: {str(e)}"
-            paginas_libro = []
-            capitulos_libro = []
+        content, paginas_libro, capitulos_libro = lectura.extraer_contenido_libro(pdf_path)
     else:
         paginas_libro = lectura.paginar_desde_contenido(content)
         capitulos_libro = []
@@ -1698,12 +1693,12 @@ async def reading_reward(book_id: int, request: Request):
     db = get_db()
     cursor = db.cursor()
 
-    cursor.execute("SELECT id, title, published FROM books WHERE id = %s", (book_id,))
+    cursor.execute("SELECT id, title, published, uploader_id FROM books WHERE id = %s", (book_id,))
     book = cursor.fetchone()
     if not book:
         db.close()
         raise HTTPException(status_code=404, detail="Libro no encontrado")
-    if not book["published"] and user["role"] != "admin":
+    if not _puede_acceder_libro(book, user):
         db.close()
         raise HTTPException(status_code=403, detail="Este libro no está publicado")
 
@@ -1744,6 +1739,17 @@ async def reading_reward(book_id: int, request: Request):
 # ── FASE 2: Lectura por páginas y meta diaria ────────────────────────────────
 # El backend decide TODO sobre Rayos: página válida, progreso, páginas únicas,
 # 15/15 y la recompensa. El frontend solo reporta qué página está leyendo.
+
+def _puede_acceder_libro(book, user):
+    """Un libro se puede leer si está publicado, si el usuario es admin o si
+    el usuario es el propio uploader (previsualización de libros pendientes).
+    El resto (terceros) no puede leer un libro pendiente."""
+    if book["published"]:
+        return True
+    if user["role"] == "admin":
+        return True
+    return book.get("uploader_id") is not None and book["uploader_id"] == user["id"]
+
 
 def _guardar_paginas_libro(cursor, book_id, paginas, capitulos):
     capitulo_ids = {}
@@ -1802,11 +1808,11 @@ async def start_reading_session(book_id: int, request: Request):
     db = get_db()
     cursor = db.cursor()
     try:
-        cursor.execute("SELECT id, title, published, page_count FROM books WHERE id = %s", (book_id,))
+        cursor.execute("SELECT id, title, published, page_count, uploader_id FROM books WHERE id = %s", (book_id,))
         book = cursor.fetchone()
         if not book:
             raise HTTPException(status_code=404, detail="Libro no encontrado")
-        if not book["published"] and user["role"] != "admin":
+        if not _puede_acceder_libro(book, user):
             raise HTTPException(status_code=403, detail="Este libro no está publicado")
 
         now = datetime.now(timezone.utc).isoformat()
@@ -1842,11 +1848,11 @@ async def report_page_progress(book_id: int, req: ProgressRequest, request: Requ
     db = get_db()
     cursor = db.cursor()
     try:
-        cursor.execute("SELECT id, title, published, page_count FROM books WHERE id = %s", (book_id,))
+        cursor.execute("SELECT id, title, published, page_count, uploader_id FROM books WHERE id = %s", (book_id,))
         book = cursor.fetchone()
         if not book:
             raise HTTPException(status_code=404, detail="Libro no encontrado")
-        if not book["published"] and user["role"] != "admin":
+        if not _puede_acceder_libro(book, user):
             raise HTTPException(status_code=403, detail="Este libro no está publicado")
 
         total_pages = book["page_count"] or 0
@@ -1972,11 +1978,11 @@ async def get_reading_progress(book_id: int, request: Request):
     db = get_db()
     cursor = db.cursor()
     try:
-        cursor.execute("SELECT id, published, page_count FROM books WHERE id = %s", (book_id,))
+        cursor.execute("SELECT id, published, page_count, uploader_id FROM books WHERE id = %s", (book_id,))
         book = cursor.fetchone()
         if not book:
             raise HTTPException(status_code=404, detail="Libro no encontrado")
-        if not book["published"] and user["role"] != "admin":
+        if not _puede_acceder_libro(book, user):
             raise HTTPException(status_code=403, detail="Este libro no está publicado")
 
         cursor.execute(
@@ -2003,11 +2009,11 @@ async def get_book_chapters(book_id: int, request: Request):
     db = get_db()
     cursor = db.cursor()
     try:
-        cursor.execute("SELECT id, title, published FROM books WHERE id = %s", (book_id,))
+        cursor.execute("SELECT id, title, published, uploader_id FROM books WHERE id = %s", (book_id,))
         book = cursor.fetchone()
         if not book:
             raise HTTPException(status_code=404, detail="Libro no encontrado")
-        if not book["published"] and user["role"] != "admin":
+        if not _puede_acceder_libro(book, user):
             raise HTTPException(status_code=403, detail="Este libro no está publicado")
         cursor.execute(
             "SELECT id, title, start_page FROM chapters WHERE book_id = %s ORDER BY start_page",
@@ -2026,11 +2032,11 @@ async def get_book_page(book_id: int, page: int, request: Request):
     db = get_db()
     cursor = db.cursor()
     try:
-        cursor.execute("SELECT id, published, page_count FROM books WHERE id = %s", (book_id,))
+        cursor.execute("SELECT id, published, page_count, uploader_id FROM books WHERE id = %s", (book_id,))
         book = cursor.fetchone()
         if not book:
             raise HTTPException(status_code=404, detail="Libro no encontrado")
-        if not book["published"] and user["role"] != "admin":
+        if not _puede_acceder_libro(book, user):
             raise HTTPException(status_code=403, detail="Este libro no está publicado")
 
         total_pages = book["page_count"] or 0
