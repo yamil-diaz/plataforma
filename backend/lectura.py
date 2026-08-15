@@ -6,6 +6,7 @@ Extracción por páginas, detección de capítulos (no recompensan, solo organiz
 y paginación de respaldo para libros sin PDF.
 """
 import re
+from difflib import SequenceMatcher
 
 PAGE_CHARS = 1800
 
@@ -141,6 +142,125 @@ def paginar_desde_contenido(content: str):
 
     cerrar_pagina()
     return paginas
+
+
+def paginar_desde_contenido_con_capitulos(content: str):
+    """Pagina libros sin PDF desde su contenido textual y detecta capítulos
+    sobre las páginas generadas (misma regla que los PDF: encabezados
+    reconocibles). Nunca inventa capítulos: si no hay encabezados válidos,
+    capitulos = []. Devuelve (paginas, capitulos)."""
+    paginas = paginar_desde_contenido(content)
+    capitulos = detectar_capitulos(paginas)
+    return paginas, capitulos
+
+
+def extraer_paginas_pdf(pdf_path: str):
+    """Extracción estricta para repaginación admin. Distingue:
+    - PDF válido con capa de texto → (paginas, capitulos) reales.
+    - PDF válido SIN capa de texto → placeholder + una única página (igual que
+      el flujo de subida). NUNCA devuelve páginas vacías.
+    - PDF corrupto/ilegible/no abrible → lanza la excepción (NO devuelve
+      placeholder), para que el endpoint pueda rechazar sin tocar nada."""
+    paginas = extraer_paginas(pdf_path)
+    capitulos = detectar_capitulos(paginas)
+    texto = "\n".join(paginas)
+    if not texto.strip():
+        paginas = paginar_desde_contenido(CONTENIDO_NO_DISPONIBLE)
+        capitulos = []
+    return paginas, capitulos
+
+
+# ── Detector de contenido patológico ──────────────────────────────────────────
+FRAGMENTO_LARGO = 60
+FRAGMENTO_MAX_APARICIONES = 5
+FRAGMENTO_MINIMO_REPETIDOS = 2
+FRAGMENTO_RATIO_MINIMO = 0.25
+MUESTRAS_MAXIMAS = 300
+PAGINAS_PARECIDAS_MIN = 0.98
+PARECIDAS_PARA_ALARMA = 2
+CONTENIDO_CORTO_CHARS = 200
+
+
+def _normalizar_para_comparar(texto: str) -> str:
+    return " ".join(texto.split())
+
+
+def detectar_contenido_patologico(content, paginas=None):
+    """Detecta contenido posiblemente corrupto/duplicado ANTES de repaginar.
+
+    Heurísticas (bajo índice de falsos positivos: el contenido legítimo con
+    estribillos o frases breves repetidas NO se rechaza):
+    1) Fragmentos de ~FRAGMENTO_LARGO caracteres: si varios fragmentos
+       distintos aparecen > FRAGMENTO_MAX_APARICIONES veces Y la porción
+       duplicada supera FRAGMENTO_RATIO_MINIMO del total → sospechoso.
+    2) Páginas consecutivas idénticas o casi idénticas (>= PARECIDAS_PARA_ALARMA
+       pares casi idénticos o 1 par idéntico) → sospechoso.
+
+    Devuelve info con: pathological, reason, repeated_fragment_count,
+    repetition_ratio, duplicate_consecutive_pages,
+    near_duplicate_consecutive_pages, content_length, short_content."""
+    content = content or ""
+    longitud = len(content)
+    info = {
+        "pathological": False,
+        "reason": None,
+        "repeated_fragment_count": 0,
+        "repetition_ratio": 0.0,
+        "duplicate_consecutive_pages": 0,
+        "near_duplicate_consecutive_pages": 0,
+        "content_length": longitud,
+        "short_content": longitud < CONTENIDO_CORTO_CHARS,
+    }
+
+    if not content.strip():
+        info["pathological"] = True
+        info["reason"] = "Contenido vacío o solo espacios"
+        return info
+
+    if paginas:
+        normalizadas = [_normalizar_para_comparar(p) for p in paginas]
+        for a, b in zip(normalizadas, normalizadas[1:]):
+            if not a or not b:
+                continue
+            if a == b:
+                info["duplicate_consecutive_pages"] += 1
+            elif SequenceMatcher(None, a, b).ratio() >= PAGINAS_PARECIDAS_MIN:
+                info["near_duplicate_consecutive_pages"] += 1
+
+    muestras = set()
+    ultima_posicion = max(longitud - FRAGMENTO_LARGO, 0)
+    stride = max(1, ultima_posicion // MUESTRAS_MAXIMAS)
+    for i in range(0, ultima_posicion + 1, stride):
+        fragmento = content[i:i + FRAGMENTO_LARGO]
+        if fragmento.strip():
+            muestras.add(fragmento)
+
+    repetidos = []
+    for fragmento in muestras:
+        apariciones = content.count(fragmento)
+        if apariciones > FRAGMENTO_MAX_APARICIONES:
+            repetidos.append((fragmento, apariciones))
+
+    repeticion_extra = sum((n - 1) * FRAGMENTO_LARGO for _, n in repetidos)
+    repeticion_ratio = min(1.0, repeticion_extra / longitud) if longitud else 0.0
+    info["repeated_fragment_count"] = len(repetidos)
+    info["repetition_ratio"] = round(repeticion_ratio, 4)
+
+    if info["duplicate_consecutive_pages"] >= 1 or info["near_duplicate_consecutive_pages"] >= PARECIDAS_PARA_ALARMA:
+        info["pathological"] = True
+        info["reason"] = (
+            f"Páginas consecutivas duplicadas o casi idénticas: "
+            f"{info['duplicate_consecutive_pages']} pares idénticos, "
+            f"{info['near_duplicate_consecutive_pages']} pares casi idénticos"
+        )
+    elif info["repeated_fragment_count"] >= FRAGMENTO_MINIMO_REPETIDOS and repeticion_ratio >= FRAGMENTO_RATIO_MINIMO:
+        info["pathological"] = True
+        info["reason"] = (
+            f"Repetición extensa de fragmentos: {info['repeated_fragment_count']} "
+            f"fragmentos distintos repetidos más de {FRAGMENTO_MAX_APARICIONES} veces, "
+            f"{repeticion_ratio:.1%} del contenido duplicado"
+        )
+    return info
 
 
 def construir_estructura(paginas, capitulos=None):

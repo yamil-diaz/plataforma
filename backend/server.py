@@ -1390,8 +1390,7 @@ async def create_book(
     if pdf_path and os.path.exists(pdf_path):
         content, paginas_libro, capitulos_libro = lectura.extraer_contenido_libro(pdf_path)
     else:
-        paginas_libro = lectura.paginar_desde_contenido(content)
-        capitulos_libro = []
+        paginas_libro, capitulos_libro = lectura.paginar_desde_contenido_con_capitulos(content)
 
     if cover_file:
         unique_cover_name = f"{uuid.uuid4()}_{cover_file.filename}"
@@ -1503,8 +1502,7 @@ def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default
                     task_status["errors"].append(f"Advertencia extracción {filename}: {str(e)}")
 
                 if not paginas_libro:
-                    paginas_libro = lectura.paginar_desde_contenido(content)
-                    capitulos_libro = []
+                    paginas_libro, capitulos_libro = lectura.paginar_desde_contenido_con_capitulos(content)
 
                 if not title:
                     title = name_without_ext.replace("_", " ").replace("-", " ").title()
@@ -1764,6 +1762,96 @@ def _guardar_paginas_libro(cursor, book_id, paginas, capitulos):
             "INSERT INTO book_pages (book_id, page_number, content, chapter_id) VALUES (%s, %s, %s, %s)",
             (book_id, i, texto, capitulo_ids.get(i)),
         )
+
+
+@api_router.put("/books/{book_id}/repaginate")
+async def repaginate_book(book_id: int, request: Request):
+    """Repaginación admin segura de UN solo libro (FASE 2).
+
+    Secuencia obligatoria: fuente → extracción/paginación → capítulos →
+    detector patológico → validación → transacción → borrar anteriores →
+    insertar nuevos → actualizar books → commit. NUNCA borra páginas antes
+    de generar y validar el nuevo contenido. PDF corrupto/ilegible → 422 sin
+    modificar nada; PDF válido sin capa de texto → placeholder (1 página)."""
+    user = await get_current_user(request)
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Solo administradores pueden repaginar libros.")
+
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute(
+            "SELECT id, title, content, pdf_path, page_count FROM books WHERE id = %s",
+            (book_id,),
+        )
+        book = cursor.fetchone()
+        if not book:
+            db.rollback()
+            raise HTTPException(status_code=404, detail="Libro no encontrado")
+
+        pdf_path = book["pdf_path"]
+        if pdf_path and not os.path.isabs(pdf_path):
+            pdf_path = os.path.join(STORAGE_BOOKS, pdf_path)
+
+        if pdf_path and os.path.exists(pdf_path):
+            try:
+                paginas, capitulos = lectura.extraer_paginas_pdf(pdf_path)
+            except Exception as e:
+                db.rollback()
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"PDF corrupto o ilegible, no se repagina: {str(e)}",
+                )
+            fuente = "pdf"
+            fuente_texto = "\n".join(paginas)
+        else:
+            fuente_texto = book["content"] or ""
+            paginas, capitulos = lectura.paginar_desde_contenido_con_capitulos(fuente_texto)
+            fuente = "content"
+
+        diagnostico = lectura.detectar_contenido_patologico(fuente_texto, paginas)
+        if diagnostico["pathological"]:
+            db.rollback()
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "detail": "Contenido rechazado por posible duplicación o corrupción. No se modificó el libro.",
+                    "pathological": True,
+                    **diagnostico,
+                },
+            )
+
+        if not paginas:
+            db.rollback()
+            raise HTTPException(status_code=422, detail="No se pudo generar ninguna página a partir de la fuente.")
+
+        cursor.execute("DELETE FROM book_pages WHERE book_id = %s", (book_id,))
+        cursor.execute("DELETE FROM chapters WHERE book_id = %s", (book_id,))
+        _guardar_paginas_libro(cursor, book_id, paginas, capitulos)
+        now = datetime.now(timezone.utc).isoformat()
+        cursor.execute(
+            "UPDATE books SET page_count = %s, paginated_at = %s WHERE id = %s",
+            (len(paginas), now, book_id),
+        )
+        db.commit()
+
+        return {
+            "message": "Libro repaginado correctamente",
+            "book_id": book_id,
+            "source": fuente,
+            "page_count": len(paginas),
+            "chapters": len(capitulos),
+            "paginated_at": now,
+            "diagnostico": diagnostico,
+        }
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error repaginando el libro: {str(e)}")
+    finally:
+        db.close()
 
 
 def _get_daily_progress(cursor, user_id, day):
@@ -2431,9 +2519,9 @@ async def fetch_gutenberg_book(book_id: int = Form(...), request: Request = None
             (title, author_name, content[:100000], "Clásicos", cover_url, now, user["id"])
         )
         new_book_id = cursor.fetchone()["id"]
-        paginas_libro = lectura.paginar_desde_contenido(content[:100000])
+        paginas_libro, capitulos_libro = lectura.paginar_desde_contenido_con_capitulos(content[:100000])
         if paginas_libro:
-            _guardar_paginas_libro(cursor, new_book_id, paginas_libro, [])
+            _guardar_paginas_libro(cursor, new_book_id, paginas_libro, capitulos_libro)
             cursor.execute("UPDATE books SET page_count = %s WHERE id = %s", (len(paginas_libro), new_book_id))
         db.commit()
         return {"message": f"Libro '{title}' importado exitosamente."}

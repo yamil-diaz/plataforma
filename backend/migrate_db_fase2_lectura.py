@@ -137,11 +137,9 @@ def migrate():
                 paginas = lectura.extraer_paginas(pdf_path)
                 capitulos = lectura.detectar_capitulos(paginas)
             else:
-                paginas = lectura.paginar_desde_contenido(libro["content"])
-                capitulos = []
+                paginas, capitulos = lectura.paginar_desde_contenido_con_capitulos(libro["content"])
             if not paginas:
-                paginas = lectura.paginar_desde_contenido(libro["content"])
-                capitulos = []
+                paginas, capitulos = lectura.paginar_desde_contenido_con_capitulos(libro["content"])
             now = datetime.now(timezone.utc).isoformat()
             if paginas:
                 _guardar_estructura(cursor, book_id, paginas, capitulos)

@@ -5,6 +5,8 @@ usan los endpoints bajo prueba (SELECT/RETURNING/fetchone/fetchall, commit,
 rollback, close). Las pruebas NO tocan ninguna base de datos real.
 """
 
+import copy
+
 
 def _make_user(user_id, name, email, role):
     return {
@@ -38,6 +40,10 @@ class FakeCursor:
             book = self.state["books"].get(params[0])
             self._last_result = dict(book) if book else None
 
+        elif q.startswith("select id, title, content, pdf_path, page_count from books"):
+            book = self.state["books"].get(int(params[0]))
+            self._last_result = dict(book) if book else None
+
         elif q.startswith("select id, title, published, page_count, uploader_id from books"):
             book = self.state["books"].get(params[0])
             self._last_result = dict(book) if book else None
@@ -66,6 +72,20 @@ class FakeCursor:
             book = self.state["books"].pop(params[0], None)
             if book:
                 self.rowcount = 1
+
+        elif q.startswith("delete from book_pages where book_id"):
+            antes = len(self.state["book_pages"])
+            self.state["book_pages"] = [
+                p for p in self.state["book_pages"] if p[0] != int(params[0])
+            ]
+            self.rowcount = antes - len(self.state["book_pages"])
+
+        elif q.startswith("delete from chapters where book_id"):
+            antes = len(self.state["chapters"])
+            self.state["chapters"] = [
+                c for c in self.state["chapters"] if c[0] != int(params[0])
+            ]
+            self.rowcount = antes - len(self.state["chapters"])
 
         elif q.startswith("insert into books") and "returning id" in q:
             new_id = self.state["next_book_id"]
@@ -105,6 +125,12 @@ class FakeCursor:
         elif q.startswith("insert into book_pages"):
             self.state["book_pages"].append(params)
             self.rowcount = 1
+
+        elif q.startswith("update books set page_count") and "paginated_at" in q:
+            book = self.state["books"].get(int(params[2]))
+            if book:
+                book["page_count"] = params[0]
+                book["paginated_at"] = params[1]
 
         elif q.startswith("update books set page_count"):
             book = self.state["books"].get(params[1])
@@ -279,14 +305,172 @@ class FakeDb:
         }
         self.state["book_pages"].append((40, 1, "página del publicado sin uploader"))
 
+        self.state["books"][50] = {
+            "id": 50,
+            "title": "Libro limpio con capítulos",
+            "author_name": "Autor",
+            "content": _contenido_con_capitulos(),
+            "category": "Ficción",
+            "price": 0.0,
+            "cover_image_url": "http://cover",
+            "pdf_path": None,
+            "views": 0,
+            "likes": 0,
+            "dislikes": 0,
+            "average_rating": 0.0,
+            "total_reviews": 0,
+            "published": 1,
+            "created_at": "2026-01-05T00:00:00+00:00",
+            "uploader_id": 2,
+            "page_count": 0,
+            "paginated_at": None,
+        }
+
+        self.state["books"][51] = {
+            "id": 51,
+            "title": "Libro patológico",
+            "author_name": "Autor",
+            "content": _contenido_patologico(),
+            "category": "Ficción",
+            "price": 0.0,
+            "cover_image_url": "http://cover",
+            "pdf_path": None,
+            "views": 0,
+            "likes": 0,
+            "dislikes": 0,
+            "average_rating": 0.0,
+            "total_reviews": 0,
+            "published": 1,
+            "created_at": "2026-01-06T00:00:00+00:00",
+            "uploader_id": 2,
+            "page_count": 2,
+            "paginated_at": None,
+        }
+        self.state["book_pages"].append((51, 1, "página vieja 1"))
+        self.state["book_pages"].append((51, 2, "página vieja 2"))
+
+        self.state["books"][52] = {
+            "id": 52,
+            "title": "Libro limpio reemplazable",
+            "author_name": "Autor",
+            "content": _contenido_variado(1400),
+            "category": "Ficción",
+            "price": 0.0,
+            "cover_image_url": "http://cover",
+            "pdf_path": None,
+            "views": 0,
+            "likes": 0,
+            "dislikes": 0,
+            "average_rating": 0.0,
+            "total_reviews": 0,
+            "published": 1,
+            "created_at": "2026-01-07T00:00:00+00:00",
+            "uploader_id": 2,
+            "page_count": 1,
+            "paginated_at": None,
+        }
+        self.state["book_pages"].append((52, 1, "página vieja"))
+
+        self.state["books"][53] = {
+            "id": 53,
+            "title": "Libro con PDF",
+            "author_name": "Autor",
+            "content": "contenido viejo",
+            "category": "Ficción",
+            "price": 0.0,
+            "cover_image_url": "http://cover",
+            "pdf_path": None,
+            "views": 0,
+            "likes": 0,
+            "dislikes": 0,
+            "average_rating": 0.0,
+            "total_reviews": 0,
+            "published": 1,
+            "created_at": "2026-01-08T00:00:00+00:00",
+            "uploader_id": 2,
+            "page_count": 1,
+            "paginated_at": None,
+        }
+        self.state["book_pages"].append((53, 1, "página vieja pdf"))
+
+        self.state["books"][54] = {
+            "id": 54,
+            "title": "Libro PDF corrupto",
+            "author_name": "Autor",
+            "content": "contenido viejo",
+            "category": "Ficción",
+            "price": 0.0,
+            "cover_image_url": "http://cover",
+            "pdf_path": None,
+            "views": 0,
+            "likes": 0,
+            "dislikes": 0,
+            "average_rating": 0.0,
+            "total_reviews": 0,
+            "published": 1,
+            "created_at": "2026-01-09T00:00:00+00:00",
+            "uploader_id": 2,
+            "page_count": 1,
+            "paginated_at": None,
+        }
+        self.state["book_pages"].append((54, 1, "página vieja corrupto"))
+
+        self._commit_point = copy.deepcopy(self.state)
+
     def cursor(self):
         return FakeCursor(self.state)
 
     def commit(self):
-        pass
+        self._commit_point = copy.deepcopy(self.state)
 
     def rollback(self):
-        pass
+        estado = copy.deepcopy(self._commit_point)
+        estado["log"] = self.state["log"]
+        self.state = estado
 
     def close(self):
         pass
+
+
+def _contenido_con_capitulos():
+    """Dos capítulos reconocibles + párrafos largos variados (5 páginas)."""
+    para_uno = " ".join(
+        f"El viajero {i} cruzó el valle al amanecer mientras la niebla {i} "
+        f"cubría los campos {i} y el río {i} brillaba bajo el sol de la mañana."
+        for i in range(16)
+    )
+    para_dos = " ".join(
+        f"En la aldea {i} los campesinos {i} preparaban la cosecha {i} con "
+        f"calma y paciencia {i} bajo el cielo despejado de la tarde."
+        for i in range(16)
+    )
+    return f"CAPÍTULO 1\n\n{para_uno}\n\nCAPÍTULO 2: El segundo\n\n{para_dos}"
+
+
+def _contenido_patologico():
+    """Párrafo idéntico repetido 8 veces: dispara el detector de fragmentos."""
+    parrafo = (
+        "Este es un párrafo de ejemplo que se repite de forma idéntica muchas "
+        "veces para simular contenido corrupto y duplicado en un libro de la "
+        "plataforma de lectura con páginas infinitas. "
+    )
+    return "\n\n".join([parrafo] * 8)
+
+
+def _contenido_variado(longitud):
+    """Texto largo variado sin encabezados ni frases repetidas (limpio)."""
+    parrafos = []
+    total = 0
+    i = 0
+    while total < longitud:
+        parrafo = (
+            f"Párrafo {i}: aquí {i} transcurre la acción {i} del capítulo con "
+            f"detalles {i} únicos sobre el lugar {i} y los personajes {i} del "
+            f"relato. El clima {i} cambió hacia el final {i} de la escena {i} "
+            f"y los acontecimientos {i} marcaron un giro {i} en la historia {i} "
+            f"contada con ritmo pausado en la página {i}."
+        )
+        parrafos.append(parrafo)
+        total += len(parrafo)
+        i += 1
+    return "\n\n".join(parrafos)
