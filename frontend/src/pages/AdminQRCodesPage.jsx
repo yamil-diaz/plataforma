@@ -2,11 +2,32 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Navbar } from '../components/Navbar';
 import axios from 'axios';
-import { QrCode, ArrowLeft, Plus, Copy, Power, X } from 'lucide-react';
+import { QrCode, ArrowLeft, Plus, Copy, Power, X, Eye, Download, Printer } from 'lucide-react';
+import QRCode from 'qrcode';
 
 const API = import.meta.env.VITE_API_URL || '/api';
 
 const CODE_REGEX = /^[A-Za-z0-9_-]{1,32}$/;
+
+// Generación visual del QR (FASE 7): la imagen codifica EXACTAMENTE
+// window.location.origin + "/register?ref=" + code. Se genera en el navegador
+// (sin endpoints nuevos, sin almacenamiento, sin tablas) y es reproducible
+// desde el código y la URL. Fondo blanco + margen para máxima escaneabilidad.
+const QR_OPTIONS = {
+  width: 512,
+  margin: 4,
+  errorCorrectionLevel: 'M',
+  color: { dark: '#000000', light: '#ffffff' },
+};
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 export default function AdminQRCodesPage() {
   const [qrCodes, setQrCodes] = useState([]);
@@ -18,6 +39,10 @@ export default function AdminQRCodesPage() {
   const [form, setForm] = useState({ code: '', name: '' });
   const [formError, setFormError] = useState('');
   const [creating, setCreating] = useState(false);
+
+  const [viewQr, setViewQr] = useState(null);
+  const [qrImage, setQrImage] = useState('');
+  const [qrImageLoading, setQrImageLoading] = useState(false);
 
   useEffect(() => {
     fetchQrCodes();
@@ -50,6 +75,63 @@ export default function AdminQRCodesPage() {
     } catch (err) {
       setError(`No se pudo copiar el enlace. Cópialo manualmente: ${url}`);
     }
+  };
+
+  const generateQrDataUrl = (url) => QRCode.toDataURL(url, QR_OPTIONS);
+
+  const handleView = async (qr) => {
+    setViewQr(qr);
+    setQrImage('');
+    setQrImageLoading(true);
+    setError('');
+    try {
+      const url = buildRegistrationUrl(qr.code);
+      setQrImage(await generateQrDataUrl(url));
+    } catch (err) {
+      setError('No se pudo generar la imagen del QR');
+    } finally {
+      setQrImageLoading(false);
+    }
+  };
+
+  const handleDownloadQr = () => {
+    if (!qrImage || !viewQr) return;
+    const safeCode = CODE_REGEX.test(viewQr.code) ? viewQr.code : 'QR';
+    const link = document.createElement('a');
+    link.href = qrImage;
+    link.download = `QR_${safeCode}.png`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
+  const handlePrintQr = () => {
+    if (!qrImage || !viewQr) return;
+    const url = buildRegistrationUrl(viewQr.code);
+    const win = window.open('', '_blank', 'width=600,height=700');
+    if (!win) {
+      setError('El navegador bloqueó la ventana de impresión. Permite ventanas emergentes e inténtalo de nuevo.');
+      return;
+    }
+    win.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8" /><title>QR ${escapeHtml(viewQr.code)}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #111; text-align: center; padding: 24px; }
+  .qr-name { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .qr-code { font-size: 14px; font-weight: 700; color: #555; margin-bottom: 16px; letter-spacing: 1px; }
+  img { width: 320px; height: 320px; border: 1px solid #eee; padding: 16px; background: #fff; }
+  .qr-url { margin-top: 16px; font-size: 13px; color: #333; word-break: break-all; }
+  @media print { body { padding: 8px; } img { width: 240px; height: 240px; } }
+</style></head><body>
+  <div class="qr-name">${escapeHtml(viewQr.name)}</div>
+  <div class="qr-code">${escapeHtml(viewQr.code)}</div>
+  <img src="${qrImage}" alt="QR ${escapeHtml(viewQr.code)}" />
+  <div class="qr-url">${escapeHtml(url)}</div>
+</body></html>`);
+    win.document.close();
+    win.focus();
+    win.onafterprint = () => win.close();
+    setTimeout(() => win.print(), 250);
   };
 
   const handleToggle = async (qr) => {
@@ -172,6 +254,13 @@ export default function AdminQRCodesPage() {
                       <td className="p-4 text-right">
                         <div className="flex justify-end gap-2">
                           <button
+                            onClick={() => handleView(qr)}
+                            title="Ver QR"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 border border-purple-500/30 rounded-lg transition-colors text-xs font-semibold"
+                          >
+                            <Eye className="w-3.5 h-3.5" /> Ver QR
+                          </button>
+                          <button
                             onClick={() => handleCopy(qr.code)}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-[#D4AF37]/10 text-[#D4AF37] hover:bg-[#D4AF37]/20 border border-[#D4AF37]/30 rounded-lg transition-colors text-xs font-semibold"
                           >
@@ -242,6 +331,53 @@ export default function AdminQRCodesPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {viewQr && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-[#121212] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="flex justify-between items-center p-6 border-b border-white/10">
+              <h2 className="text-xl font-bold text-white">Código QR</h2>
+              <button onClick={() => setViewQr(null)} className="text-[#A0A0A0] hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4 text-center">
+              <div>
+                <p className="text-[#A0A0A0] text-sm">{viewQr.name}</p>
+                <p className="text-white font-mono font-semibold">{viewQr.code}</p>
+              </div>
+              <div className="bg-white rounded-xl p-4 inline-block">
+                {qrImageLoading ? (
+                  <div className="w-[320px] h-[320px] flex items-center justify-center text-[#A0A0A0] text-sm">Generando QR...</div>
+                ) : qrImage ? (
+                  <img src={qrImage} alt={`QR ${viewQr.code}`} className="w-[320px] h-[320px]" />
+                ) : (
+                  <div className="w-[320px] h-[320px] flex items-center justify-center text-red-500 text-sm">No se pudo generar la imagen</div>
+                )}
+              </div>
+              <p className="text-xs text-[#A0A0A0] font-mono break-all">{buildRegistrationUrl(viewQr.code)}</p>
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={handleDownloadQr}
+                  disabled={!qrImage}
+                  className="flex-1 bg-[#D4AF37] hover:bg-[#F3CE56] text-black font-semibold py-3 rounded-lg transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+                >
+                  <Download className="w-4 h-4" /> Descargar PNG
+                </button>
+                <button
+                  onClick={handlePrintQr}
+                  disabled={!qrImage}
+                  className="flex-1 bg-white/10 hover:bg-white/20 text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+                >
+                  <Printer className="w-4 h-4" /> Imprimir
+                </button>
+              </div>
+              <button onClick={() => setViewQr(null)} className="w-full bg-white/5 hover:bg-white/10 text-white font-semibold py-2.5 rounded-lg transition-colors">
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}
