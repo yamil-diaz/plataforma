@@ -1,20 +1,31 @@
-// FASE 7: generación visual de códigos QR (Ver / Descargar PNG / Imprimir).
+// FASE 7 / 7.1: generación visual de códigos QR (Ver / Descargar PNG / Imprimir)
+// con el logo oficial de Aeternum centrado.
 // La imagen QR codifica EXACTAMENTE window.location.origin + "/register?ref=" + code.
 // Estrategia: análisis estático de AdminQRCodesPage.jsx + test funcional de la
 // librería 'qrcode' (genera un PNG real a partir de la URL esperada, en Node,
-// sin canvas). No se usa dominio hardcodeado ni almacenamiento persistente.
+// sin canvas) + matemática real del branding (utils/qrLogo.js).
+// No se usa dominio hardcodeado ni almacenamiento persistente.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import QRCode from 'qrcode';
+import {
+  LOGO_URL,
+  QR_LOGO_RATIO,
+  QR_LOGO_MAX_RATIO,
+  computeLogoSize,
+  computeLogoZoneSize,
+} from '../src/utils/qrLogo.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 
 const PAGE = join(ROOT, 'src/pages/AdminQRCodesPage.jsx');
 const APP = join(ROOT, 'src/App.jsx');
+const LOGO_ASSET = join(ROOT, 'public', 'favicon.svg');
+const SERVER = join(ROOT, '..', 'backend', 'server.py');
 
 const src = readFileSync(PAGE, 'utf8');
 const app = readFileSync(APP, 'utf8');
@@ -103,12 +114,13 @@ test('el QR usa el mismo patrón de registration_url que el backend expone', () 
 });
 
 // Funcional: la librería qrcode recibe la URL exacta y genera un PNG real
-test('qrcode genera un PNG escaneable con la URL exacta (QR001)', async () => {
+// con errorCorrectionLevel H (obligatorio en FASE 7.1 por el logo central)
+test('qrcode genera un PNG escaneable con la URL exacta y corrección H (QR001)', async () => {
   const url = 'https://aeternumlibrary.com/register?ref=QR001';
   const dataUrl = await QRCode.toDataURL(url, {
     width: 512,
     margin: 4,
-    errorCorrectionLevel: 'M',
+    errorCorrectionLevel: 'H',
     color: { dark: '#000000', light: '#ffffff' },
   });
   assert.ok(dataUrl.startsWith('data:image/png;base64,'), 'debe producir un PNG en base64');
@@ -118,4 +130,75 @@ test('qrcode genera un PNG escaneable con la URL exacta (QR001)', async () => {
   assert.equal(bytes[2], 0x4e, 'firma PNG byte 3 (N)');
   assert.equal(bytes[3], 0x47, 'firma PNG byte 4 (G)');
   assert.ok(bytes.length > 1000, 'la imagen debe tener contenido real');
+});
+
+// FASE 7.1 — 13. El logo utilizado es el asset local oficial (no URL externa)
+test('el logo es el asset local oficial (frontend/public/favicon.svg)', () => {
+  assert.ok(existsSync(LOGO_ASSET), 'debe existir el asset local del logo');
+  assert.equal(LOGO_URL, '/favicon.svg', 'debe apuntar al asset local servido por Vite');
+  assert.ok(LOGO_URL.startsWith('/'), 'el logo debe ser una ruta local');
+  assert.ok(!LOGO_URL.startsWith('http'), 'no debe ser una URL externa');
+  const svg = readFileSync(LOGO_ASSET, 'utf8');
+  assert.ok(svg.includes('svg'), 'el asset debe ser SVG');
+  assert.ok(svg.includes('D92B2B'), 'debe ser el logo oficial de Aeternum (rojo #D92B2B)');
+  assert.ok(!svg.includes('xlink') && !svg.includes('href'), 'el SVG debe ser autocontenido (sin referencias externas)');
+  assert.ok(!src.includes('https://'), 'la página no debe usar URLs externas para el logo');
+});
+
+// FASE 7.1 — 14. La generación sigue siendo dinámica (un QR por código)
+test('la generación es dinámica: una función por código, sin imágenes estáticas', () => {
+  assert.ok(src.includes('const generateBrandedQrDataUrl = async (code) => {'), 'debe existir la función única de generación');
+  assert.ok(src.includes('generateBrandedQrDataUrl(qr.code)'), 'se debe invocar con el código del QR');
+  assert.ok(!src.includes("'QR001'"), 'no debe estar hardcodeado un código específico');
+});
+
+// FASE 7.1 — 15. errorCorrectionLevel H está configurado
+test('errorCorrectionLevel H está configurado (logo ocupa el centro)', () => {
+  assert.ok(src.includes("errorCorrectionLevel: 'H'"), 'debe usar corrección de errores H');
+  assert.ok(!src.includes("errorCorrectionLevel: 'M'"), 'no debe seguir con M');
+});
+
+// FASE 7.1 — 16. El logo no supera el tamaño máximo definido (matemática real)
+test('el logo ocupa 12 %–18 % del ancho del QR y nunca supera el 20 %', () => {
+  assert.ok(QR_LOGO_RATIO >= 0.12 && QR_LOGO_RATIO <= 0.18, 'la proporción debe estar en 12 %–18 %');
+  assert.ok(QR_LOGO_RATIO <= QR_LOGO_MAX_RATIO, 'nunca debe superar el 20 %');
+  const size = 512;
+  const logoSize = computeLogoSize(size);
+  assert.ok(logoSize / size >= 0.12 && logoSize / size <= 0.18, 'computeLogoSize debe quedar en 12 %–18 %');
+  assert.ok(logoSize / size <= 0.20, 'el tamaño calculado no supera el 20 %');
+});
+
+// FASE 7.1 — 17. La zona de protección blanca cabe dentro de la tolerancia H (30 %)
+test('la zona blanca de protección no excede la tolerancia de corrección H', () => {
+  const size = 512;
+  const zoneSize = computeLogoZoneSize(size);
+  assert.ok(zoneSize > computeLogoSize(size), 'la zona debe ser mayor que el logo');
+  assert.ok(zoneSize / size <= 0.30, 'la zona total debe caber en la tolerancia H (30 %)');
+});
+
+// FASE 7.1 — 18. Una única función de generación; Ver/Descargar/Imprimir usan la misma imagen
+test('descargar e imprimir usan exactamente la imagen final generada (qrImage)', () => {
+  const occurrences = (src.match(/toDataURL\(/g) || []).length;
+  assert.equal(occurrences, 1, 'debe existir una única conversión a PNG (en generateBrandedQrDataUrl)');
+  const downloadSection = src.slice(src.indexOf('handleDownloadQr'), src.indexOf('handlePrintQr'));
+  assert.ok(downloadSection.includes('link.href = qrImage'), 'descargar debe usar la imagen final');
+  assert.ok(downloadSection.includes('QR_${safeCode}.png'), 'el nombre debe ser QR_<codigo>.png');
+  const printSection = src.slice(src.indexOf('handlePrintQr'));
+  assert.ok(printSection.includes('<img src="${qrImage}"'), 'imprimir debe usar la misma imagen final');
+});
+
+// FASE 7.1 — 19. No se modifica el backend (sin endpoints, sin lógica nueva)
+test('el backend no fue modificado (sin referencias al logo ni endpoints nuevos)', () => {
+  const server = readFileSync(SERVER, 'utf8');
+  for (const ref of ['qrLogo', 'LOGO_URL', 'favicon.svg', 'generateBranded', 'toCanvas', "errorCorrectionLevel"]) {
+    assert.ok(!server.includes(ref), `el backend no debe contener "${ref}"`);
+  }
+  const routes = [
+    '/api/qr/{code}/visit',
+    '/admin/qr-codes',
+    '/admin/qr-codes/{qr_id}',
+  ];
+  for (const r of routes) {
+    assert.ok(server.includes(r), `el endpoint ${r} debe seguir existiendo`);
+  }
 });

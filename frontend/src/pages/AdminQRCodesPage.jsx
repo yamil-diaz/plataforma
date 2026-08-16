@@ -4,19 +4,22 @@ import { Navbar } from '../components/Navbar';
 import axios from 'axios';
 import { QrCode, ArrowLeft, Plus, Copy, Power, X, Eye, Download, Printer } from 'lucide-react';
 import QRCode from 'qrcode';
+import { LOGO_URL, computeLogoSize, computeLogoZoneSize } from '../utils/qrLogo';
 
 const API = import.meta.env.VITE_API_URL || '/api';
 
 const CODE_REGEX = /^[A-Za-z0-9_-]{1,32}$/;
 
-// Generación visual del QR (FASE 7): la imagen codifica EXACTAMENTE
+// Generación visual del QR (FASE 7 y 7.1): la imagen codifica EXACTAMENTE
 // window.location.origin + "/register?ref=" + code. Se genera en el navegador
 // (sin endpoints nuevos, sin almacenamiento, sin tablas) y es reproducible
 // desde el código y la URL. Fondo blanco + margen para máxima escaneabilidad.
+// errorCorrectionLevel 'H' es obligatorio en FASE 7.1 porque el logo de
+// Aeternum (15 % del ancho + zona blanca de protección) ocupa el centro.
 const QR_OPTIONS = {
   width: 512,
   margin: 4,
-  errorCorrectionLevel: 'M',
+  errorCorrectionLevel: 'H',
   color: { dark: '#000000', light: '#ffffff' },
 };
 
@@ -77,7 +80,45 @@ export default function AdminQRCodesPage() {
     }
   };
 
-  const generateQrDataUrl = (url) => QRCode.toDataURL(url, QR_OPTIONS);
+  // Logo oficial de Aeternum (asset local /favicon.svg), cargado una sola vez.
+  let logoPromise = null;
+  const loadLogo = () => {
+    if (!logoPromise) {
+      logoPromise = new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => {
+          logoPromise = null;
+          reject(new Error('No se pudo cargar el logo'));
+        };
+        img.src = LOGO_URL;
+      });
+    }
+    return logoPromise;
+  };
+
+  // Única función de generación (FASE 7.1): QR dinámico + logo centrado.
+  // El PNG final se reutiliza para Ver QR, Descargar PNG e Imprimir.
+  const generateBrandedQrDataUrl = async (code) => {
+    const url = buildRegistrationUrl(code);
+    const size = QR_OPTIONS.width;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    await QRCode.toCanvas(canvas, url, QR_OPTIONS);
+    const logo = await loadLogo();
+    const ctx = canvas.getContext('2d');
+    const logoSize = computeLogoSize(size);
+    const zoneSize = computeLogoZoneSize(size);
+    const cx = size / 2;
+    const cy = size / 2;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(cx, cy, zoneSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.drawImage(logo, cx - logoSize / 2, cy - logoSize / 2, logoSize, logoSize);
+    return canvas.toDataURL('image/png');
+  };
 
   const handleView = async (qr) => {
     setViewQr(qr);
@@ -85,8 +126,7 @@ export default function AdminQRCodesPage() {
     setQrImageLoading(true);
     setError('');
     try {
-      const url = buildRegistrationUrl(qr.code);
-      setQrImage(await generateQrDataUrl(url));
+      setQrImage(await generateBrandedQrDataUrl(qr.code));
     } catch (err) {
       setError('No se pudo generar la imagen del QR');
     } finally {
