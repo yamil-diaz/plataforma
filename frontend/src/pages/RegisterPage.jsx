@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
+import { sanitizeRef } from '../utils/ref';
 import { Zap, Mail, Lock, User, AlertCircle } from 'lucide-react';
+
+const API = import.meta.env.VITE_API_URL || '/api';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
@@ -11,13 +15,30 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Parámetro ?ref= del QR: se valida solo el formato; si no cumple se trata
+  // como inexistente (null) y el registro continúa normal. Se conserva en el
+  // estado de React durante toda la interacción con el formulario.
+  const ref = sanitizeRef(searchParams.get('ref'));
+
+  // Tracking de visita (FASE 5): una sola petición por montaje de la página,
+  // solo si hay un ref válido. Best effort: si falla, tarda o el QR no existe,
+  // el registro continúa normal; nunca se muestran errores al usuario.
+  useEffect(() => {
+    if (!ref) return;
+    const controller = new AbortController();
+    axios
+      .post(`${API}/qr/${ref}/visit`, null, { signal: controller.signal })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [ref]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await register(name, email, password);
+      await register(name, email, password, ref);
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.detail || 'Error al registrarse. Inténtalo de nuevo.');

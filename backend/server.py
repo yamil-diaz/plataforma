@@ -5,6 +5,7 @@ import shutil
 import random
 import string
 import threading
+import re
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, List
 
@@ -29,7 +30,7 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, field_validator
 
 from database import init_db, get_db
 import psycopg2
@@ -447,6 +448,11 @@ class UserRegister(BaseModel):
     name: str
     email: EmailStr
     password: str
+    # FASE 4: código QR opcional capturado por el frontend (?ref=). El backend
+    # lo vuelve a validar (nunca se confía en el frontend): solo formato
+    # básico; si es None, vacío, inválido o el QR no existe/está inactivo, el
+    # registro continúa normal sin asociación (referred_by_qr_id = NULL).
+    ref: Optional[str] = None
 
 
 class UserLogin(BaseModel):
@@ -480,6 +486,36 @@ class CompetitionSubmit(BaseModel):
 class ReviewCreate(BaseModel):
     rating: int = Field(ge=1, le=5)
     comment: str
+
+
+# ── FASE 6: modelos administrativos de códigos QR ─────────────────────────────
+# extra="forbid": el body jamás acepta campos administrativos arbitrarios
+# (role, is_active, etc.) en endpoints donde no corresponden.
+class QrCodeCreate(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    code: str
+    name: str
+
+    @field_validator("code", "name", mode="before")
+    @classmethod
+    def _deben_ser_texto(cls, v):
+        if not isinstance(v, str):
+            raise ValueError("Debe ser texto")
+        return v
+
+
+class QrCodePatch(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    is_active: bool
+
+    @field_validator("is_active", mode="before")
+    @classmethod
+    def _booleano_real(cls, v):
+        if not isinstance(v, bool):
+            raise ValueError("is_active debe ser un booleano real (true/false)")
+        return v
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
@@ -526,6 +562,29 @@ async def debug_files():
     return result
 
 
+REF_CODE_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
+
+
+def _resolve_active_qr_id(cursor, ref):
+    """Resuelve el id interno de qr_codes para un ref de registro (FASE 4).
+
+    Devuelve el id solo si ref tiene formato válido y el QR existe y está
+    activo. En cualquier otro caso (None, vacío, formato inválido, QR
+    inexistente o inactivo) devuelve None y el registro continúa sin
+    asociación. El ref jamás influye en role ni en Rayos. Queries siempre
+    parametrizadas; no se crea ningún QR nuevo aquí."""
+    if not ref or not isinstance(ref, str):
+        return None
+    if not REF_CODE_PATTERN.fullmatch(ref):
+        return None
+    cursor.execute(
+        "SELECT id FROM qr_codes WHERE code = %s AND is_active = TRUE",
+        (ref,),
+    )
+    row = cursor.fetchone()
+    return row["id"] if row else None
+
+
 @api_router.post("/register")
 async def register(user_data: UserRegister, response: Response, request: Request):
     db = get_db()
@@ -557,10 +616,15 @@ async def register(user_data: UserRegister, response: Response, request: Request
     random_suffix = "".join(random.choices(string.digits, k=4))
     username = f"{base_username}{random_suffix}"
 
+    # FASE 4: asociación al QR de referencia. Se resuelve DENTRO de la misma
+    # transacción de creación del usuario: si el ref es válido y el QR está
+    # activo se guarda su id en users.referred_by_qr_id; si no, queda NULL.
+    # El role y la recompensa los fija siempre el servidor.
     try:
+        qr_id = _resolve_active_qr_id(cursor, user_data.ref)
         cursor.execute(
-            "INSERT INTO users (name, email, hashed_password, role, rayos_balance, created_at, username, registration_ip) VALUES (%s, %s, %s, 'user', 0, %s, %s, %s) RETURNING id",
-            (user_data.name, user_data.email, hashed, now, username, user_ip),
+            "INSERT INTO users (name, email, hashed_password, role, rayos_balance, created_at, username, registration_ip, referred_by_qr_id) VALUES (%s, %s, %s, 'user', 0, %s, %s, %s, %s) RETURNING id",
+            (user_data.name, user_data.email, hashed, now, username, user_ip, qr_id),
         )
         user_id = cursor.fetchone()["id"]
 
@@ -593,6 +657,190 @@ async def register(user_data: UserRegister, response: Response, request: Request
         "role": "user",
         "rayos_balance": new_balance,
     }
+
+
+@api_router.post("/qr/{code}/visit")
+async def qr_visit(code: str, request: Request):
+    """Tracking de visita de QR (FASE 5).
+
+    Contabiliza una visita solo si el QR existe y está activo; si no, NO crea
+    ninguna visita (respuesta 404 genérica). Exclusivamente tracking: no crea
+    ni activa QRs, no toca users, no entrega privilegios ni Rayos. Deduplicación
+    garantizada por UNIQUE(qr_id, ip, visit_date) + ON CONFLICT DO NOTHING:
+    1 IP + 1 QR + 1 día = 1 visita. Queries parametrizadas."""
+    if not REF_CODE_PATTERN.fullmatch(code):
+        raise HTTPException(status_code=404, detail="Código QR no encontrado o inactivo")
+    db = get_db()
+    try:
+        cursor = db.cursor()
+        cursor.execute(
+            "SELECT id FROM qr_codes WHERE code = %s AND is_active = TRUE",
+            (code,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Código QR no encontrado o inactivo")
+        ip = (request.client.host if request.client else "unknown")
+        visit_date = datetime.now(timezone.utc).date().isoformat()
+        created_at = datetime.now(timezone.utc).isoformat()
+        cursor.execute(
+            """
+            INSERT INTO qr_visits (qr_id, ip, visit_date, created_at)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (qr_id, ip, visit_date) DO NOTHING
+            """,
+            (row["id"], ip, visit_date, created_at),
+        )
+        db.commit()
+        return {"status": "ok", "counted": bool(cursor.rowcount > 0)}
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Error interno al registrar la visita")
+    finally:
+        db.close()
+
+
+# ── Panel administrativo de códigos QR (FASE 6) ───────────────────────────────
+# Mismo patrón de autorización que el resto del panel: get_current_user + check
+# de role admin. Un usuario normal (o no autenticado) jamás llega a la BD.
+
+@api_router.get("/admin/qr-codes")
+async def admin_list_qr_codes(request: Request):
+    """Listado administrativo de códigos QR (FASE 6).
+
+    Solo administradores. Devuelve cada QR con sus estadísticas agregadas
+    (visitas únicas registradas y usuarios asociados por el QR) calculadas en
+    una sola consulta agrupada (sin N+1). No expone IPs de visitantes.
+    SQL parametrizado."""
+    user = await get_current_user(request)
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute(
+            """
+            SELECT q.id, q.code, q.name, q.is_active, q.created_at,
+                   COUNT(DISTINCT v.id) AS visits_count,
+                   COUNT(DISTINCT u.id) AS registrations_count
+            FROM qr_codes q
+            LEFT JOIN qr_visits v ON v.qr_id = q.id
+            LEFT JOIN users u ON u.referred_by_qr_id = q.id
+            GROUP BY q.id, q.code, q.name, q.is_active, q.created_at
+            ORDER BY q.id
+            """
+        )
+        rows = cursor.fetchall()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Error al listar los códigos QR")
+    finally:
+        db.close()
+
+    return [
+        {
+            "id": row["id"],
+            "code": row["code"],
+            "name": row["name"],
+            "is_active": bool(row["is_active"]),
+            "created_at": row["created_at"],
+            "visits_count": row["visits_count"],
+            "registrations_count": row["registrations_count"],
+            "registration_url": f"/register?ref={row['code']}",
+        }
+        for row in rows
+    ]
+
+
+@api_router.post("/admin/qr-codes")
+async def admin_create_qr_code(payload: QrCodeCreate, request: Request):
+    """Crea un código QR (FASE 6). Solo administradores.
+
+    Valida formato del código (^[A-Za-z0-9_-]{1,32}$), nombre obligatorio con
+    longitud razonable y ausencia de duplicados. El QR se crea SIEMPRE activo
+    (is_active = TRUE); el campo is_active no se acepta del body. created_at
+    usa el mismo formato ISO UTC del resto del proyecto. SQL parametrizado."""
+    user = await get_current_user(request)
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    code = payload.code.strip()
+    name = payload.name.strip()
+
+    if not code:
+        raise HTTPException(status_code=400, detail="El código es obligatorio")
+    if not REF_CODE_PATTERN.fullmatch(code):
+        raise HTTPException(
+            status_code=400,
+            detail="El código debe tener entre 1 y 32 caracteres: letras, números, guiones (-) o guiones bajos (_)",
+        )
+    if not name:
+        raise HTTPException(status_code=400, detail="El nombre es obligatorio")
+    if len(name) > 200:
+        raise HTTPException(status_code=400, detail="El nombre es demasiado largo (máximo 200 caracteres)")
+
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute("SELECT id FROM qr_codes WHERE code = %s", (code,))
+        if cursor.fetchone():
+            raise HTTPException(status_code=400, detail="El código QR ya existe")
+
+        created_at = datetime.now(timezone.utc).isoformat()
+        cursor.execute(
+            "INSERT INTO qr_codes (code, name, is_active, created_at) VALUES (%s, %s, TRUE, %s) RETURNING id",
+            (code, name, created_at),
+        )
+        qr_id = cursor.fetchone()["id"]
+        db.commit()
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Error al crear el código QR")
+    finally:
+        db.close()
+
+    return {"id": qr_id, "code": code, "name": name, "is_active": True, "created_at": created_at}
+
+
+@api_router.patch("/admin/qr-codes/{qr_id}")
+async def admin_set_qr_code_active(qr_id: int, payload: QrCodePatch, request: Request):
+    """Activa o desactiva un código QR (FASE 6). Solo administradores.
+
+    Únicamente cambia is_active: no edita code/name, no elimina el QR y no
+    toca visitas ni usuarios. Al desactivar, /register?ref=... deja de asociar
+    nuevos usuarios y /api/qr/{code}/visit deja de registrar visitas (ambos ya
+    filtran por is_active = TRUE); los datos históricos permanecen intactos.
+    SQL parametrizado."""
+    user = await get_current_user(request)
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute("SELECT id FROM qr_codes WHERE id = %s", (qr_id,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Código QR no encontrado")
+
+        cursor.execute(
+            "UPDATE qr_codes SET is_active = %s WHERE id = %s",
+            (payload.is_active, qr_id),
+        )
+        db.commit()
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Error al actualizar el código QR")
+    finally:
+        db.close()
+
+    return {"id": qr_id, "is_active": payload.is_active}
 
 
 @api_router.post("/login")

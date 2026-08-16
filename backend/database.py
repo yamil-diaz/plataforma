@@ -50,12 +50,41 @@ def init_db():
     )
     """)
     
+    # ── Tabla de códigos QR de referencia (FASE 2) ───────────────────────────
+    # Catálogo de QR físicos de registro (/register?ref=XXXX). Se crea ANTES
+    # del ALTER de users porque la columna referred_by_qr_id referencia a esta
+    # tabla. No contiene datos semilla: se administrará desde el panel admin.
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS qr_codes (
+        id SERIAL PRIMARY KEY,
+        code VARCHAR(32) UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TEXT NOT NULL
+    )
+    """)
+
+    # Visitas de cada QR con deduplicación: una visita por IP por día por QR.
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS qr_visits (
+        id SERIAL PRIMARY KEY,
+        qr_id INTEGER NOT NULL REFERENCES qr_codes(id) ON DELETE CASCADE,
+        ip TEXT NOT NULL,
+        visit_date TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        UNIQUE(qr_id, ip, visit_date)
+    )
+    """)
+
     # Migraciones seguras para columnas añadidas posteriormente
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255)")
         cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expiry TIMESTAMP")
         cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE")
         cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS registration_ip TEXT")
+        # Asociación opcional del usuario con el QR por el que se registró.
+        # Solo se agrega si no existe; los usuarios existentes conservan NULL.
+        cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by_qr_id INTEGER REFERENCES qr_codes(id) ON DELETE SET NULL")
         conn.commit()
     except Exception as e:
         conn.rollback()
@@ -141,6 +170,8 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_reviews_book_user ON reviews(book_id, user_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_rayos_user ON rayos_transactions(user_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_rayos_user_type ON rayos_transactions(user_id, type)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_qr_visits_qr ON qr_visits(qr_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_referred_by_qr ON users(referred_by_qr_id)")
 
     # ── Cursos (FASE 1: se crean aquí para que un deploy fresco funcione) ────
     cursor.execute("""

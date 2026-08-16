@@ -183,10 +183,140 @@ class FakeCursor:
             self._last_result = {"id": int(params[0])}
 
         elif q.startswith("insert into rayos_transactions"):
+            self.state["rayos_transactions"].append(params)
             self.rowcount = 1
 
         elif q.startswith("select interaction_type from book_interactions"):
             self._last_result = None
+
+        # ── FASE 4: flujo de registro con QR de referencia ──────────────────
+        elif q.startswith("select count(*) as cnt from users where registration_ip"):
+            ip, cutoff = params
+            self._last_result = {
+                "cnt": sum(
+                    1
+                    for u in self.state["users"].values()
+                    if u.get("registration_ip") == ip and u.get("created_at", "") >= cutoff
+                )
+            }
+
+        elif q.startswith("select id from users where email"):
+            self._last_result = next(
+                ({"id": uid} for uid, u in self.state["users"].items() if u.get("email") == params[0]),
+                None,
+            )
+
+        elif q.startswith("select id from qr_codes where code"):
+            if "and is_active = true" in q:
+                self._last_result = next(
+                    (
+                        {"id": qr["id"]}
+                        for qr in self.state["qr_codes"].values()
+                        if qr["code"] == params[0] and qr["is_active"]
+                    ),
+                    None,
+                )
+            else:
+                self._last_result = next(
+                    (
+                        {"id": qr["id"]}
+                        for qr in self.state["qr_codes"].values()
+                        if qr["code"] == params[0]
+                    ),
+                    None,
+                )
+
+        # ── FASE 6: panel administrativo de QR ─────────────────────────────
+        elif q.startswith("select q.id, q.code, q.name"):
+            rows = []
+            for qr_id in sorted(self.state["qr_codes"]):
+                qr = self.state["qr_codes"][qr_id]
+                rows.append({
+                    "id": qr["id"],
+                    "code": qr["code"],
+                    "name": qr.get("name", ""),
+                    "is_active": qr["is_active"],
+                    "created_at": qr.get("created_at", ""),
+                    "visits_count": sum(
+                        1 for v in self.state["qr_visits"] if v[0] == qr_id
+                    ),
+                    "registrations_count": sum(
+                        1
+                        for u in self.state["users"].values()
+                        if u.get("referred_by_qr_id") == qr_id
+                    ),
+                })
+            self._last_result = rows
+
+        elif q.startswith("select id from qr_codes where id"):
+            self._last_result = (
+                {"id": int(params[0])} if int(params[0]) in self.state["qr_codes"] else None
+            )
+
+        elif q.startswith("insert into qr_codes") and "returning id" in q:
+            code, name, created_at = params
+            new_id = max(self.state["qr_codes"].keys(), default=0) + 1
+            self.state["qr_codes"][new_id] = {
+                "id": new_id,
+                "code": code,
+                "name": name,
+                "is_active": True,
+                "created_at": created_at,
+            }
+            self._last_result = {"id": new_id}
+            self.rowcount = 1
+
+        elif q.startswith("update qr_codes set is_active"):
+            qr = self.state["qr_codes"].get(int(params[1]))
+            if qr:
+                qr["is_active"] = params[0]
+                self.rowcount = 1
+
+        elif q.startswith("insert into users") and "returning id" in q:
+            new_id = max(self.state["users"].keys(), default=0) + 1
+            name, email, hashed_password, created_at, username, registration_ip, referred_by_qr_id = params
+            self.state["users"][new_id] = {
+                "id": new_id,
+                "name": name,
+                "email": email,
+                "role": "user",
+                "rayos_balance": 0,
+                "historical_rayos": 0,
+                "username": username,
+                "registration_ip": registration_ip,
+                "referred_by_qr_id": referred_by_qr_id,
+                "is_banned": False,
+                "created_at": created_at,
+            }
+            self._last_result = {"id": new_id}
+            self.rowcount = 1
+
+        # ── FASE 5: visitas de QR ────────────────────────────────────────────
+        elif q.startswith("insert into qr_visits") and "on conflict" in q:
+            qr_id, ip, visit_date, created_at = params
+            duplicada = any(
+                v[0] == qr_id and v[1] == ip and v[2] == visit_date
+                for v in self.state["qr_visits"]
+            )
+            if not duplicada:
+                self.state["qr_visits"].append((qr_id, ip, visit_date, created_at))
+                self.rowcount = 1
+            else:
+                self.rowcount = 0
+
+        elif q.startswith("select count(*)") and "from qr_visits where qr_id" in q:
+            self._last_result = {
+                "cnt": sum(1 for v in self.state["qr_visits"] if v[0] == params[0])
+            }
+
+        elif q.startswith("select count(*)") and "from users where referred_by_qr_id" in q:
+            self._last_result = {
+                "cnt": sum(
+                    1
+                    for u in self.state["users"].values()
+                    if u.get("referred_by_qr_id") == params[0]
+                )
+            }
 
         else:
             raise RuntimeError(
@@ -217,6 +347,8 @@ class FakeDb:
             "chapters": [],
             "book_pages": [],
             "next_book_id": 1,
+            "rayos_transactions": [],
+            "qr_visits": [],
             "log": [],
         }
         for uid, name, email, role in [
@@ -226,6 +358,14 @@ class FakeDb:
             (4, "Autora", "autora@test.com", "autor"),
         ]:
             self.state["users"][uid] = _make_user(uid, name, email, role)
+
+        # QR de referencia (FASE 4): QR001 activo, QR002 inactivo.
+        # QR003 activo adicional (FASE 5) para tests de visita por QR distinto.
+        self.state["qr_codes"] = {
+            1: {"id": 1, "code": "QR001", "is_active": True},
+            2: {"id": 2, "code": "QR002", "is_active": False},
+            3: {"id": 3, "code": "QR003", "is_active": True},
+        }
 
         self.state["books"][10] = {
             "id": 10,

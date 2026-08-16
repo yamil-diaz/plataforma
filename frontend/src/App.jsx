@@ -19,6 +19,7 @@ import ProfilePage from './pages/ProfilePage';
 import CompetitionsPage from './pages/CompetitionsPage';
 import CompetitionQuizPage from './pages/CompetitionQuizPage';
 import AdminCompetitionPage from './pages/AdminCompetitionPage';
+import AdminQRCodesPage from './pages/AdminQRCodesPage';
 import TermsPage from './pages/TermsPage';
 
 // Componente para proteger rutas (Debe estar autenticado)
@@ -120,6 +121,14 @@ function AppRoutes() {
             <AdminCompetitionPage />
           </ProtectedRoute>
         } 
+      />
+      <Route
+        path="/admin/qr-codes"
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminQRCodesPage />
+          </ProtectedRoute>
+        }
       />
 
       {/* Redirección por defecto */}

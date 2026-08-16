@@ -32,8 +32,11 @@ export const AuthProvider = ({ children }) => {
     return data;
   };
 
-  const register = async (name, email, password) => {
-    const { data } = await axios.post(`${API}/register`, { name, email, password });
+  const register = async (name, email, password, ref) => {
+    // ref (FASE 3): valor del parámetro ?ref= ya validado en RegisterPage.
+    // Si es null se envía como undefined para que Axios lo omita del body;
+    // así /register normal envía exactamente { name, email, password }.
+    const { data } = await axios.post(`${API}/register`, { name, email, password, ref: ref || undefined });
     setUser(data);
     return data;
   };
