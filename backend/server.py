@@ -6,6 +6,7 @@ import random
 import string
 import threading
 import re
+import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, List
 
@@ -35,6 +36,12 @@ from pydantic import BaseModel, Field, EmailStr, field_validator
 from database import init_db, get_db
 import psycopg2
 import lectura
+from ai_service import process_chat, AIServiceError
+import ai_conversations
+
+# Logger del servidor (FASE 8.4): registro mínimo y seguro del endpoint IA.
+# Nunca se registran tokens, cookies, contraseñas ni contenido de mensajes.
+logger_server = logging.getLogger("aeternum.server")
 
 # ── Directorios de almacenamiento ───────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -317,6 +324,10 @@ VALID_RAYOS_TYPES = frozenset({
     "donation_sent",
     "donation_received",
     "donation_burn",
+    # FASE 8.5: identificador económico de IA PREPARADO (sin precios activos).
+    # Solo se usa cuando exista un costo definido para una operación de IA;
+    # con costos PENDIENTES, la economía permanece inactiva y nunca cobra.
+    "ai_request_cost",
 })
 
 REGISTRATION_REWARD_AMOUNT = 100
@@ -3390,6 +3401,123 @@ async def admin_rayos_audit(request: Request):
         "mismatches": mismatches,
         "note": "Los deltas legacy (semillas 500/100 y acreditaciones pre-FASE 1) se reportan pero no se corrigen automáticamente.",
     }
+
+# ── IA de Aeternum (FASE 8.3) ────────────────────────────────────────────────
+# Endpoint fino: toda la lógica vive en ai_service.py. El proveedor real,
+# la economía de Rayos y la persistencia se implementan en fases posteriores.
+
+class AIChatRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=4000)
+    book_id: Optional[int] = None
+    page_number: Optional[int] = None
+    chapter_id: Optional[int] = None
+    # operation_id (FASE 8.5): clave de idempotencia económica opcional enviada
+    # por el cliente para evitar doble cobro por reintentos HTTP. Si no llega,
+    # el servidor genera uno interno. Nunca permite acceder a operaciones de
+    # otro usuario: se valida contra el user_id del JWT.
+    operation_id: Optional[str] = Field(None, max_length=64)
+    # conversation_id (FASE 8.7): conversación del usuario. Si no llega, el
+    # servidor crea una nueva. Si llega, se valida que pertenezca al JWT
+    # (404 genérico si no existe o es ajena). Nunca permite acceder a
+    # conversaciones de otro usuario.
+    conversation_id: Optional[int] = Field(None, ge=1)
+    # OJO: user_id recibido aquí se IGNORA siempre. La identidad se obtiene
+    # exclusivamente del JWT (get_current_user). No permite suplantación.
+    user_id: Optional[int] = None
+
+
+@api_router.post("/ai/chat")
+async def ai_chat(payload: AIChatRequest, request: Request):
+    user = await get_current_user(request)
+    db = get_db()
+    try:
+        result = await process_chat(
+            user=user,
+            message=payload.message,
+            book_id=payload.book_id,
+            page_number=payload.page_number,
+            chapter_id=payload.chapter_id,
+            can_access_book=_puede_acceder_libro,
+            db=db,
+            operation_id=payload.operation_id,
+            conversation_id=payload.conversation_id,
+        )
+        db.commit()
+        return result
+    except AIServiceError as e:
+        # FASE 8.7: si la solicitud falla (proveedor, contexto, economía), el
+        # cierre de la conexión SIN commit revierte la transacción: no quedan
+        # mensajes ni conversaciones huérfanas y nunca se cobra una respuesta
+        # fallida. (En PostgreSQL el cierre sin commit implica rollback.)
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    except Exception:
+        logger_server.exception(
+            "Error inesperado en /api/ai/chat (usuario_id=%s)", user["id"]
+        )
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+    finally:
+        db.close()
+
+
+# ── FASE 8.7: conversaciones de IA (endpoints finos, lógica en
+#    ai_conversations.py) ─────────────────────────────────────────────────────
+
+@api_router.get("/ai/conversations")
+async def ai_conversations_list(request: Request):
+    user = await get_current_user(request)
+    db = get_db()
+    try:
+        conversations = ai_conversations.list_conversations(db, user["id"])
+        return {"success": True, "conversations": conversations}
+    except ai_conversations.AIConversationError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    except Exception:
+        logger_server.exception(
+            "Error inesperado en GET /api/ai/conversations (usuario_id=%s)",
+            user["id"],
+        )
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+    finally:
+        db.close()
+
+
+@api_router.get("/ai/conversations/{conversation_id}/messages")
+async def ai_conversation_messages(conversation_id: int, request: Request):
+    user = await get_current_user(request)
+    db = get_db()
+    try:
+        messages = ai_conversations.get_messages(db, conversation_id, user["id"])
+        return {"success": True, "conversation_id": conversation_id, "messages": messages}
+    except ai_conversations.AIConversationError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    except Exception:
+        logger_server.exception(
+            "Error inesperado en GET /api/ai/conversations/{id}/messages "
+            "(usuario_id=%s)", user["id"],
+        )
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+    finally:
+        db.close()
+
+
+@api_router.delete("/ai/conversations/{conversation_id}")
+async def ai_conversation_delete(conversation_id: int, request: Request):
+    user = await get_current_user(request)
+    db = get_db()
+    try:
+        ai_conversations.delete_conversation(db, conversation_id, user["id"])
+        db.commit()
+        return {"success": True, "deleted": conversation_id}
+    except ai_conversations.AIConversationError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    except Exception:
+        logger_server.exception(
+            "Error inesperado en DELETE /api/ai/conversations/{id} "
+            "(usuario_id=%s)", user["id"],
+        )
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+    finally:
+        db.close()
 
 # ── Montar rutas ─────────────────────────────────────────────────────────────
 app.include_router(api_router, prefix="/api")

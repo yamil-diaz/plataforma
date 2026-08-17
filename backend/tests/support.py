@@ -154,6 +154,29 @@ class FakeCursor:
         elif q.startswith("select rdp.book_id, b.title, count(*) as pages from reading_daily_pages"):
             self._last_result = []
 
+        elif q.startswith("select p.page_number, p.content, c.id as page_chapter_id, c.title as chapter_title from book_pages"):
+            # FASE 8.6: query de contexto de IA por página (con el capítulo al
+            # que pertenece la página, para validar page_number+chapter_id).
+            book_id, page_number = int(params[0]), int(params[1])
+            page = next(
+                (p for p in self.state["book_pages"] if p[0] == book_id and p[1] == page_number),
+                None,
+            )
+            if page:
+                capitulo_id = None
+                capitulo_titulo = None
+                if book_id == 10 and page_number == 1 and any(
+                    c[0] == 10 for c in self.state["chapters"]
+                ):
+                    capitulo_id = 1
+                    capitulo_titulo = "Capítulo Uno"
+                self._last_result = {
+                    "page_number": page[1],
+                    "content": page[2],
+                    "page_chapter_id": capitulo_id,
+                    "chapter_title": capitulo_titulo,
+                }
+
         elif q.startswith("select p.page_number, p.content, c.title as chapter_title from book_pages"):
             book_id, page_number = params[0], params[1]
             page = next(
@@ -166,11 +189,98 @@ class FakeCursor:
         elif q.startswith("select id, title, start_page from chapters"):
             self._last_result = []
 
+        # ── FASE 8.3: contexto de IA (capítulo por id) ─────────────────────
+        elif q.startswith("select title, start_page from chapters where id"):
+            chapter_id, book_id = int(params[0]), int(params[1])
+            # En el stub, el único capítulo sembrado (libro 10) usa id = 1.
+            self._last_result = (
+                {"title": "Capítulo Uno", "start_page": 1}
+                if chapter_id == 1 and book_id == 10
+                and any(c[0] == 10 for c in self.state["chapters"])
+                else None
+            )
+
+        # FASE 8.6: siguiente capítulo (límite superior del rango de un capítulo)
+        elif q.startswith("select start_page from chapters where book_id") and "order by start_page limit 1" in q:
+            book_id, start = int(params[0]), int(params[1])
+            siguientes = sorted(
+                c[2] for c in self.state["chapters"]
+                if c[0] == book_id and c[2] > start
+            )
+            self._last_result = (
+                {"start_page": siguientes[0]} if siguientes else None
+            )
+
+        # FASE 8.6: páginas de un rango (capítulo completo, con límite de contexto)
+        elif q.startswith("select p.page_number, p.content from book_pages") and "order by p.page_number" in q:
+            book_id, desde, hasta = int(params[0]), int(params[1]), int(params[2])
+            paginas = [
+                {"page_number": p[1], "content": p[2]}
+                for p in self.state["book_pages"]
+                if p[0] == book_id and desde <= p[1] < hasta
+            ]
+            self._last_result = sorted(paginas, key=lambda r: r["page_number"])
+
         elif q.startswith("insert into reading_sessions") or q.startswith("insert into reading_progress"):
             pass
 
         elif q.startswith("insert into reading_daily_pages"):
             self.rowcount = 0
+
+        # ── FASE 8.5: pre-chequeo de saldo IA (sin reserva) ──────────────────
+        elif q.startswith("select rayos_balance from users where id"):
+            user = self.state["users"].get(int(params[0]))
+            self._last_result = (
+                {"rayos_balance": user["rayos_balance"]} if user else None
+            )
+
+        # ── FASE 8.5: consumo de IA (idempotencia y registro económico) ─────
+        elif q.startswith("select id, user_id, status from ai_consumption where operation_id"):
+            row = next(
+                (r for r in self.state["ai_consumption"]
+                 if r["operation_id"] == params[0]),
+                None,
+            )
+            self._last_result = row
+
+        elif q.startswith("insert into ai_consumption"):
+            (user_id, operation_id, operation, provider, model,
+             rayos_cost, status, duration_ms, created_at) = params
+            if any(
+                r["operation_id"] == operation_id
+                for r in self.state["ai_consumption"]
+            ):
+                exc = RuntimeError(
+                    "duplicate key value violates unique constraint "
+                    "ai_consumption_operation_id_key"
+                )
+                exc.pgcode = "23505"
+                raise exc
+            self.state["ai_consumption"].append({
+                "id": len(self.state["ai_consumption"]) + 1,
+                "user_id": user_id,
+                "operation_id": operation_id,
+                "operation": operation,
+                "provider": provider,
+                "model": model,
+                "rayos_cost": rayos_cost,
+                "status": status,
+                "duration_ms": duration_ms,
+                "created_at": created_at,
+            })
+            self._last_result = {"id": len(self.state["ai_consumption"])}
+            self.rowcount = 1
+
+        elif q.startswith("update users set rayos_balance = rayos_balance -") and "returning rayos_balance" in q:
+            # FASE 8.5: débito atómico condicional (_debit_rayos_atomic).
+            # params = (amount, user_id, amount): solo debita si
+            # rayos_balance >= amount (nunca saldo negativo).
+            amount, user_id, minimum = int(params[0]), int(params[1]), int(params[2])
+            user = self.state["users"].get(user_id)
+            if user and user.get("rayos_balance", 0) >= minimum:
+                user["rayos_balance"] = user.get("rayos_balance", 0) - amount
+                self._last_result = {"rayos_balance": user["rayos_balance"]}
+                self.rowcount = 1
 
         elif q.startswith("update users set rayos_balance") and "returning rayos_balance" in q:
             user = self.state["users"].get(int(params[2]))
@@ -185,6 +295,95 @@ class FakeCursor:
         elif q.startswith("insert into rayos_transactions"):
             self.state["rayos_transactions"].append(params)
             self.rowcount = 1
+
+        # ── FASE 8.7: persistencia de conversaciones de IA ──────────────────
+        elif q.startswith("insert into ai_conversations") and "returning id" in q:
+            user_id, title, status, created_at, updated_at = params
+            new_id = self.state["next_conversation_id"]
+            self.state["next_conversation_id"] += 1
+            self.state["ai_conversations"].append({
+                "id": new_id,
+                "user_id": user_id,
+                "title": title,
+                "status": status,
+                "created_at": created_at,
+                "updated_at": updated_at,
+            })
+            self._last_result = {"id": new_id}
+            self.rowcount = 1
+
+        elif q.startswith("select id, title, status, created_at, updated_at from ai_conversations where id"):
+            # Ownership estricto: solo la conversación del usuario (404 si
+            # no existe O pertenece a otro).
+            conv_id, user_id = int(params[0]), int(params[1])
+            self._last_result = next(
+                (c for c in self.state["ai_conversations"]
+                 if c["id"] == conv_id and c["user_id"] == user_id),
+                None,
+            )
+
+        elif q.startswith("select id, title, status, created_at, updated_at from ai_conversations where user_id") and "order by updated_at desc" in q:
+            user_id = int(params[0])
+            rows = [
+                c for c in self.state["ai_conversations"]
+                if c["user_id"] == user_id
+            ]
+            self._last_result = sorted(
+                [
+                    {"id": c["id"], "title": c["title"], "status": c["status"],
+                     "created_at": c["created_at"], "updated_at": c["updated_at"]}
+                    for c in rows
+                ],
+                key=lambda c: c["updated_at"], reverse=True,
+            )
+
+        elif q.startswith("select role, content, created_at from ai_messages") and "order by id" in q:
+            conv_id = int(params[0])
+            self._last_result = [
+                {"role": m["role"], "content": m["content"],
+                 "created_at": m["created_at"]}
+                for m in self.state["ai_messages"]
+                if m["conversation_id"] == conv_id
+            ]
+
+        elif q.startswith("insert into ai_messages"):
+            conversation_id, role, content, created_at = params
+            self.state["ai_messages"].append({
+                "id": self.state["next_message_id"],
+                "conversation_id": conversation_id,
+                "role": role,
+                "content": content,
+                "created_at": created_at,
+            })
+            self.state["next_message_id"] += 1
+            self.rowcount = 1
+
+        elif q.startswith("update ai_conversations set updated_at"):
+            now, conv_id = params[0], int(params[1])
+            conv = next(
+                (c for c in self.state["ai_conversations"]
+                 if c["id"] == conv_id),
+                None,
+            )
+            if conv:
+                conv["updated_at"] = now
+
+        elif q.startswith("delete from ai_conversations where id") and "and user_id" in q:
+            # FASE 8.7: eliminación con ownership estricto. El CASCADE de
+            # mensajes (FK de la BD real) se replica borrando los mensajes.
+            conv_id, user_id = int(params[0]), int(params[1])
+            conv = next(
+                (c for c in self.state["ai_conversations"]
+                 if c["id"] == conv_id and c["user_id"] == user_id),
+                None,
+            )
+            if conv:
+                self.state["ai_conversations"].remove(conv)
+                self.state["ai_messages"] = [
+                    m for m in self.state["ai_messages"]
+                    if m["conversation_id"] != conv_id
+                ]
+                self.rowcount = 1
 
         elif q.startswith("select interaction_type from book_interactions"):
             self._last_result = None
@@ -349,6 +548,11 @@ class FakeDb:
             "next_book_id": 1,
             "rayos_transactions": [],
             "qr_visits": [],
+            "ai_consumption": [],
+            "ai_conversations": [],
+            "ai_messages": [],
+            "next_conversation_id": 1,
+            "next_message_id": 1,
             "log": [],
         }
         for uid, name, email, role in [

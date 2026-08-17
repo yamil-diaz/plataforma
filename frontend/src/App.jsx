@@ -21,6 +21,7 @@ import CompetitionQuizPage from './pages/CompetitionQuizPage';
 import AdminCompetitionPage from './pages/AdminCompetitionPage';
 import AdminQRCodesPage from './pages/AdminQRCodesPage';
 import TermsPage from './pages/TermsPage';
+import IAPage from './pages/IAPage';
 
 // Componente para proteger rutas (Debe estar autenticado)
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -79,6 +80,16 @@ function AppRoutes() {
             <DashboardPage />
           </ProtectedRoute>
         } 
+      />
+
+      {/* IA de Aeternum: solo autenticado (NO adminOnly) */}
+      <Route
+        path="/ia"
+        element={
+          <ProtectedRoute>
+            <IAPage />
+          </ProtectedRoute>
+        }
       />
 
       {/* Rutas Protegidas de Administrador */}
