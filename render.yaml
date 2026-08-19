@@ -15,7 +15,7 @@ services:
     disk:
       name: aeternum-storage
       mountPath: /var/data/aeternum
-      sizeGB: 1
+      sizeGB: 10
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.9"

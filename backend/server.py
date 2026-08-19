@@ -553,7 +553,12 @@ async def debug_files():
         "frontend_dir": FRONTEND_DIR,
         "frontend_dir_exists": os.path.isdir(FRONTEND_DIR),
         "index_html_exists": os.path.isfile(os.path.join(FRONTEND_DIR, "index.html")),
+        "storage_dir": STORAGE_DIR,
+        "storage_books": STORAGE_BOOKS,
+        "storage_dir_exists": os.path.isdir(STORAGE_DIR),
+        "storage_books_exists": os.path.isdir(STORAGE_BOOKS),
         "files_in_frontend_dist": [],
+        "files_in_storage_books": [],
         "db_tables": [],
         "db_error": None,
     }
@@ -561,6 +566,8 @@ async def debug_files():
         for root, dirs, files in os.walk(FRONTEND_DIR):
             for f in files:
                 result["files_in_frontend_dist"].append(os.path.join(root, f))
+    if os.path.isdir(STORAGE_BOOKS):
+        result["files_in_storage_books"] = sorted(os.listdir(STORAGE_BOOKS))
     # Verificar tablas de BD
     try:
         db = get_db()
