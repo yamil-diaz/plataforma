@@ -524,6 +524,104 @@ class FakeCursor:
                 )
             }
 
+        # ── Featured Books (libros destacados del mes) ──────────────────────
+        elif q.startswith("select b.id, b.title, b.author_name, b.category, b.price, b.cover_image_url, b.views, b.likes, b.average_rating, b.total_reviews, fb.display_order from featured_books fb"):
+            # GET /featured-books (público): JOIN con books, filtro mes/año
+            month, year = int(params[0]), int(params[1])
+            results = []
+            for fb in sorted(
+                [f for f in self.state["featured_books"] if f["month"] == month and f["year"] == year],
+                key=lambda f: f["display_order"],
+            ):
+                book = self.state["books"].get(fb["book_id"])
+                if book and book.get("published") == 1:
+                    results.append({
+                        "id": book["id"],
+                        "title": book["title"],
+                        "author_name": book["author_name"],
+                        "category": book["category"],
+                        "price": book["price"],
+                        "cover_image_url": book.get("cover_image_url"),
+                        "views": book.get("views", 0),
+                        "likes": book.get("likes", 0),
+                        "average_rating": book.get("average_rating", 0.0),
+                        "total_reviews": book.get("total_reviews", 0),
+                        "display_order": fb["display_order"],
+                    })
+            self._last_result = results[:20]
+
+        elif q.startswith("select fb.id, fb.book_id, fb.display_order, fb.month, fb.year, fb.added_by, fb.created_at"):
+            # GET /admin/featured-books: lista admin del mes actual
+            month, year = int(params[0]), int(params[1])
+            results = []
+            for fb in sorted(
+                [f for f in self.state["featured_books"] if f["month"] == month and f["year"] == year],
+                key=lambda f: f["display_order"],
+            ):
+                book = self.state["books"].get(fb["book_id"])
+                results.append({
+                    "id": fb["id"],
+                    "book_id": fb["book_id"],
+                    "display_order": fb["display_order"],
+                    "month": fb["month"],
+                    "year": fb["year"],
+                    "added_by": fb["added_by"],
+                    "created_at": fb["created_at"],
+                    "title": book["title"] if book else "",
+                    "author_name": book["author_name"] if book else "",
+                    "category": book["category"] if book else "",
+                    "price": book["price"] if book else 0,
+                    "cover_image_url": book.get("cover_image_url") if book else None,
+                    "published": book.get("published", 0) if book else 0,
+                })
+            self._last_result = results
+
+        elif q.startswith("select id, published from books where id = any"):
+            # PUT /admin/featured-books: verificar que libros existen y están publicados
+            ids_param = params[0]
+            results = []
+            for bid in ids_param:
+                book = self.state["books"].get(bid)
+                if book:
+                    results.append({"id": book["id"], "published": book.get("published", 0)})
+            self._last_result = results
+
+        elif q.startswith("delete from featured_books where month = %s and year = %s"):
+            # PUT /admin/featured-books: limpiar destacados del mes antes de reinsertar
+            month, year = int(params[0]), int(params[1])
+            antes = len(self.state["featured_books"])
+            self.state["featured_books"] = [
+                f for f in self.state["featured_books"]
+                if not (f["month"] == month and f["year"] == year)
+            ]
+            self.rowcount = antes - len(self.state["featured_books"])
+
+        elif q.startswith("insert into featured_books") and "returning id" not in q:
+            # PUT /admin/featured-books: insertar cada destacado
+            book_id, display_order, month, year, added_by, created_at = params
+            new_id = self.state["next_featured_id"]
+            self.state["next_featured_id"] += 1
+            self.state["featured_books"].append({
+                "id": new_id,
+                "book_id": book_id,
+                "display_order": display_order,
+                "month": month,
+                "year": year,
+                "added_by": added_by,
+                "created_at": created_at,
+            })
+            self.rowcount = 1
+
+        elif q.startswith("delete from featured_books where book_id = %s and month = %s and year = %s"):
+            # DELETE /admin/featured-books/{book_id}: quitar uno del mes actual
+            book_id, month, year = int(params[0]), int(params[1]), int(params[2])
+            antes = len(self.state["featured_books"])
+            self.state["featured_books"] = [
+                f for f in self.state["featured_books"]
+                if not (f["book_id"] == book_id and f["month"] == month and f["year"] == year)
+            ]
+            self.rowcount = antes - len(self.state["featured_books"])
+
         else:
             raise RuntimeError(
                 f"FakeCursor no implementado para la query: {query!r} con params {params!r}"
@@ -553,6 +651,7 @@ class FakeDb:
             "chapters": [],
             "book_pages": [],
             "next_book_id": 1,
+            "next_featured_id": 1,
             "rayos_transactions": [],
             "qr_visits": [],
             "ai_consumption": [],
@@ -560,6 +659,7 @@ class FakeDb:
             "ai_messages": [],
             "next_conversation_id": 1,
             "next_message_id": 1,
+            "featured_books": [],
             "log": [],
         }
         for uid, name, email, role in [

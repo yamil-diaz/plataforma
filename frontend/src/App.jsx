@@ -20,6 +20,7 @@ import CompetitionsPage from './pages/CompetitionsPage';
 import CompetitionQuizPage from './pages/CompetitionQuizPage';
 import AdminCompetitionPage from './pages/AdminCompetitionPage';
 import AdminQRCodesPage from './pages/AdminQRCodesPage';
+import AdminFeaturedBooksPage from './pages/AdminFeaturedBooksPage';
 import TermsPage from './pages/TermsPage';
 import IAPage from './pages/IAPage';
 
@@ -138,6 +139,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute adminOnly={true}>
             <AdminQRCodesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/featured-books"
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminFeaturedBooksPage />
           </ProtectedRoute>
         }
       />

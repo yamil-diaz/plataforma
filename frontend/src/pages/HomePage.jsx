@@ -8,6 +8,7 @@ import { API } from '../config/api';
 
 export default function HomePage() {
   const [books, setBooks] = useState([]);
+  const [featuredBooks, setFeaturedBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -47,6 +48,18 @@ export default function HomePage() {
     loadBooks();
   }, [selectedCategory]);
 
+  useEffect(() => {
+    const loadFeatured = async () => {
+      try {
+        const { data } = await axios.get(`${API}/featured-books`);
+        setFeaturedBooks(data);
+      } catch (error) {
+        console.error('Error al cargar libros destacados:', error);
+      }
+    };
+    loadFeatured();
+  }, []);
+
   const handleDeleteBook = async (bookId, e) => {
     e.preventDefault(); // Evitar que haga clic en el Link del libro
     if (!window.confirm('¿Estás seguro de que deseas eliminar este libro?')) return;
@@ -81,6 +94,81 @@ export default function HomePage() {
           La primera plataforma donde la lectura tiene recompensa. Acumula Rayos leyendo y deja tus reseñas y opiniones de estrellas.
         </p>
       </header>
+
+      {/* Libros Destacados del Mes */}
+      {featuredBooks.length > 0 && (
+        <section className="max-w-7xl mx-auto px-6 mb-12">
+          <div className="flex items-center gap-3 mb-6">
+            <Star className="w-5 h-5 text-[#D4AF37] fill-[#D4AF37]" />
+            <h2 className="text-xl md:text-2xl font-bold text-white font-['Outfit']">Los libros destacados de este mes</h2>
+          </div>
+          <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent" style={{ scrollbarWidth: 'thin' }}>
+            {featuredBooks.map((book) => (
+              <Link
+                key={book.id}
+                to={`/books/${book.id}`}
+                className="group bg-[#121212] border border-white/5 rounded-xl overflow-hidden hover:border-white/10 transition-all duration-300 flex flex-col relative shadow-xl hover:-translate-y-1 flex-shrink-0"
+                style={{ width: '200px' }}
+              >
+                {/* Portada */}
+                <div className="aspect-[3/4] overflow-hidden bg-[#181818] relative">
+                  <img
+                    src={book.cover_image_url || "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400"}
+                    alt={book.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-transparent to-transparent opacity-60"></div>
+                  <div className="absolute top-2 left-2 bg-[#D4AF37] text-black text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider">
+                    Destacado
+                  </div>
+                </div>
+
+                {/* Detalles */}
+                <div className="p-4 flex-1 flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold tracking-wider uppercase text-[#D92B2B] mb-1 block">
+                      {book.category}
+                    </span>
+                    <h3 className="text-sm font-semibold text-white group-hover:text-[#D92B2B] transition-colors line-clamp-1">
+                      {book.title}
+                    </h3>
+                    <p className="text-xs text-[#A0A0A0] mt-1 line-clamp-1">
+                      por {book.author_name}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-2">
+                      {book.average_rating > 0 ? (
+                        <>
+                          <Star className="w-3 h-3 fill-[#D4AF37] text-[#D4AF37]" />
+                          <span className="text-[11px] font-semibold text-[#D4AF37]">{book.average_rating}</span>
+                          <span className="text-[10px] text-[#606060]">({book.total_reviews})</span>
+                        </>
+                      ) : (
+                        <span className="text-[10px] text-[#606060]">Sin calificaciones</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-3">
+                    <div className="flex items-center gap-2 text-[10px] text-[#606060]">
+                      <span className="flex items-center gap-0.5">
+                        <Eye className="w-3 h-3" />
+                        {book.views}
+                      </span>
+                      <span className="flex items-center gap-0.5">
+                        <Heart className="w-3 h-3" />
+                        {book.likes}
+                      </span>
+                    </div>
+                    <span className="text-xs font-bold text-[#D4AF37]">
+                      {book.price > 0 ? `$${book.price.toFixed(2)}` : 'GRATIS'}
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Controles de Búsqueda y Filtro */}
       <section className="max-w-7xl mx-auto px-6 mb-12 flex flex-col md:flex-row items-center justify-between gap-6">

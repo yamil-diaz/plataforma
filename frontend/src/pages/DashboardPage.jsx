@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Navbar } from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
-import { Pencil, Trash2, Plus, FileArchive, X, Users, BookOpen, ShieldAlert, CheckCircle, Clock, Settings, Video, Trophy, QrCode } from 'lucide-react';
+import { Pencil, Trash2, Plus, FileArchive, X, Users, BookOpen, ShieldAlert, CheckCircle, Clock, Settings, Video, Trophy, QrCode, Star } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_URL || '/api';
 
@@ -228,6 +228,9 @@ export default function DashboardPage() {
                 </Link>
                 <Link to="/admin/qr-codes" className="flex items-center gap-2 bg-[#121212] border border-white/10 hover:border-white/20 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-lg">
                   <QrCode className="w-4 h-4" /> Códigos QR
+                </Link>
+                <Link to="/admin/featured-books" className="flex items-center gap-2 bg-[#121212] border border-[#D4AF37]/30 hover:border-[#D4AF37]/50 text-[#D4AF37] px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-lg">
+                  <Star className="w-4 h-4" /> Libros Destacados
                 </Link>
               </>
             )}

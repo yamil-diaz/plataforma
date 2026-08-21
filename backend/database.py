@@ -301,6 +301,21 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_chapters_book ON chapters(book_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_reading_daily_user_day ON reading_daily_pages(user_id, day)")
 
+    # ── Libros destacados del mes ──────────────────────────────────────────
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS featured_books (
+        id SERIAL PRIMARY KEY,
+        book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+        display_order INTEGER NOT NULL DEFAULT 0,
+        month INTEGER NOT NULL,
+        year INTEGER NOT NULL,
+        added_by INTEGER NOT NULL REFERENCES users(id),
+        created_at TEXT NOT NULL,
+        UNIQUE(book_id, month, year)
+    )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_featured_books_month ON featured_books(year, month)")
+
     conn.commit()
 
     # ── Datos semilla ────────────────────────────────────────────────────────

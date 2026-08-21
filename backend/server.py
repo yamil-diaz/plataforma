@@ -2864,6 +2864,174 @@ async def update_course(
     return {"message": "Curso actualizado exitosamente"}
 
 
+# ── Libros destacados del mes (FASE: Featured Books) ─────────────────────────
+
+class FeaturedBooksPayload(BaseModel):
+    book_ids: List[int]
+
+
+@api_router.get("/featured-books")
+async def get_featured_books():
+    """Endpoint público: retorna los libros destacados del mes actual."""
+    now = datetime.now(timezone.utc)
+    current_month = now.month
+    current_year = now.year
+
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute(
+            """
+            SELECT b.id, b.title, b.author_name, b.category, b.price,
+                   b.cover_image_url, b.views, b.likes, b.average_rating,
+                   b.total_reviews, fb.display_order
+            FROM featured_books fb
+            JOIN books b ON b.id = fb.book_id
+            WHERE fb.month = %s AND fb.year = %s AND b.published = 1
+            ORDER BY fb.display_order ASC
+            LIMIT 20
+            """,
+            (current_month, current_year),
+        )
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        db.close()
+
+
+@api_router.get("/admin/featured-books")
+async def admin_get_featured_books(request: Request):
+    """Panel admin: retorna la configuración de destacados del mes actual."""
+    user = await get_current_user(request)
+    if not user or user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    now = datetime.now(timezone.utc)
+    current_month = now.month
+    current_year = now.year
+
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute(
+            """
+            SELECT fb.id, fb.book_id, fb.display_order, fb.month, fb.year,
+                   fb.added_by, fb.created_at,
+                   b.title, b.author_name, b.category, b.price,
+                   b.cover_image_url, b.published
+            FROM featured_books fb
+            JOIN books b ON b.id = fb.book_id
+            WHERE fb.month = %s AND fb.year = %s
+            ORDER BY fb.display_order ASC
+            """,
+            (current_month, current_year),
+        )
+        rows = cursor.fetchall()
+        return {"month": current_month, "year": current_year, "featured": [dict(row) for row in rows]}
+    finally:
+        db.close()
+
+
+@api_router.put("/admin/featured-books")
+async def admin_set_featured_books(req: FeaturedBooksPayload, request: Request):
+    """Panel admin: reemplaza la selección completa de destacados del mes actual."""
+    user = await get_current_user(request)
+    if not user or user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    book_ids = req.book_ids
+    if not isinstance(book_ids, list):
+        raise HTTPException(status_code=400, detail="book_ids debe ser una lista")
+
+    # Eliminar duplicados manteniendo orden
+    seen = set()
+    unique_ids = []
+    for bid in book_ids:
+        if bid not in seen:
+            seen.add(bid)
+            unique_ids.append(bid)
+
+    if len(unique_ids) > 20:
+        raise HTTPException(status_code=400, detail="Máximo 20 libros destacados")
+
+    now = datetime.now(timezone.utc)
+    current_month = now.month
+    current_year = now.year
+    now_iso = now.isoformat()
+
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        # Verificar que todos los libros existen y están publicados
+        if unique_ids:
+            cursor.execute(
+                "SELECT id, published FROM books WHERE id = ANY(%s)",
+                (unique_ids,),
+            )
+            found = {row["id"]: row for row in cursor.fetchall()}
+            for bid in unique_ids:
+                if bid not in found:
+                    raise HTTPException(status_code=400, detail=f"Libro {bid} no encontrado")
+                if found[bid]["published"] != 1:
+                    raise HTTPException(status_code=400, detail=f"El libro {bid} no está publicado")
+
+        # Eliminar los destacados actuales del mes y reinsertar
+        cursor.execute(
+            "DELETE FROM featured_books WHERE month = %s AND year = %s",
+            (current_month, current_year),
+        )
+        for order, bid in enumerate(unique_ids):
+            cursor.execute(
+                """
+                INSERT INTO featured_books (book_id, display_order, month, year, added_by, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (bid, order, current_month, current_year, user["id"], now_iso),
+            )
+        db.commit()
+        return {"message": "Libros destacados actualizados", "count": len(unique_ids)}
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+@api_router.delete("/admin/featured-books/{book_id}")
+async def admin_remove_featured_book(book_id: int, request: Request):
+    """Panel admin: quita un libro de los destacados del mes actual."""
+    user = await get_current_user(request)
+    if not user or user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    now = datetime.now(timezone.utc)
+    current_month = now.month
+    current_year = now.year
+
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute(
+            "DELETE FROM featured_books WHERE book_id = %s AND month = %s AND year = %s",
+            (book_id, current_month, current_year),
+        )
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="El libro no está en los destacados del mes actual")
+        db.commit()
+        return {"message": "Libro removido de destacados"}
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
 # --- GUTENBERG ENDPOINT ---
 @api_router.post("/admin/gutenberg/fetch")
 async def fetch_gutenberg_book(book_id: int = Form(...), request: Request = None):
