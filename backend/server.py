@@ -1746,7 +1746,20 @@ async def create_book(
         with open(pdf_path, "wb") as buffer:
             shutil.copyfileobj(pdf_file.file, buffer)
 
-        content, paginas_libro, capitulos_libro = lectura.extraer_contenido_libro(pdf_path)
+        # PASO 3: pipeline central (extracción + validación). Un PDF cuya
+        # extracción falla, produce placeholder, basura, contenido patológico
+        # o insuficiente se RECHAZA: no se publica ni queda nada a medias.
+        procesado = lectura.procesar_contenido_para_publicacion(pdf_path=pdf_path, fuente="pdf")
+        validacion = procesado["validacion"]
+        if not validacion["valid"]:
+            raise HTTPException(
+                status_code=422,
+                detail="Libro rechazado: el archivo no pudo procesarse correctamente. "
+                + "; ".join(validacion["errors"]),
+            )
+        content = procesado["content"]
+        paginas_libro = procesado["paginas"]
+        capitulos_libro = procesado["capitulos"]
 
         if cover_file:
             unique_cover_name = f"{uuid.uuid4()}_{cover_file.filename}"
@@ -1781,6 +1794,17 @@ async def create_book(
             )
 
         db.commit()
+    except HTTPException:
+        db.rollback()
+        # Sin filas huérfanas en BD (rollback) y sin archivos huérfanos en disco
+        # (el PDF rechazado por validación se elimina de STORAGE_BOOKS).
+        for ruta in (pdf_path, cover_path):
+            if ruta and os.path.exists(ruta):
+                try:
+                    os.remove(ruta)
+                except OSError:
+                    pass
+        raise
     except Exception as e:
         db.rollback()
         # Sin filas huérfanas en BD (rollback) y sin archivos huérfanos en disco.
@@ -1848,30 +1872,41 @@ def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default
             name_without_ext = os.path.splitext(filename)[0]
 
             try:
+                # 1. Validación REAL del archivo (magic bytes %PDF), nunca por extensión.
+                with open(pdf, "rb") as f:
+                    cabecera = f.read(1024)
+                if b"%PDF" not in cabecera[:1024]:
+                    task_status["errors"].append(
+                        f"Archivo no es un PDF válido (sin magic bytes %PDF): {filename}"
+                    )
+                    continue
+
+                # 2. Pipeline central: extracción + validación. Extracción
+                #    fallida, placeholder, basura o contenido patológico ->
+                #    el libro NO se publica (nada de autopublicar fallos).
+                procesado = lectura.procesar_contenido_para_publicacion(pdf_path=pdf, fuente="pdf")
+                validacion = procesado["validacion"]
+                if not validacion["valid"]:
+                    task_status["errors"].append(
+                        f"Contenido rechazado en {filename}: "
+                        + "; ".join(validacion["errors"])
+                    )
+                    continue
+                content = procesado["content"]
+                paginas_libro = procesado["paginas"]
+                capitulos_libro = procesado["capitulos"]
+
+                # 3. Metadatos (título/autor) desde el PDF; fallan sin romper.
                 title = None
                 author = None
-                content = "Contenido de texto no disponible."
-
-                paginas_libro = []
-                capitulos_libro = []
                 try:
                     reader = pypdf.PdfReader(pdf)
                     meta = reader.metadata
                     if meta:
                         title = meta.title
                         author = meta.author
-
-                    # FASE 2: extraer por páginas (fix: extracted_text ya inicializado)
-                    paginas_libro = lectura.extraer_paginas(pdf)
-                    capitulos_libro = lectura.detectar_capitulos(paginas_libro)
-                    extracted_text = "\n".join(paginas_libro)
-                    if extracted_text.strip():
-                        content = extracted_text
-                except Exception as e:
-                    task_status["errors"].append(f"Advertencia extracción {filename}: {str(e)}")
-
-                if not paginas_libro:
-                    paginas_libro, capitulos_libro = lectura.paginar_desde_contenido_con_capitulos(content)
+                except Exception:
+                    pass
 
                 if not title:
                     title = name_without_ext.replace("_", " ").replace("-", " ").title()
@@ -2144,10 +2179,11 @@ async def repaginate_book(book_id: int, request: Request):
     """Repaginación admin segura de UN solo libro (FASE 2).
 
     Secuencia obligatoria: fuente → extracción/paginación → capítulos →
-    detector patológico → validación → transacción → borrar anteriores →
-    insertar nuevos → actualizar books → commit. NUNCA borra páginas antes
-    de generar y validar el nuevo contenido. PDF corrupto/ilegible → 422 sin
-    modificar nada; PDF válido sin capa de texto → placeholder (1 página)."""
+    validación central (patológico, placeholder, basura, insuficiente) →
+    transacción → borrar anteriores → insertar nuevos → actualizar books →
+    commit. NUNCA borra páginas antes de generar y validar el nuevo contenido.
+    PDF corrupto/ilegible → 422 sin modificar nada; contenido inválido
+    (placeholder, duplicado, basura, insuficiente) → 422 sin modificar nada."""
     user = await get_current_user(request)
     if user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Solo administradores pueden repaginar libros.")
@@ -2182,21 +2218,20 @@ async def repaginate_book(book_id: int, request: Request):
             paginas, capitulos = lectura.paginar_desde_contenido_con_capitulos(fuente_texto)
             fuente = "content"
 
-        diagnostico = lectura.detectar_contenido_patologico(fuente_texto, paginas)
-        if diagnostico["pathological"]:
+        validacion = lectura.validar_contenido_libro(fuente_texto, paginas, fuente=fuente)
+        if not validacion["valid"]:
             db.rollback()
             return JSONResponse(
                 status_code=422,
                 content={
-                    "detail": "Contenido rechazado por posible duplicación o corrupción. No se modificó el libro.",
-                    "pathological": True,
-                    **diagnostico,
+                    "detail": "Contenido rechazado: "
+                    + "; ".join(validacion["errors"])
+                    + ". No se modificó el libro.",
+                    "pathological": validacion["detalle"].get("pathological", False),
+                    "errors": validacion["errors"],
+                    **validacion["detalle"],
                 },
             )
-
-        if not paginas:
-            db.rollback()
-            raise HTTPException(status_code=422, detail="No se pudo generar ninguna página a partir de la fuente.")
 
         cursor.execute("DELETE FROM book_pages WHERE book_id = %s", (book_id,))
         cursor.execute("DELETE FROM chapters WHERE book_id = %s", (book_id,))
@@ -2215,7 +2250,7 @@ async def repaginate_book(book_id: int, request: Request):
             "page_count": len(paginas),
             "chapters": len(capitulos),
             "paginated_at": now,
-            "diagnostico": diagnostico,
+            "diagnostico": validacion["detalle"],
         }
     except HTTPException:
         db.rollback()
@@ -2879,7 +2914,18 @@ async def fetch_gutenberg_book(book_id: int = Form(...), request: Request = None
                 raise e
             
         cover_url = meta_data.get("formats", {}).get("image/jpeg", "https://via.placeholder.com/400x600?text=Gutenberg")
-        
+
+        # PASO 3: validación central. Un texto de Gutenberg vacío, degradado,
+        # con repetición patológica o insuficiente NO se publica.
+        contenido_recortado = content[:100000]
+        validacion = lectura.validar_contenido_libro(contenido_recortado, None, fuente="gutenberg")
+        if not validacion["valid"]:
+            raise HTTPException(
+                status_code=422,
+                detail="Contenido rechazado: el texto no pudo procesarse correctamente. "
+                + "; ".join(validacion["errors"]),
+            )
+
         now = datetime.now(timezone.utc).isoformat()
         db = get_db()
         cursor = db.cursor()
@@ -2889,16 +2935,18 @@ async def fetch_gutenberg_book(book_id: int = Form(...), request: Request = None
             VALUES (%s, %s, %s, %s, 0, %s, NULL, 0, 0, 0.0, 0, 1, %s, %s)
             RETURNING id
             """,
-            (title, author_name, content[:100000], "Clásicos", cover_url, now, user["id"])
+            (title, author_name, contenido_recortado, "Clásicos", cover_url, now, user["id"])
         )
         new_book_id = cursor.fetchone()["id"]
-        paginas_libro, capitulos_libro = lectura.paginar_desde_contenido_con_capitulos(content[:100000])
+        paginas_libro, capitulos_libro = lectura.paginar_desde_contenido_con_capitulos(contenido_recortado)
         if paginas_libro:
             _guardar_paginas_libro(cursor, new_book_id, paginas_libro, capitulos_libro)
             cursor.execute("UPDATE books SET page_count = %s WHERE id = %s", (len(paginas_libro), new_book_id))
         db.commit()
         return {"message": f"Libro '{title}' importado exitosamente."}
-        
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

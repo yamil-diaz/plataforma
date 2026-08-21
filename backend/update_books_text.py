@@ -1,6 +1,25 @@
+# -*- coding: utf-8 -*-
+"""
+update_books_text.py — HERRAMIENTA DE DIAGNÓSTICO (SOLO LECTURA).
+
+ANTECEDENTE: esta herramienta generó en el pasado contenido FABRICADO
+(párrafos repetidos y capítulos falsos "CAPÍTULO 1..10") que corrompió
+126 libros de producción. Desde esta versión NO MODIFICA NINGÚN DATO:
+solo enumera los libros con contenido corto y su estado de validación.
+
+NUNCA ejecuta INSERT/UPDATE/DELETE: la conexión se abre en modo read-only.
+Requiere DATABASE_URL para ejecutarse.
+
+Uso:
+  DATABASE_URL="postgresql://..." python update_books_text.py
+"""
 import os
+import sys
 import psycopg2
 import psycopg2.extras
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import lectura
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
@@ -8,33 +27,42 @@ if not DATABASE_URL:
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
+UMBRAL_CORTO_CHARS = 5000
+
+
 def main():
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
+    conn.set_session(readonly=True, autocommit=False)
     cursor = conn.cursor()
 
-    cursor.execute("SELECT id, title, content FROM books")
+    print("=" * 70)
+    print("ADVERTENCIA: herramienta SOLO LECTURA. No modifica ningún libro.")
+    print("=" * 70)
+
+    cursor.execute(
+        "SELECT id, title, author_name, content, published FROM books ORDER BY id"
+    )
     books = cursor.fetchall()
 
+    cortos = 0
     for book in books:
-        original_content = book['content']
-        # Si el contenido es corto, lo multiplicamos para simular un libro completo
-        if len(original_content) < 5000: 
-            # Crear capítulos falsos repitiendo el texto
-            long_content = ""
-            for chapter in range(1, 11): # 10 capítulos
-                long_content += f"\n\nCAPÍTULO {chapter}\n\n"
-                # Repetimos el párrafo base 20 veces por capítulo
-                long_content += (original_content + "\n\n") * 20
-            
-            cursor.execute(
-                "UPDATE books SET content = %s WHERE id = %s",
-                (long_content, book['id'])
+        content = book["content"] or ""
+        if len(content) < UMBRAL_CORTO_CHARS:
+            validacion = lectura.validar_contenido_libro(content, None, fuente="diagnostico")
+            estado = "INVÁLIDO" if not validacion["valid"] else "VÁLIDO"
+            errores = "; ".join(validacion["errors"]) if validacion["errors"] else "-"
+            print(
+                f"- [{estado}] id={book['id']} '{book['title']}' "
+                f"(chars={len(content)}, publicado={book['published']}) "
+                f"errores: {errores}"
             )
-            print(f"Libro actualizado (texto largo generado): {book['title']}")
+            cortos += 1
 
-    conn.commit()
+    conn.rollback()
     conn.close()
-    print("¡Todos los libros han sido actualizados con texto largo!")
+    print(f"Total libros con contenido < {UMBRAL_CORTO_CHARS} caracteres: {cortos}.")
+    print("Ningún libro fue modificado.")
+
 
 if __name__ == "__main__":
     main()

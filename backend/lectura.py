@@ -6,20 +6,35 @@ Extracción por páginas, detección de capítulos (no recompensan, solo organiz
 y paginación de respaldo para libros sin PDF.
 """
 import re
+from collections import Counter
 from difflib import SequenceMatcher
 
 PAGE_CHARS = 1800
 
-# Acepta: CAP[ÍI]TULO / CAPITULO / CHAPTER + numeral (1, I, II...) o numeral
-# escrito (PRIMERO, UNO, ONE, FIRST...). El encabezado debe iniciar la línea.
-_CHAPTER_RE = re.compile(
-    r"^\s*(cap[ií]tulo|capitulo|chapter)\s+"
-    r"(?:n[uú]mero\s+|n[uú]m\.\s*)?"
-    r"(?:\d{1,3}|[ivxlcdm]+|"
+# ── Detección de capítulos/secciones (conservadora: NUNCA inventa) ───────────
+# Acepta encabezados reales al inicio de línea: CAP[ÍI]TULO / CAPITULO /
+# CHAPTER / PARTE / ACTO / ESCENA + numeral (1, I, II..., PRIMERO, UNO, ONE,
+# FIRST...) y encabezados tipo "PRIMERA NOCHE", "SEGUNDA PARTE" (ordinal +
+# noche/día/mañana/tarde/parte). Un número aislado nunca es un capítulo.
+_MARCADOR_SECCION = r"cap[ií]tulo|capitulo|chapter|parte|acto|escena"
+_NUMERAL_SECCION = (
+    r"\d{1,3}|[ivxlcdm]+|"
     r"primero|primera|segundo|segunda|tercero|tercera|cuarto|cuarta|quinto|quinta|"
     r"sexto|s[eé]ptimo|octavo|noveno|d[eé]cimo|"
     r"uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|"
-    r"one|two|three|four|five|six|seven|eight|nine|ten|first|second|third)\b"
+    r"one|two|three|four|five|six|seven|eight|nine|ten|first|second|third"
+)
+_CHAPTER_RE = re.compile(
+    r"^\s*(?:" + _MARCADOR_SECCION + r")\s+"
+    r"(?:n[uú]mero\s+|n[uú]m\.\s*)?"
+    r"(?:" + _NUMERAL_SECCION + r")\b"
+    r"(?:\s*(?:[:.\-\u2013]\s*)?(?P<title>[^\n]{0,60}))?$",
+    re.IGNORECASE | re.UNICODE,
+)
+# Encabezados "PRIMERA NOCHE" / "SEGUNDA PARTE" sin marcador previo.
+_NOCHE_RE = re.compile(
+    r"^\s*(?:primera|segunda|tercera|cuarta|quinta|sexta|s[eé]ptima|octava|novena|d[eé]cima)\s+"
+    r"(?:noche|noches|d[ií]a|d[ií]as|ma[nñ]ana|tarde|parte)\b"
     r"(?:\s*(?:[:.\-\u2013]\s*)?(?P<title>[^\n]{0,60}))?$",
     re.IGNORECASE | re.UNICODE,
 )
@@ -77,7 +92,7 @@ def _linea_es_encabezado(linea: str) -> bool:
     linea = linea.strip()
     if not linea or len(linea) > 100:
         return False
-    return bool(_CHAPTER_RE.match(linea))
+    return bool(_CHAPTER_RE.match(linea) or _NOCHE_RE.match(linea))
 
 
 def detectar_capitulos(paginas):
@@ -261,6 +276,153 @@ def detectar_contenido_patologico(content, paginas=None):
             f"{repeticion_ratio:.1%} del contenido duplicado"
         )
     return info
+
+
+# ── Validación central de contenido (PASO 3) ─────────────────────────────────
+# Se aplica a TODOS los flujos que crean o repaginan libros (subida PDF, ZIP,
+# Gutenberg, repaginación admin, migración). Un libro con contenido inválido
+# NUNCA se publica ni se pagina: se rechaza con un error claro.
+MIN_CONTENIDO_TOTAL = 300
+MIN_PAGINA_CHARS = 50
+MAX_PAGINAS_VACIAS_RATIO = 0.5
+MAX_RACHA_CARACTER = 200
+LINEA_REPETIDA_MAX_APARICIONES = 50
+
+
+def _detectar_basura(content):
+    """Detección de contenido degradado o basura de extracción:
+    - Racha de MAX_RACHA_CARACTER caracteres idénticos consecutivos (basura
+      de extracción embebida, p. ej. "ááá...á" tras el texto real).
+    - Una misma línea (corta o larga) repetida más de
+      LINEA_REPETIDA_MAX_APARICIONES veces (p. ej. 534 líneas "á").
+    - Un único carácter (sin espacios) concentra >35% del texto.
+    - Caracteres de control o de sustitución concentran >10%.
+    - Más de 5 caracteres de sustitución (U+FFFD) en todo el texto.
+    Devuelve True si el contenido parece basura no recuperable."""
+    if not content or not content.strip():
+        return False
+    if re.search(r"(.)\1{%d}" % (MAX_RACHA_CARACTER - 1), content):
+        return True
+    conteo_lineas = Counter(
+        linea.strip() for linea in content.splitlines() if linea.strip()
+    )
+    if conteo_lineas and conteo_lineas.most_common(1)[0][1] > LINEA_REPETIDA_MAX_APARICIONES:
+        return True
+    letras = [c for c in content if not c.isspace()]
+    if not letras:
+        return False
+    mas_frecuente = Counter(letras).most_common(1)[0][1]
+    if mas_frecuente / len(letras) > 0.35:
+        return True
+    sospechosos = sum(1 for c in letras if ord(c) < 32 or c == "\ufffd")
+    if sospechosos / len(letras) > 0.10:
+        return True
+    return content.count("\ufffd") > 5
+
+
+def validar_contenido_libro(content, paginas=None, fuente="pdf"):
+    """Validación central ANTES de publicar o paginar (nunca publica basura).
+
+    Reglas (sin umbral rígido de longitud: combina la estructura real con el
+    tipo de fuente):
+    1. Contenido vacío o solo espacios -> inválido.
+    2. Contenido placeholder (extracción fallida) -> inválido.
+    3. Contenido patológico (duplicación/fabricación masiva) -> inválido.
+    4. Contenido degradado o basura de extracción -> inválido.
+    5. Contenido insuficiente (< MIN_CONTENIDO_TOTAL caracteres) -> inválido.
+    6. Páginas (si se entregan): no más de MAX_PAGINAS_VACIAS_RATIO vacías y,
+       para fuente PDF, al menos una página con texto apreciable.
+
+    Devuelve {"valid": bool, "errors": [str], "detalle": {...}} con toda la
+    información de diagnóstico (placeholder, patológico, basura, longitud)."""
+    content = content or ""
+    errores = []
+    detalle = {
+        "pathological": False,
+        "reason": None,
+        "content_length": len(content),
+        "short_content": len(content) < CONTENIDO_CORTO_CHARS,
+        "es_placeholder": False,
+        "es_basura": False,
+        "minimo_contenido": MIN_CONTENIDO_TOTAL,
+    }
+
+    if not content.strip():
+        errores.append("Contenido vacío o solo espacios")
+
+    es_placeholder = content.strip() == CONTENIDO_NO_DISPONIBLE
+    if es_placeholder:
+        detalle["es_placeholder"] = True
+        errores.append(
+            "No se pudo extraer texto del documento (contenido no disponible)"
+        )
+
+    if not es_placeholder:
+        diagnostico = detectar_contenido_patologico(content, paginas)
+        detalle.update(
+            {
+                "pathological": diagnostico["pathological"],
+                "reason": diagnostico["reason"],
+                "repeated_fragment_count": diagnostico["repeated_fragment_count"],
+                "repetition_ratio": diagnostico["repetition_ratio"],
+                "duplicate_consecutive_pages": diagnostico["duplicate_consecutive_pages"],
+                "near_duplicate_consecutive_pages": diagnostico["near_duplicate_consecutive_pages"],
+            }
+        )
+        if diagnostico["pathological"]:
+            errores.append(
+                "Posible duplicación o corrupción del contenido: "
+                + (diagnostico["reason"] or "repetición patológica")
+            )
+
+    if not errores:
+        if _detectar_basura(content):
+            detalle["es_basura"] = True
+            errores.append("Contenido degradado o basura de extracción")
+        elif len(content.strip()) < MIN_CONTENIDO_TOTAL:
+            errores.append(
+                f"Contenido insuficiente (menos de {MIN_CONTENIDO_TOTAL} caracteres)"
+            )
+        elif paginas is not None:
+            if not paginas:
+                errores.append("No se generó ninguna página a partir del contenido")
+            else:
+                vacias = sum(1 for p in paginas if not p.strip())
+                if vacias / len(paginas) > MAX_PAGINAS_VACIAS_RATIO:
+                    errores.append(
+                        f"Demasiadas páginas vacías ({vacias}/{len(paginas)})"
+                    )
+                elif fuente == "pdf" and not any(
+                    len(p.strip()) >= MIN_PAGINA_CHARS for p in paginas
+                ):
+                    errores.append(
+                        "Extracción insuficiente: ninguna página alcanza "
+                        f"{MIN_PAGINA_CHARS} caracteres"
+                    )
+
+    return {"valid": not errores, "errors": errores, "detalle": detalle}
+
+
+def procesar_contenido_para_publicacion(pdf_path=None, content=None, fuente="pdf"):
+    """Pipeline central de contenido: extracción -> capítulos -> validación.
+
+    - Con pdf_path: extrae el PDF (placeholder si la extracción falla) y valida.
+    - Sin pdf_path: pagina desde el contenido textual (Gutenberg, contenido
+      previo) y valida.
+    Devuelve {"content", "paginas", "capitulos", "validacion"}. El llamador
+    decide: si validacion["valid"] es False, NO debe publicar ni paginar."""
+    if pdf_path:
+        content, paginas, capitulos = extraer_contenido_libro(pdf_path)
+    else:
+        content = content or ""
+        paginas, capitulos = paginar_desde_contenido_con_capitulos(content)
+    validacion = validar_contenido_libro(content, paginas, fuente=fuente)
+    return {
+        "content": content,
+        "paginas": paginas,
+        "capitulos": capitulos,
+        "validacion": validacion,
+    }
 
 
 def construir_estructura(paginas, capitulos=None):

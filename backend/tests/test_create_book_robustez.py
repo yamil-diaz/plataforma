@@ -9,7 +9,7 @@ de libros pendientes y protección de approve/reject (solo admin).
 import pytest
 
 import server
-from test_create_book import _pdf_bytes_con_texto, _subir_pdf
+from test_create_book import TEXTO_VALIDO, _pdf_bytes_con_texto, _subir_pdf
 
 
 @pytest.fixture(autouse=True)
@@ -32,7 +32,7 @@ def test_create_book_rollback_total_si_falla_guardado_de_paginas(fake_db, as_upl
     libros_antes = len(fake_db.state["books"])
     paginas_antes = len(fake_db.state["book_pages"])
 
-    resp = _subir_pdf(as_uploader, _pdf_bytes_con_texto("Hola mundo"), "falla.pdf")
+    resp = _subir_pdf(as_uploader, _pdf_bytes_con_texto(TEXTO_VALIDO), "falla.pdf")
     assert resp.status_code == 500, resp.text
     assert "fallo simulado" in resp.json()["detail"]
 
@@ -85,7 +85,7 @@ def test_create_book_archivo_que_no_es_pdf_devuelve_422(fake_db, as_uploader, _s
 # ── D. Rol autor: crea y publica directamente ────────────────────────────────
 
 def test_autor_puede_crear_y_publica_directamente(fake_db, as_autor):
-    resp = _subir_pdf(as_autor, _pdf_bytes_con_texto("Libro del autor"), "autor.pdf")
+    resp = _subir_pdf(as_autor, _pdf_bytes_con_texto(TEXTO_VALIDO), "autor.pdf")
     assert resp.status_code == 200, resp.text
     data = resp.json()
     assert data["published"] == 1
@@ -99,7 +99,7 @@ def test_autor_puede_crear_y_publica_directamente(fake_db, as_autor):
 # ── E. Rol admin: crea y publica directamente ────────────────────────────────
 
 def test_admin_puede_crear_y_publica_directamente(fake_db, as_admin):
-    resp = _subir_pdf(as_admin, _pdf_bytes_con_texto("Libro del admin"), "admin.pdf")
+    resp = _subir_pdf(as_admin, _pdf_bytes_con_texto(TEXTO_VALIDO), "admin.pdf")
     assert resp.status_code == 200, resp.text
     data = resp.json()
     assert data["published"] == 1
@@ -113,7 +113,7 @@ def test_admin_puede_crear_y_publica_directamente(fake_db, as_admin):
 # ── F. Rol user: conserva el comportamiento pendiente ────────────────────────
 
 def test_usuario_normal_crea_y_queda_pendiente(fake_db, as_uploader):
-    resp = _subir_pdf(as_uploader, _pdf_bytes_con_texto("Libro del usuario"), "user.pdf")
+    resp = _subir_pdf(as_uploader, _pdf_bytes_con_texto(TEXTO_VALIDO), "user.pdf")
     assert resp.status_code == 200, resp.text
     data = resp.json()
     assert data["published"] == 0

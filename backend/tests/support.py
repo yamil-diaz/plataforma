@@ -90,7 +90,14 @@ class FakeCursor:
         elif q.startswith("insert into books") and "returning id" in q:
             new_id = self.state["next_book_id"]
             self.state["next_book_id"] += 1
-            title, author_name, content, category, price, cover_url, pdf_path, published, now, uploader_id = params
+            # create_book envía 10 params; la importación ZIP masiva 8
+            # (published=1 y created_at inline). Postgres acepta ambos.
+            if len(params) == 10:
+                title, author_name, content, category, price, cover_url, pdf_path, published, now, uploader_id = params
+            else:
+                title, author_name, content, category, price, cover_url, pdf_path, now = params
+                published = 1
+                uploader_id = None
             self.state["books"][new_id] = {
                 "id": new_id,
                 "title": title,

@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """Integración: PUT /api/books/{id}/repaginate (admin, FASE 2, PASO 2).
 
-Secuencia segura: fuente → extracción/paginación → capítulos → detector →
-validación → transacción → borrar anteriores → insertar nuevos → actualizar
+Secuencia segura: fuente → extracción/paginación → capítulos → validación
+central → transacción → borrar anteriores → insertar nuevos → actualizar
 books → commit. PDF corrupto/ilegible → 422 sin tocar nada; PDF válido sin
-capa de texto → placeholder (1 página).
+capa de texto → 422 sin tocar nada (el placeholder ya no es publicable).
 """
 import io
 
@@ -36,6 +36,22 @@ def _pdf_bytes_sin_texto(num_pages=3):
     writer.write(buf)
     buf.seek(0)
     return buf.read()
+
+
+def _texto_variado(prefijo, longitud):
+    parrafos = []
+    total = 0
+    i = 0
+    while total < longitud:
+        p = (
+            f"{prefijo} {i}: En la colina {i} del valle el viajero {i} encontró "
+            f"el sendero {i} que conduce al río {i} sereno y profundo bajo la "
+            f"luz {i} del atardecer otoñal con nubes {i} dispersas."
+        )
+        parrafos.append(p)
+        total += len(p)
+        i += 1
+    return "\n\n".join(parrafos)
 
 
 def test_repagina_contenido_con_capitulos(fake_db, as_admin):
@@ -143,8 +159,9 @@ def test_error_mid_transaccion_hace_rollback(fake_db, as_admin, monkeypatch):
 
 
 def test_pdf_valido_usa_pdf_y_reemplaza_paginas(fake_db, as_admin, tmp_path):
+    texto = _texto_variado("Primera página del libro", 900)
     ruta = tmp_path / "con_texto.pdf"
-    ruta.write_bytes(_pdf_bytes_con_texto("Contenido extraído del PDF para la repaginación"))
+    ruta.write_bytes(_pdf_bytes_con_texto(texto))
     fake_db.state["books"][53]["pdf_path"] = str(ruta)
     resp = as_admin.put("/api/books/53/repaginate")
     assert resp.status_code == 200, resp.text
@@ -157,26 +174,25 @@ def test_pdf_valido_usa_pdf_y_reemplaza_paginas(fake_db, as_admin, tmp_path):
     assert libro["paginated_at"] is not None
     paginas = sorted([p for p in fake_db.state["book_pages"] if p[0] == 53], key=lambda p: p[1])
     assert len(paginas) == 2
-    assert "Contenido extraído del PDF" in paginas[0][2]
+    assert "Primera página del libro" in paginas[0][2]
     assert "página dos" in paginas[1][2]
     assert all(p[2].strip() for p in paginas)
 
 
-def test_pdf_sin_capa_de_texto_usa_placeholder_una_pagina(fake_db, as_admin, tmp_path):
+def test_pdf_sin_capa_de_texto_rechazado_422_sin_modificar(fake_db, as_admin, tmp_path):
     ruta = tmp_path / "sin_texto.pdf"
     ruta.write_bytes(_pdf_bytes_sin_texto(3))
     fake_db.state["books"][53]["pdf_path"] = str(ruta)
     resp = as_admin.put("/api/books/53/repaginate")
-    assert resp.status_code == 200, resp.text
-    data = resp.json()
-    assert data["source"] == "pdf"
-    assert data["page_count"] == 1
-    assert data["chapters"] == 0
+    assert resp.status_code == 422, resp.text
+    body = resp.json()
+    assert "texto" in body["detail"].lower() or "placeholder" in body["detail"].lower()
     libro = fake_db.state["books"][53]
     assert libro["page_count"] == 1
-    paginas = [p for p in fake_db.state["book_pages"] if p[0] == 53]
-    assert len(paginas) == 1
-    assert paginas[0][2] == lectura.CONTENIDO_NO_DISPONIBLE
+    assert libro["paginated_at"] is None
+    assert (53, 1, "página vieja pdf") in fake_db.state["book_pages"]
+    consultas = [q for q, _ in fake_db.state["log"]]
+    assert not any("delete" in q for q in consultas)
 
 
 def test_pdf_corrupto_422_sin_modificar_paginas(fake_db, as_admin, tmp_path):

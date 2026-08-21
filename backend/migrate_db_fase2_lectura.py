@@ -7,7 +7,10 @@ Migración FASE 2 (Lectura por páginas y meta diaria).
    - Con pdf_path en disco -> re-extracción real con pypdf + detección de capítulos.
    - Sin PDF (Gutenberg, semillas) -> paginación estimada desde books.content.
 
-Los capítulos detectados no dan recompensas: son solo organización y navegación.
+PASO 3 (protección): un libro con contenido inválido (placeholder, patológico,
+basura de extracción o insuficiente) NUNCA se pagina en silencio: se registra
+el problema y se deja sin paginar (paginated_at NULL) para revisión. No se
+destruye nada y no se inventa texto.
 """
 import os
 import sys
@@ -20,13 +23,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lectura
 
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
-
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise RuntimeError("La variable de entorno DATABASE_URL no está definida.")
-
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STORAGE_DIR = os.path.abspath(os.getenv("STORAGE_DIR") or os.path.join(BASE_DIR, "storage"))
@@ -107,7 +103,21 @@ def _guardar_estructura(cursor, book_id, paginas, capitulos):
     cursor.execute("UPDATE books SET page_count = %s WHERE id = %s", (len(paginas), book_id))
 
 
+def _validar_libro_para_migracion(libro):
+    """Guarda de seguridad (PASO 3): un libro solo se pagina si su contenido
+    supera la validación central. Nunca procesa en silencio contenido
+    placeholder, patológico, basura o insuficiente. Devuelve la validación."""
+    return lectura.validar_contenido_libro(libro["content"] or "", None, fuente="migracion")
+
+
 def migrate():
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    if not DATABASE_URL:
+        raise RuntimeError("La variable de entorno DATABASE_URL no está definida.")
+
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
     cursor = conn.cursor()
 
@@ -127,9 +137,23 @@ def migrate():
     print(f"Libros sin paginar: {len(libros)}")
 
     ok = 0
+    omitidos = 0
     for libro in libros:
         book_id = libro["id"]
         try:
+            contenido_fuente = libro["content"] or ""
+
+            # PASO 3: contenido inválido -> registro + skip (paginated_at NULL).
+            validacion = _validar_libro_para_migracion(libro)
+            if not validacion["valid"]:
+                omitidos += 1
+                print(
+                    f"  ! libro {book_id} ({libro['title']}): CONTENIDO INVÁLIDO — "
+                    + "; ".join(validacion["errors"])
+                    + ". Sin paginar (pendiente de revisión; nunca se procesa en silencio)."
+                )
+                continue
+
             paginas = []
             pdf_path = libro["pdf_path"]
             if pdf_path and not os.path.isabs(pdf_path):
@@ -137,10 +161,22 @@ def migrate():
             if pdf_path and os.path.exists(pdf_path):
                 paginas = lectura.extraer_paginas(pdf_path)
                 capitulos = lectura.detectar_capitulos(paginas)
+                # La extracción del PDF debe ser también válida; si no, se
+                # pagina desde el contenido textual ya validado y se avisa.
+                extraccion_valida = lectura.validar_contenido_libro(
+                    "\n".join(paginas), paginas, fuente="pdf"
+                )
+                if not extraccion_valida["valid"]:
+                    print(
+                        f"  ~ libro {book_id} ({libro['title']}): extracción del PDF "
+                        "inválida (" + "; ".join(extraccion_valida["errors"])
+                        + ") — se pagina desde books.content (válido)."
+                    )
+                    paginas = []
             else:
-                paginas, capitulos = lectura.paginar_desde_contenido_con_capitulos(libro["content"])
+                paginas = []
             if not paginas:
-                paginas, capitulos = lectura.paginar_desde_contenido_con_capitulos(libro["content"])
+                paginas, capitulos = lectura.paginar_desde_contenido_con_capitulos(contenido_fuente)
             now = datetime.now(timezone.utc).isoformat()
             if paginas:
                 _guardar_estructura(cursor, book_id, paginas, capitulos)
@@ -156,7 +192,7 @@ def migrate():
             print(f"  ! libro {book_id} ({libro['title']}) falló: {e}")
 
     conn.close()
-    print(f"Migración FASE 2 completada: {ok}/{len(libros)} libros paginados.")
+    print(f"Migración FASE 2 completada: {ok}/{len(libros)} libros paginados, {omitidos} omitidos por contenido inválido.")
 
 
 if __name__ == "__main__":
