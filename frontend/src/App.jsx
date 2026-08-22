@@ -23,6 +23,11 @@ import AdminQRCodesPage from './pages/AdminQRCodesPage';
 import AdminFeaturedBooksPage from './pages/AdminFeaturedBooksPage';
 import TermsPage from './pages/TermsPage';
 import IAPage from './pages/IAPage';
+import ForumPage from './pages/ForumPage';
+import ForumPostPage from './pages/ForumPostPage';
+import ForumCategoryPage from './pages/ForumCategoryPage';
+import ForumCreatePage from './pages/ForumCreatePage';
+import AdminForumPage from './pages/AdminForumPage';
 
 // Componente para proteger rutas (Debe estar autenticado)
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -62,25 +67,38 @@ function AppRoutes() {
       <Route path="/profile/:id" element={<ProfilePage />} />
       <Route path="/competitions" element={<CompetitionsPage />} />
       <Route path="/competitions/:id" element={<CompetitionQuizPage />} />
-      
+
+      {/* Foro Estudiantil */}
+      <Route path="/forum" element={<ForumPage />} />
+      <Route path="/forum/category/:categoryId" element={<ForumCategoryPage />} />
+      <Route path="/forum/post/:postId" element={<ForumPostPage />} />
+      <Route
+        path="/forum/new"
+        element={
+          <ProtectedRoute>
+            <ForumCreatePage />
+          </ProtectedRoute>
+        }
+      />
+
       {/* Rutas Protegidas de Lectura (Debe estar logueado para ganar Rayos y leer) */}
-      <Route 
-        path="/books/:bookId" 
+      <Route
+        path="/books/:bookId"
         element={
           <ProtectedRoute>
             <ReaderPage />
           </ProtectedRoute>
-        } 
+        }
       />
 
       {/* Panel de Escritor / Dashboard */}
-      <Route 
-        path="/dashboard" 
+      <Route
+        path="/dashboard"
         element={
           <ProtectedRoute>
             <DashboardPage />
           </ProtectedRoute>
-        } 
+        }
       />
 
       {/* IA de Aeternum: solo autenticado (NO adminOnly) */}
@@ -94,45 +112,45 @@ function AppRoutes() {
       />
 
       {/* Rutas Protegidas de Administrador */}
-      <Route 
-        path="/admin/new-book" 
+      <Route
+        path="/admin/new-book"
         element={
           <ProtectedRoute>
             <AdminBookFormPage />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/admin/import" 
+      <Route
+        path="/admin/import"
         element={
           <ProtectedRoute adminOnly={true}>
             <AdminImportPage />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/admin/new-course" 
+      <Route
+        path="/admin/new-course"
         element={
           <ProtectedRoute adminOnly={true}>
             <AdminCourseFormPage />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/admin/gutenberg" 
+      <Route
+        path="/admin/gutenberg"
         element={
           <ProtectedRoute adminOnly={true}>
             <AdminGutenbergPage />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/admin/competitions/new" 
+      <Route
+        path="/admin/competitions/new"
         element={
           <ProtectedRoute adminOnly={true}>
             <AdminCompetitionPage />
           </ProtectedRoute>
-        } 
+        }
       />
       <Route
         path="/admin/qr-codes"
@@ -147,6 +165,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute adminOnly={true}>
             <AdminFeaturedBooksPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/forum"
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminForumPage />
           </ProtectedRoute>
         }
       />
