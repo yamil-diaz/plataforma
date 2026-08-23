@@ -307,7 +307,8 @@ def analizar_libros(cursor, verbose=False):
 
 def generar_delete_ids(candidatos):
     """Genera la lista DELETE_IDS y verifica protegidos."""
-    delete_ids = [c["id"] for c in candidatos]
+    # PROTECCIÓN PRIMARIA: filtrar explícitamente PROTECTED_IDS ANTES de generar DELETE_IDS
+    delete_ids = [c["id"] for c in candidatos if c["id"] not in PROTECTED_IDS]
     delete_ids.sort()
 
     print(f"\n{'='*70}")
@@ -316,7 +317,7 @@ def generar_delete_ids(candidatos):
     print(f"  {delete_ids}")
     print(f"  Total: {len(delete_ids)} libros")
 
-    # Verificacion de IDs protegidos
+    # Verificación de IDs protegidos (barrera secundaria)
     protected_found = sorted(PROTECTED_IDS.intersection(delete_ids))
     print(f"\n  PROTECTED_IDS_FOUND_IN_DELETE_IDS = {protected_found}")
 
