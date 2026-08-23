@@ -139,18 +139,25 @@ def _detectar_contenido_patologico(content):
     if not lineas:
         return {"es_patologico": False, "razon": None}
 
+    # EXIGIR minimo 3 lineas totales para considerar ratio significativo
+    # y minimo 3 ocurrencias absolutas de la linea mas comun
+    if len(lineas) < 3:
+        return {"es_patologico": False, "razon": None}
+
     conteo = Counter(lineas)
     mas_comun, freq = conteo.most_common(1)[0]
     ratio = freq / len(lineas)
 
     # Si una linea unica domina >80% del contenido
-    if ratio > 0.80 and len(mas_comun) > 20:
+    # EXIGIR: minimo 3 lineas totales, minimo 3 ocurrencias, linea > 20 chars
+    if ratio > 0.80 and len(mas_comun) > 20 and freq >= 3:
         return {
             "es_patologico": True,
             "razon": f"Linea repetida {freq}/{len(lineas)} veces ({ratio:.0%}): '{mas_comun[:60]}...'",
         }
 
     # Si hay muy pocas lineas unicas en relacion al tamano
+    # (ya requiere len(lineas) > 50 por la condicion abajo)
     lineas_unicas = len(set(lineas))
     if len(lineas) > 50 and lineas_unicas < 10:
         return {
