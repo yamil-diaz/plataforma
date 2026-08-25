@@ -49,14 +49,15 @@ export default function ReaderPage() {
   const { user, refreshUser } = useAuth();
 
   // Estado del lector paginado (FASE 2)
-  const [paginated, setPaginated] = useState(true);
+  const [paginated, setPaginated] = useState(null);
   const [pageNum, setPageNum] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
+  const [totalPages, setTotalPages] = useState(null);
   const [pageContent, setPageContent] = useState('');
   const [chapterTitle, setChapterTitle] = useState(null);
   const [chapters, setChapters] = useState([]);
   const [daily, setDaily] = useState({ pages: 0, goal: 15, completed: false, reward_claimed: false, books: [] });
   const [readerLoading, setReaderLoading] = useState(false);
+  const [readerError, setReaderError] = useState(null);
   const reportingRef = useRef(false);
   const pageRequestRef = useRef(0);
 
@@ -87,6 +88,7 @@ export default function ReaderPage() {
     if (pageNumber < 1) return;
     const requestId = ++pageRequestRef.current;
     setReaderLoading(true);
+    setReaderError(null);
     try {
       const { data: pageData } = await axios.get(
         `${API}/books/${bookId}/pages/${pageNumber}`,
@@ -97,12 +99,19 @@ export default function ReaderPage() {
       setPageNum(pageNumber);
       setPageContent(pageData.content);
       setChapterTitle(pageData.chapter_title || null);
-      setTotalPages(pageData.total_pages);
+      // Solo actualizar totalPages si no estaba seteado (o para validar)
+      if (totalPages === null) {
+        setTotalPages(pageData.total_pages);
+      }
       reportProgress(pageNumber);
     } catch (error) {
       if (requestId !== pageRequestRef.current) return;
       if (error.response?.status === 404) {
         setPaginated(false);
+        setTotalPages(0);
+      } else {
+        setReaderError('Error cargando la página. Verifica tu conexión e inténtalo de nuevo.');
+        // No borramos totalPages válido ya establecido por /start
       }
     } finally {
       if (requestId === pageRequestRef.current) setReaderLoading(false);
@@ -114,7 +123,7 @@ export default function ReaderPage() {
   };
 
   const goNext = () => {
-    if (pageNum < totalPages) goToPage(pageNum + 1);
+    if (totalPages && pageNum < totalPages) goToPage(pageNum + 1);
   };
 
   const loadReviews = async (bId) => {
@@ -150,12 +159,17 @@ export default function ReaderPage() {
         );
         if (startData.total_pages > 0) {
           setTotalPages(startData.total_pages);
+          setPaginated(true);
           if (startData.last_page) resumePage = startData.last_page;
         } else {
+          setTotalPages(0);
           setPaginated(false);
         }
       } catch (error) {
         console.error('Error iniciando sesión de lectura:', error);
+        setReaderError('No se pudo iniciar la lectura. Intenta recargar la página.');
+        setPaginated(false);
+        setTotalPages(0);
       }
 
       try {
@@ -325,7 +339,21 @@ export default function ReaderPage() {
               )}
             </div>
 
-            {paginated ? (
+            {readerError && (
+              <div className="bg-red-500/20 border border-red-500/30 rounded-xl px-4 py-3 mb-6 text-center text-red-300">
+                {readerError}
+                <button onClick={() => goToPage(pageNum)} className="ml-4 text-sm underline hover:text-red-100">
+                  Reintentar
+                </button>
+              </div>
+            )}
+
+            {paginated === null ? (
+              <div className="text-center py-16 text-[#A0A0A0]">
+                <div className="animate-spin w-8 h-8 border-4 border-[#D92B2B] border-t-transparent rounded-full mx-auto mb-4"></div>
+                Cargando libro...
+              </div>
+            ) : paginated ? (
               <div>
                 {/* Navegación de Capítulos */}
                 {chapters.length > 0 && (
@@ -358,17 +386,21 @@ export default function ReaderPage() {
                     Anterior
                   </button>
                   <div className="text-center text-sm text-[#A0A0A0]">
-                    {pageNum === totalPages ? (
+                    {totalPages && totalPages > 0 && pageNum === totalPages ? (
                       <span className="text-[#D4AF37] font-semibold" data-testid="reader-page-indicator">Fin del libro</span>
-                    ) : (
+                    ) : totalPages && totalPages > 0 ? (
                       <span data-testid="reader-page-indicator">
                         {chapterTitle ? `${chapterTitle} • ` : ''}Página {pageNum} de {totalPages}
+                      </span>
+                    ) : (
+                      <span className="text-[#A0A0A0]" data-testid="reader-page-indicator">
+                        Cargando páginas...
                       </span>
                     )}
                   </div>
                   <button
                     onClick={goNext}
-                    disabled={pageNum >= totalPages || readerLoading}
+                    disabled={totalPages && pageNum >= totalPages || readerLoading}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#D92B2B] hover:bg-[#F03C3C] text-white text-sm font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                     data-testid="reader-next-page"
                   >
@@ -404,17 +436,10 @@ export default function ReaderPage() {
                 )}
               </div>
             ) : (
-              /* Libros sin paginación: contenido completo legado */
-              <div
-                className="font-['Merriweather'] text-[#F5F5F5] text-lg leading-relaxed"
-                style={{ lineHeight: '1.8' }}
-                data-testid="reader-book-content"
-              >
-                {book.content.split('\n').map((paragraph, index) => (
-                  <p key={index} className="mb-6">
-                    {paragraph}
-                  </p>
-                ))}
+              /* Libros sin paginación (API confirmó total_pages = 0) */
+              <div className="text-center py-16 text-[#A0A0A0]">
+                <p className="text-lg">Libro sin paginación</p>
+                <p className="text-sm mt-2">Este libro no está disponible en el lector paginado.</p>
               </div>
             )}
           </div>
