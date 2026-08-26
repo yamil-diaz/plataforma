@@ -2334,10 +2334,15 @@ async def start_reading_session(book_id: int, request: Request):
         )
         last_page_row = cursor.fetchone()
         db.commit()
+
+        cursor.execute("SELECT COUNT(*) AS cnt FROM book_pages WHERE book_id = %s", (book_id,))
+        row = cursor.fetchone()
+        total_pages = row["cnt"] if row else 0
+
         return {
             "session_started": True,
             "last_page": last_page_row["page_number"] if last_page_row else None,
-            "total_pages": book["page_count"] or 0,
+            "total_pages": total_pages,
         }
     except HTTPException:
         raise
@@ -2358,7 +2363,9 @@ async def report_page_progress(book_id: int, req: ProgressRequest, request: Requ
         if not _puede_acceder_libro(book, user):
             raise HTTPException(status_code=403, detail="Este libro no está publicado")
 
-        total_pages = book["page_count"] or 0
+        cursor.execute("SELECT COUNT(*) AS cnt FROM book_pages WHERE book_id = %s", (book_id,))
+        row = cursor.fetchone()
+        total_pages = row["cnt"] if row else 0
         now = datetime.now(timezone.utc)
         now_iso = now.isoformat()
         day = now.date().isoformat()
@@ -2494,10 +2501,15 @@ async def get_reading_progress(book_id: int, request: Request):
         )
         last_row = cursor.fetchone()
         day = datetime.now(timezone.utc).date().isoformat()
+
+        cursor.execute("SELECT COUNT(*) AS cnt FROM book_pages WHERE book_id = %s", (book_id,))
+        row = cursor.fetchone()
+        total_pages = row["cnt"] if row else 0
+
         return {
             "book_id": book_id,
             "last_page": last_row["page_number"] if last_row else 1,
-            "total_pages": book["page_count"] or 0,
+            "total_pages": total_pages,
             "daily": _get_daily_progress(cursor, user["id"], day),
         }
     except HTTPException:
@@ -2542,7 +2554,10 @@ async def get_book_page(book_id: int, page: int, request: Request):
         if not _puede_acceder_libro(book, user):
             raise HTTPException(status_code=403, detail="Este libro no está publicado")
 
-        total_pages = book["page_count"] or 0
+        cursor.execute("SELECT COUNT(*) AS cnt FROM book_pages WHERE book_id = %s", (book_id,))
+        row = cursor.fetchone()
+        total_pages = row["cnt"] if row else 0
+
         if total_pages <= 0:
             raise HTTPException(status_code=404, detail="Libro sin paginación")
         if page < 1 or page > total_pages:
@@ -3882,6 +3897,24 @@ async def forum_admin_update_category(category_id: int, request: Request):
     except Exception:
         db.rollback()
         raise HTTPException(status_code=500, detail="Error al actualizar")
+    finally:
+        db.close()
+
+
+@api_router.get("/admin/forum/categories")
+async def forum_admin_list_categories(request: Request):
+    user = await get_current_user(request)
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+    db = get_db()
+    try:
+        cursor = db.cursor()
+        cursor.execute(
+            """SELECT id, name, description, icon, color, sort_order, is_active, post_count, created_at
+               FROM forum_categories
+               ORDER BY sort_order ASC"""
+        )
+        return cursor.fetchall()
     finally:
         db.close()
 
