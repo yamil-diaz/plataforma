@@ -45,32 +45,35 @@ def test_pdf_con_texto_conserva_paginas_y_contenido(tmp_path):
     assert capitulos == []
 
 
-def test_pdf_sin_texto_usa_placeholder_y_una_pagina(tmp_path):
+def test_pdf_sin_texto_lanza_excepcion(tmp_path):
     path = _pdf_sin_texto(3, str(tmp_path / "sin_texto.pdf"))
-    content, paginas, capitulos = lectura.extraer_contenido_libro(path)
-    assert content == lectura.CONTENIDO_NO_DISPONIBLE
-    assert len(paginas) == 1
-    assert paginas[0] == lectura.CONTENIDO_NO_DISPONIBLE
-    assert capitulos == []
+    try:
+        lectura.extraer_contenido_libro(path)
+        assert False, "Debería lanzar PDFSinTextoExtraible"
+    except lectura.PDFSinTextoExtraible as e:
+        assert "texto extraíble" in str(e)
 
 
-def test_pdf_solo_espacios_tratado_como_sin_texto(tmp_path):
+def test_pdf_solo_espacios_lanza_excepcion(tmp_path):
     writer = PdfWriter()
     writer.add_blank_page(width=612, height=792)
     path = str(tmp_path / "espacios.pdf")
     with open(path, "wb") as f:
         writer.write(f)
-    content, paginas, _ = lectura.extraer_contenido_libro(path)
-    assert content == lectura.CONTENIDO_NO_DISPONIBLE
-    assert len(paginas) == 1
+    try:
+        lectura.extraer_contenido_libro(path)
+        assert False, "Debería lanzar PDFSinTextoExtraible"
+    except lectura.PDFSinTextoExtraible as e:
+        assert "texto extraíble" in str(e)
 
 
-def test_pdf_inexistente_no_rompe_y_devuelve_placeholder(tmp_path):
+def test_pdf_inexistente_lanza_excepcion(tmp_path):
     path = str(tmp_path / "no_existe.pdf")
-    content, paginas, capitulos = lectura.extraer_contenido_libro(path)
-    assert content == lectura.CONTENIDO_NO_DISPONIBLE
-    assert len(paginas) == 1
-    assert capitulos == []
+    try:
+        lectura.extraer_contenido_libro(path)
+        assert False, "Debería lanzar PDFSinTextoExtraible"
+    except lectura.PDFSinTextoExtraible as e:
+        assert "texto extraíble" in str(e) or "Error extrayendo" in str(e)
 
 
 def test_pdf_con_texto_largo_se_pagina_sin_perder_contenido(tmp_path):

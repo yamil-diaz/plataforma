@@ -100,14 +100,24 @@ def _guardar_estructura(cursor, book_id, paginas, capitulos):
             "INSERT INTO book_pages (book_id, page_number, content, chapter_id) VALUES (%s, %s, %s, %s)",
             (book_id, i, texto, capitulo_ids.get(i)),
         )
-    cursor.execute("UPDATE books SET page_count = %s WHERE id = %s", (len(paginas), book_id))
+    now = datetime.now(timezone.utc).isoformat()
+    cursor.execute(
+        "UPDATE books SET page_count = %s, paginated_at = %s WHERE id = %s",
+        (len(paginas), now, book_id),
+    )
 
 
 def _validar_libro_para_migracion(libro):
     """Guarda de seguridad (PASO 3): un libro solo se pagina si su contenido
     supera la validación central. Nunca procesa en silencio contenido
     placeholder, patológico, basura o insuficiente. Devuelve la validación."""
-    return lectura.validar_contenido_libro(libro["content"] or "", None, fuente="migracion")
+    content = libro["content"] or ""
+    # Verificar explícitamente placeholder
+    if content.strip() == lectura.CONTENIDO_NO_DISPONIBLE:
+        from lectura import PDFSinTextoExtraible
+        # Crear una validación fallida para placeholder
+        return {"valid": False, "errors": ["Contenido placeholder: no se pudo extraer texto del documento"], "detalle": {"es_placeholder": True}}
+    return lectura.validar_contenido_libro(content, None, fuente="migracion")
 
 
 def migrate():
@@ -159,18 +169,11 @@ def migrate():
             if pdf_path and not os.path.isabs(pdf_path):
                 pdf_path = os.path.join(STORAGE_BOOKS, pdf_path)
             if pdf_path and os.path.exists(pdf_path):
-                paginas = lectura.extraer_paginas(pdf_path)
-                capitulos = lectura.detectar_capitulos(paginas)
-                # La extracción del PDF debe ser también válida; si no, se
-                # pagina desde el contenido textual ya validado y se avisa.
-                extraccion_valida = lectura.validar_contenido_libro(
-                    "\n".join(paginas), paginas, fuente="pdf"
-                )
-                if not extraccion_valida["valid"]:
+                try:
+                    paginas, capitulos = lectura.extraer_paginas_pdf(pdf_path)
+                except lectura.PDFSinTextoExtraible as e:
                     print(
-                        f"  ~ libro {book_id} ({libro['title']}): extracción del PDF "
-                        "inválida (" + "; ".join(extraccion_valida["errors"])
-                        + ") — se pagina desde books.content (válido)."
+                        f"  ~ libro {book_id} ({libro['title']}): PDF sin texto extraíble ({e}) — se pagina desde books.content (válido)."
                     )
                     paginas = []
             else:

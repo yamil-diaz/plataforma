@@ -7,6 +7,7 @@ import string
 import threading
 import re
 import logging
+import hashlib
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, List
 
@@ -87,6 +88,69 @@ def _migrar_storage_legacy():
 
 
 _migrar_storage_legacy()
+
+
+def _normalizar_texto(texto: str) -> str:
+    """Normaliza título/autor para comparación: minúsculas, sin acentos, sin puntuación extra."""
+    if not texto:
+        return ""
+    import unicodedata
+    texto = unicodedata.normalize("NFD", texto)
+    texto = "".join(c for c in texto if unicodedata.category(c) != "Mn")
+    texto = re.sub(r"[^\w\s]", "", texto.lower())
+    texto = re.sub(r"\s+", " ", texto).strip()
+    return texto
+
+
+def _calcular_hash_pdf(pdf_path: str) -> str:
+    """Calcula SHA-256 del archivo PDF."""
+    h = hashlib.sha256()
+    with open(pdf_path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _verificar_duplicado(cursor, title: str, author_name: str, content: str, pdf_path: str = None, pdf_hash: str = None) -> Optional[int]:
+    """
+    Verifica si ya existe un libro duplicado.
+    Prioridad:
+    1. Si hay PDF: buscar por SHA-256 del PDF (duplicado real de archivo).
+       Si el hash coincide → duplicado real (mismo archivo).
+       Si el hash NO coincide → NO es duplicado, permitir aunque título/autor coincidan.
+    2. Si NO hay PDF (pdf_hash is None): buscar por título+autor normalizado (fallback para contenido sin PDF).
+    Retorna el ID del libro existente si hay duplicado, None si no.
+    """
+    # 1. Si hay PDF, buscar por hash. Si coincide → duplicado.
+    # Si NO coincide → NO es duplicado, NO verificar título+autor.
+    if pdf_hash:
+        cursor.execute(
+            "SELECT id, pdf_path FROM books WHERE pdf_path IS NOT NULL",
+        )
+        for row in cursor.fetchall():
+            existing_pdf = _resolver_pdf_path(row["pdf_path"])
+            if existing_pdf and os.path.isfile(existing_pdf):
+                existing_hash = _calcular_hash_pdf(existing_pdf)
+                if existing_hash == pdf_hash:
+                    return row["id"]
+        # Hash no coincidió con ningún PDF existente → NO es duplicado
+        return None
+
+    # 2. Fallback: solo si NO hay PDF (pdf_hash is None), verificar título+autor
+    title_norm = _normalizar_texto(title)
+    author_norm = _normalizar_texto(author_name)
+    cursor.execute(
+        """
+        SELECT id, title, author_name, content, pdf_path
+        FROM books
+        WHERE title IS NOT NULL AND author_name IS NOT NULL
+        """,
+    )
+    for row in cursor.fetchall():
+        if _normalizar_texto(row["title"]) == title_norm and _normalizar_texto(row["author_name"]) == author_norm:
+            return row["id"]
+
+    return None
 
 
 def _resolver_pdf_path(pdf_path):
@@ -1768,6 +1832,15 @@ async def create_book(
         paginas_libro = procesado["paginas"]
         capitulos_libro = procesado["capitulos"]
 
+        # Verificar duplicado ANTES de insertar (título+autor normalizado o hash de PDF)
+        pdf_hash = _calcular_hash_pdf(pdf_path) if pdf_path and os.path.isfile(pdf_path) else None
+        dup_id = _verificar_duplicado(cursor, title, author_name, content, pdf_path, pdf_hash)
+        if dup_id:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Ya existe un libro con el mismo contenido (ID: {dup_id}). No se permiten duplicados.",
+            )
+
         if cover_file:
             unique_cover_name = f"{uuid.uuid4()}_{cover_file.filename}"
             cover_path = os.path.join(STORAGE_COVERS, unique_cover_name)
@@ -1920,6 +1993,15 @@ def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default
                 if not author:
                     author = "Autor Desconocido"
 
+                # Verificar duplicado ANTES de insertar
+                pdf_hash = _calcular_hash_pdf(pdf) if pdf and os.path.isfile(pdf) else None
+                dup_id = _verificar_duplicado(cursor, title, author, content, pdf, pdf_hash)
+                if dup_id:
+                    task_status["errors"].append(
+                        f"Duplicado detectado en {filename}: ya existe libro ID {dup_id} con mismo contenido"
+                    )
+                    continue
+
                 unique_pdf_name = f"{uuid.uuid4()}_{filename}"
                 final_pdf_path = os.path.join(STORAGE_BOOKS, unique_pdf_name)
                 shutil.copy2(pdf, final_pdf_path)
@@ -1946,7 +2028,10 @@ def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default
                 new_book_id = cursor.fetchone()["id"]
                 if paginas_libro:
                     _guardar_paginas_libro(cursor, new_book_id, paginas_libro, capitulos_libro)
-                    cursor.execute("UPDATE books SET page_count = %s WHERE id = %s", (len(paginas_libro), new_book_id))
+                    cursor.execute(
+                        "UPDATE books SET page_count = %s, paginated_at = %s WHERE id = %s",
+                        (len(paginas_libro), now, new_book_id),
+                    )
                 db.commit()
 
                 task_status["processed"] += 1
@@ -2212,6 +2297,12 @@ async def repaginate_book(book_id: int, request: Request):
         if pdf_path:
             try:
                 paginas, capitulos = lectura.extraer_paginas_pdf(pdf_path)
+            except lectura.PDFSinTextoExtraible as e:
+                db.rollback()
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"PDF sin texto extraíble, no se repagina: {str(e)}",
+                )
             except Exception as e:
                 db.rollback()
                 raise HTTPException(

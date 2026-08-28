@@ -57,33 +57,30 @@ def extraer_paginas(pdf_path: str):
 CONTENIDO_NO_DISPONIBLE = "Contenido de texto no disponible."
 
 
+class PDFSinTextoExtraible(Exception):
+    """Excepción para PDFs que no tienen capa de texto extraíble."""
+    pass
+
+
 def extraer_contenido_libro(pdf_path: str):
     """Extrae el contenido completo de un PDF junto con sus páginas y capítulos.
 
-    Comportamiento (equivalente al de ZIP/migración):
+    Comportamiento:
     - PDF con capa de texto: content = texto completo, páginas reales.
-    - PDF sin capa de texto (texto vacío o solo espacios): content =
-      CONTENIDO_NO_DISPONIBLE y una única página placeholder.
-    - Error de extracción: mismo placeholder + página placeholder.
-    Nunca devuelve páginas vacías.
+    - PDF sin capa de texto (texto vacío o solo espacios): lanza PDFSinTextoExtraible.
+    - Error de extracción: lanza la excepción original.
     Devuelve (content, paginas, capitulos)."""
-    content = CONTENIDO_NO_DISPONIBLE
-    paginas = []
-    capitulos = []
     try:
         paginas = extraer_paginas(pdf_path)
         capitulos = detectar_capitulos(paginas)
         texto = "\n".join(paginas)
-        if texto.strip():
-            content = texto
-        else:
-            paginas = []
-            capitulos = []
-    except Exception:
-        paginas = []
-        capitulos = []
-    if not paginas:
-        paginas = paginar_desde_contenido(content)
+        if not texto.strip():
+            raise PDFSinTextoExtraible("El PDF no contiene texto extraíble (posiblemente escaneado o protegido)")
+        content = texto
+    except PDFSinTextoExtraible:
+        raise
+    except Exception as e:
+        raise PDFSinTextoExtraible(f"Error extrayendo texto del PDF: {e}") from e
     return content, paginas, capitulos
 
 
@@ -112,11 +109,16 @@ def detectar_capitulos(paginas):
     return capitulos
 
 
-def paginar_desde_contenido(content: str):
+def paginar_desde_contenido(content: str, deduplicate: bool = False):
     """Fallback para libros sin PDF (p. ej. Gutenberg): genera páginas
     estimadas de ~PAGE_CHARS caracteres, sin perder contenido y sin dividir
     párrafos salvo que un párrafo exceda el tope. Nunca devuelve 0 páginas
-    si existe contenido."""
+    si existe contenido.
+
+    Si deduplicate=True (solo para reparaciones administrativas), elimina
+    bloques consecutivos idénticos para evitar páginas duplicadas cuando el
+    contenido origen tiene párrafos repetidos (corrupción de datos).
+    En flujo normal (deduplicate=False) se conserva TODO el contenido."""
     if not content or not content.strip():
         return []
 
@@ -124,6 +126,8 @@ def paginar_desde_contenido(content: str):
     paginas = []
     pagina_actual = []
     longitud_actual = 0
+    prev_bloque_stripped = None
+    bloques_eliminados = 0
 
     def cerrar_pagina():
         nonlocal pagina_actual, longitud_actual
@@ -135,6 +139,12 @@ def paginar_desde_contenido(content: str):
     for bloque in bloques:
         if not bloque.strip():
             continue
+        stripped = bloque.strip()
+        if deduplicate and prev_bloque_stripped is not None and stripped == prev_bloque_stripped:
+            bloques_eliminados += 1
+            continue
+        prev_bloque_stripped = stripped
+
         if longitud_actual + len(bloque) + 2 > PAGE_CHARS and pagina_actual:
             cerrar_pagina()
         if len(bloque) > PAGE_CHARS:
@@ -159,12 +169,12 @@ def paginar_desde_contenido(content: str):
     return paginas
 
 
-def paginar_desde_contenido_con_capitulos(content: str):
+def paginar_desde_contenido_con_capitulos(content: str, deduplicate: bool = False):
     """Pagina libros sin PDF desde su contenido textual y detecta capítulos
     sobre las páginas generadas (misma regla que los PDF: encabezados
     reconocibles). Nunca inventa capítulos: si no hay encabezados válidos,
     capitulos = []. Devuelve (paginas, capitulos)."""
-    paginas = paginar_desde_contenido(content)
+    paginas = paginar_desde_contenido(content, deduplicate=deduplicate)
     capitulos = detectar_capitulos(paginas)
     return paginas, capitulos
 
@@ -172,16 +182,14 @@ def paginar_desde_contenido_con_capitulos(content: str):
 def extraer_paginas_pdf(pdf_path: str):
     """Extracción estricta para repaginación admin. Distingue:
     - PDF válido con capa de texto → (paginas, capitulos) reales.
-    - PDF válido SIN capa de texto → placeholder + una única página (igual que
-      el flujo de subida). NUNCA devuelve páginas vacías.
-    - PDF corrupto/ilegible/no abrible → lanza la excepción (NO devuelve
-      placeholder), para que el endpoint pueda rechazar sin tocar nada."""
+    - PDF válido SIN capa de texto → lanza PDFSinTextoExtraible.
+    - PDF corrupto/ilegible/no abrible → lanza la excepción."""
     paginas = extraer_paginas(pdf_path)
     capitulos = detectar_capitulos(paginas)
     texto = "\n".join(paginas)
     if not texto.strip():
-        paginas = paginar_desde_contenido(CONTENIDO_NO_DISPONIBLE)
-        capitulos = []
+        raise PDFSinTextoExtraible("El PDF no contiene texto extraíble (posiblemente escaneado o protegido)")
+    content = texto
     return paginas, capitulos
 
 
@@ -406,13 +414,26 @@ def validar_contenido_libro(content, paginas=None, fuente="pdf"):
 def procesar_contenido_para_publicacion(pdf_path=None, content=None, fuente="pdf"):
     """Pipeline central de contenido: extracción -> capítulos -> validación.
 
-    - Con pdf_path: extrae el PDF (placeholder si la extracción falla) y valida.
+    - Con pdf_path: extrae el PDF. Si no hay texto extraíble, devuelve validación fallida.
     - Sin pdf_path: pagina desde el contenido textual (Gutenberg, contenido
       previo) y valida.
     Devuelve {"content", "paginas", "capitulos", "validacion"}. El llamador
     decide: si validacion["valid"] es False, NO debe publicar ni paginar."""
     if pdf_path:
-        content, paginas, capitulos = extraer_contenido_libro(pdf_path)
+        try:
+            content, paginas, capitulos = extraer_contenido_libro(pdf_path)
+        except PDFSinTextoExtraible as e:
+            # PDF sin texto extraíble -> contenido placeholder para validación (que fallará)
+            content = CONTENIDO_NO_DISPONIBLE
+            paginas = []
+            capitulos = []
+            validacion = validar_contenido_libro(content, paginas, fuente=fuente)
+            return {
+                "content": content,
+                "paginas": paginas,
+                "capitulos": capitulos,
+                "validacion": validacion,
+            }
     else:
         content = content or ""
         paginas, capitulos = paginar_desde_contenido_con_capitulos(content)

@@ -52,9 +52,49 @@ class FakeCursor:
             book = self.state["books"].get(params[0])
             self._last_result = dict(book) if book else None
 
+        elif q.startswith("select count(*) as cnt from book_pages where book_id"):
+            book_id = int(params[0])
+            cnt = sum(1 for p in self.state["book_pages"] if p[0] == book_id)
+            self._last_result = {"cnt": cnt}
+
         elif q.startswith("select id, title, published, uploader_id from books"):
             book = self.state["books"].get(params[0])
             self._last_result = dict(book) if book else None
+
+        elif q.startswith("select id, title, author_name, content, pdf_path from books where title is not null and author_name is not null"):
+            # Duplicate check query
+            results = []
+            for book in self.state["books"].values():
+                if book.get("title") and book.get("author_name"):
+                    results.append({
+                        "id": book["id"],
+                        "title": book["title"],
+                        "author_name": book["author_name"],
+                        "content": book.get("content", ""),
+                        "pdf_path": book.get("pdf_path", "")
+                    })
+            self._last_result = results
+
+        elif q.startswith("select id, pdf_path from books where pdf_path is not null"):
+            # Duplicate check by PDF hash
+            results = []
+            for book in self.state["books"].values():
+                if book.get("pdf_path"):
+                    results.append({
+                        "id": book["id"],
+                        "pdf_path": book.get("pdf_path", "")
+                    })
+            self._last_result = results
+
+        elif q.startswith("select id from books where content = %s limit 1"):
+            # Duplicate check by content hash
+            target_content = params[0] if params else ""
+            for book in self.state["books"].values():
+                if book.get("content") == target_content:
+                    self._last_result = {"id": book["id"]}
+                    break
+            else:
+                self._last_result = None
 
         elif q.startswith("select uploader_id, title from books"):
             book = self.state["books"].get(params[0])
@@ -602,6 +642,9 @@ class FakeCursor:
         # ── FORO ESTUDIANTIL ────────────────────────────────────────────
 
         # --- CATEGORIES ---
+        elif q.startswith("select id, name, description, icon, color, sort_order, is_active, post_count, created_at from forum_categories") and "where id" not in q:
+            cats = self.state["forum_categories"]
+            self._last_result = sorted(cats, key=lambda c: c.get("sort_order", 0))
         elif q.startswith("select id, name, description, icon, color, sort_order, is_active, post_count from forum_categories") and "where id" not in q:
             cats = [c for c in self.state["forum_categories"] if c.get("is_active")]
             self._last_result = sorted(cats, key=lambda c: c.get("sort_order", 0))
