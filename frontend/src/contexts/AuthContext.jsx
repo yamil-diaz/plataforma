@@ -37,6 +37,11 @@ export const AuthProvider = ({ children }) => {
     // Si es null se envía como undefined para que Axios lo omita del body;
     // así /register normal envía exactamente { name, email, password }.
     const { data } = await axios.post(`${API}/register`, { name, email, password, ref: ref || undefined });
+    // El backend ahora devuelve { requires_verification: true, email, user_id } en lugar de loguear directamente
+    if (data.requires_verification) {
+      // No hacer login automático, solo devolver la data para que el frontend redirija
+      return data;
+    }
     setUser(data);
     return data;
   };

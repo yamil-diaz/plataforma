@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Zap, Mail, Lock, AlertCircle } from 'lucide-react';
+import { Zap, Mail, Lock, AlertCircle, Chrome, Loader2 } from 'lucide-react';
+import axios from 'axios';
+
+const API = import.meta.env.VITE_API_URL || '/api';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -22,6 +26,18 @@ export default function LoginPage() {
       setError(err.response?.data?.detail || 'Error al iniciar sesión. Revisa tus credenciales.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      const { data } = await axios.get(`${API}/auth/google`);
+      window.location.href = data.auth_url;
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Error al iniciar sesión con Google');
+      setGoogleLoading(false);
     }
   };
 
@@ -90,6 +106,27 @@ export default function LoginPage() {
             {loading ? 'Iniciando sesión...' : 'Ingresar'}
           </button>
         </form>
+
+        {/* Botón Google OAuth */}
+        <button
+          type="button"
+          onClick={handleGoogleSignIn}
+          disabled={loading || googleLoading}
+          className="w-full flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold py-3.5 rounded-lg transition-all duration-200 disabled:opacity-50 mb-6"
+        >
+          <Chrome className="w-5 h-5" />
+          <span>{googleLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Continuar con Google'}</span>
+        </button>
+
+        {/* Separador */}
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-white/10" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-4 bg-[#121212] text-[#A0A0A0]">o inicia sesión con correo</span>
+          </div>
+        </div>
 
         <div className="mt-8 flex flex-col gap-4 text-center">
           <Link to="/forgot-password" className="text-sm text-[#A0A0A0] hover:text-white transition-colors">

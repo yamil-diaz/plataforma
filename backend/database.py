@@ -85,6 +85,13 @@ def init_db():
         # Asociación opcional del usuario con el QR por el que se registró.
         # Solo se agrega si no existe; los usuarios existentes conservan NULL.
         cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by_qr_id INTEGER REFERENCES qr_codes(id) ON DELETE SET NULL")
+        # Google OAuth
+        cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255)")
+        cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_email VARCHAR(255)")
+        # Email verification
+        cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code VARCHAR(6)")
+        cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_expiry TIMESTAMP")
+        cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE")
         conn.commit()
     except Exception as e:
         conn.rollback()
@@ -114,6 +121,13 @@ def init_db():
         cursor.execute("ALTER TABLE books ADD COLUMN IF NOT EXISTS dislikes INTEGER DEFAULT 0")
         cursor.execute("ALTER TABLE books ADD COLUMN IF NOT EXISTS page_count INTEGER DEFAULT 0")
         cursor.execute("ALTER TABLE books ADD COLUMN IF NOT EXISTS paginated_at TEXT")
+        # Source tracking (FASE 1 - Pipeline de libros): campos para trazabilidad de origen
+        # NO EJECUTAR EN PRODUCCIÓN HASTA APROBACIÓN EXPLÍCITA - documentados aquí para migración futura
+        cursor.execute("ALTER TABLE books ADD COLUMN IF NOT EXISTS source TEXT")
+        cursor.execute("ALTER TABLE books ADD COLUMN IF NOT EXISTS source_url TEXT")
+        cursor.execute("ALTER TABLE books ADD COLUMN IF NOT EXISTS source_id TEXT")
+        cursor.execute("ALTER TABLE books ADD COLUMN IF NOT EXISTS source_format TEXT")
+        cursor.execute("ALTER TABLE books ADD COLUMN IF NOT EXISTS source_hash TEXT")
         conn.commit()
     except Exception as e:
         conn.rollback()
@@ -560,10 +574,12 @@ def init_db():
         cursor.executemany(
             """
             INSERT INTO books (title, author_name, content, category, price, cover_image_url,
-                               pdf_path, views, likes, average_rating, total_reviews, published, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                               pdf_path, views, likes, average_rating, total_reviews, published, created_at,
+                               source, source_url, source_id, source_format, source_hash)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
-            books_seed,
+            [(b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12],
+              'seed', None, None, None, None) for b in books_seed],
         )
 
         # Usuario admin semilla  (contraseña: admin123)

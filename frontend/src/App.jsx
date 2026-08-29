@@ -6,6 +6,8 @@ import HomePage from './pages/HomePage';
 import ReaderPage from './pages/ReaderPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
+import GoogleCallbackPage from './pages/GoogleCallbackPage';
 import AdminBookFormPage from './pages/AdminBookFormPage';
 import AdminImportPage from './pages/AdminImportPage';
 import DashboardPage from './pages/DashboardPage';
@@ -59,8 +61,9 @@ function AppRoutes() {
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/terminos" element={<TermsPage />} />
       <Route path="/courses" element={<CoursesPage />} />
       <Route path="/courses/:id" element={<CoursePlayerPage />} />

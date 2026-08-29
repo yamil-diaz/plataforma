@@ -175,6 +175,14 @@ import urllib.request
 import json
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 
+# ── Configuración de Google OAuth ──────────────────────────────────────────────
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:5173/auth/google/callback")
+GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
+
 def send_email_async(to_email: str, subject: str, html_content: str):
     try:
         url = "https://api.resend.com/emails"
@@ -225,6 +233,29 @@ def send_mass_email_async(bcc_emails: list, subject: str, html_content: str):
         print(f"Error enviando correo masivo por Resend: {e}")
         traceback.print_exc()
 
+
+def send_verification_code_email(to_email: str, code: str):
+    """Envía un código de verificación por correo electrónico."""
+    html_content = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; text-align: center;">
+        <h2 style="color: #D92B2B;">AETERNUM - Verificación de Correo</h2>
+        <p>Bienvenido a AETERNUM. Para completar tu registro, ingresa el siguiente código de verificación:</p>
+        <div style="font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #D92B2B; margin: 30px 0; padding: 20px; background: #1a1a1a; border-radius: 8px; border: 2px solid #D92B2B;">{code}</div>
+        <p style="color: #666; font-size: 14px;">Este código expira en 15 minutos.</p>
+        <p style="color: #666; font-size: 12px;">Si no solicitaste esto, puedes ignorar este correo.</p>
+    </div>
+    """
+    try:
+        send_email_async(to_email, "Tu código de verificación AETERNUM", html_content)
+    except Exception as e:
+        print(f"Error enviando código de verificación a {to_email}: {e}")
+        raise Exception(f"Fallo al enviar código de verificación: {str(e)}")
+
+
+def generate_verification_code() -> str:
+    """Genera un código de verificación de 6 dígitos."""
+    return ''.join(random.choices(string.digits, k=6))
+
 # ── Inicializar base de datos ────────────────────────────────────────────────
 init_db()
 
@@ -246,17 +277,17 @@ try:
 except Exception as e:
     print(f"Error ejecutando migración Fase 4: {e}")
 
-# FASE 2: el backfill de páginas corre en segundo plano (daemon) para no
-# bloquear el arranque de FastAPI con bibliotecas grandes. La migración sigue
-# siendo standalone e idempotente.
-def _run_fase2_lectura_migration():
-    try:
-        import migrate_db_fase2_lectura
-        migrate_db_fase2_lectura.migrate()
-    except Exception as e:
-        print(f"Error ejecutando migración Fase 2 (Lectura): {e}")
+# FASE 2: el backfill de páginas NO se ejecuta automáticamente al arrancar.
+# La migración debe ejecutarse MANUALMENTE: python migrate_db_fase2_lectura.py
+# Esto evita procesamiento silencioso de contenido corrupto en producción.
+# def _run_fase2_lectura_migration():
+#     try:
+#         import migrate_db_fase2_lectura
+#         migrate_db_fase2_lectura.migrate()
+#     except Exception as e:
+#         print(f"Error ejecutando migración Fase 2 (Lectura): {e}")
 
-threading.Thread(target=_run_fase2_lectura_migration, daemon=True).start()
+# threading.Thread(target=_run_fase2_lectura_migration, daemon=True).start()
 
 # Foro Estudiantil: migración idempotente
 try:
@@ -693,8 +724,9 @@ async def register(user_data: UserRegister, response: Response, request: Request
         db.close()
         raise HTTPException(status_code=429, detail="Demasiados registros desde esta IP. Intenta más tarde.")
 
-    cursor.execute("SELECT id FROM users WHERE email = %s", (user_data.email,))
-    if cursor.fetchone():
+    cursor.execute("SELECT id, google_id, email_verified FROM users WHERE email = %s", (user_data.email,))
+    existing_user = cursor.fetchone()
+    if existing_user:
         db.close()
         raise HTTPException(status_code=400, detail="El correo ya está registrado")
 
@@ -711,9 +743,15 @@ async def register(user_data: UserRegister, response: Response, request: Request
     # El role y la recompensa los fija siempre el servidor.
     try:
         qr_id = _resolve_active_qr_id(cursor, user_data.ref)
+        
+        # Generar código de verificación
+        verification_code = generate_verification_code()
+        verification_expiry = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+        
         cursor.execute(
-            "INSERT INTO users (name, email, hashed_password, role, rayos_balance, created_at, username, registration_ip, referred_by_qr_id) VALUES (%s, %s, %s, 'user', 0, %s, %s, %s, %s) RETURNING id",
-            (user_data.name, user_data.email, hashed, now, username, user_ip, qr_id),
+            """INSERT INTO users (name, email, hashed_password, role, rayos_balance, created_at, username, registration_ip, referred_by_qr_id, verification_code, verification_expiry, email_verified) 
+               VALUES (%s, %s, %s, 'user', 0, %s, %s, %s, %s, %s, %s, FALSE) RETURNING id""",
+            (user_data.name, user_data.email, hashed, now, username, user_ip, qr_id, verification_code, verification_expiry),
         )
         user_id = cursor.fetchone()["id"]
 
@@ -725,6 +763,10 @@ async def register(user_data: UserRegister, response: Response, request: Request
             "registration_reward",
             "Recompensa por crear tu cuenta en AETERNUM",
         )
+        
+        # Enviar código de verificación por email
+        send_verification_code_email(user_data.email, verification_code)
+        
         db.commit()
     except Exception as e:
         db.rollback()
@@ -732,20 +774,299 @@ async def register(user_data: UserRegister, response: Response, request: Request
     finally:
         db.close()
 
-    set_auth_cookies(
-        response,
-        create_access_token(user_id, user_data.email),
-        create_refresh_token(user_id),
-    )
-
+    # NO establecemos cookies aún - el usuario debe verificar su email primero
     return {
-        "_id": str(user_id),
-        "id": str(user_id),
+        "message": "Registro exitoso. Hemos enviado un código de verificación a tu correo.",
+        "requires_verification": True,
         "email": user_data.email,
-        "name": user_data.name,
-        "role": "user",
-        "rayos_balance": new_balance,
+        "user_id": str(user_id),
     }
+
+
+class VerifyEmailRequest(BaseModel):
+    email: EmailStr
+    code: str
+
+
+@api_router.post("/verify-email")
+async def verify_email(req: VerifyEmailRequest, response: Response):
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute(
+            "SELECT id, name, email, verification_code, verification_expiry, email_verified FROM users WHERE email = %s",
+            (req.email,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=400, detail="Usuario no encontrado")
+
+        if row["email_verified"]:
+            raise HTTPException(status_code=400, detail="El correo ya está verificado")
+
+        if row["verification_code"] != req.code:
+            raise HTTPException(status_code=400, detail="Código de verificación incorrecto")
+
+        # Verificar expiración
+        expires_at = row["verification_expiry"]
+        if isinstance(expires_at, str):
+            expires_at = datetime.fromisoformat(expires_at)
+        
+        if expires_at.tzinfo is None:
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+        else:
+            now = datetime.now(timezone.utc)
+            
+        if now > expires_at:
+            raise HTTPException(status_code=400, detail="El código ha expirado. Solicita uno nuevo.")
+
+        # Marcar como verificado
+        cursor.execute(
+            "UPDATE users SET email_verified = TRUE, verification_code = NULL, verification_expiry = NULL WHERE id = %s",
+            (row["id"],),
+        )
+        db.commit()
+
+        user_id = row["id"]
+        set_auth_cookies(
+            response,
+            create_access_token(user_id, row["email"]),
+            create_refresh_token(user_id),
+        )
+
+        return {
+            "_id": str(user_id),
+            "id": str(user_id),
+            "email": row["email"],
+            "name": row["name"],
+            "role": "user",
+            "rayos_balance": 100,  # registration reward
+            "message": "Correo verificado correctamente. Bienvenido a AETERNUM!",
+        }
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al verificar correo: {str(e)}")
+    finally:
+        db.close()
+
+
+@api_router.post("/resend-verification")
+async def resend_verification(email: EmailStr):
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute(
+            "SELECT id, email_verified FROM users WHERE email = %s",
+            (email,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=400, detail="Usuario no encontrado")
+
+        if row["email_verified"]:
+            raise HTTPException(status_code=400, detail="El correo ya está verificado")
+
+        verification_code = generate_verification_code()
+        verification_expiry = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+        
+        cursor.execute(
+            "UPDATE users SET verification_code = %s, verification_expiry = %s WHERE id = %s",
+            (verification_code, verification_expiry, row["id"]),
+        )
+        db.commit()
+        
+        send_verification_code_email(email, verification_code)
+        
+        return {"message": "Nuevo código de verificación enviado"}
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al reenviar código: {str(e)}")
+    finally:
+        db.close()
+
+
+# ── Google OAuth ────────────────────────────────────────────────────────────────
+
+class GoogleAuthRequest(BaseModel):
+    code: str
+
+
+@api_router.get("/auth/google")
+async def google_auth_url():
+    """Devuelve la URL de autorización de Google OAuth."""
+    if not GOOGLE_CLIENT_ID or GOOGLE_CLIENT_ID == "your_google_client_id_here":
+        raise HTTPException(status_code=503, detail="Google OAuth no configurado")
+    
+    params = {
+        "client_id": GOOGLE_CLIENT_ID,
+        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "offline",
+        "prompt": "consent",
+    }
+    query_string = "&".join(f"{k}={v}" for k, v in params.items())
+    auth_url = f"{GOOGLE_AUTH_URL}?{query_string}"
+    return {"auth_url": auth_url}
+
+
+@api_router.post("/auth/google/callback")
+async def google_callback(req: GoogleAuthRequest, response: Response):
+    """Intercambia el código de autorización por tokens y registra/loguea al usuario."""
+    if not GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET:
+        raise HTTPException(status_code=503, detail="Google OAuth no configurado")
+    
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        # Intercambiar código por access token
+        import urllib.parse
+        token_data = {
+            "code": req.code,
+            "client_id": GOOGLE_CLIENT_ID,
+            "client_secret": GOOGLE_CLIENT_SECRET,
+            "redirect_uri": GOOGLE_REDIRECT_URI,
+            "grant_type": "authorization_code",
+        }
+        token_req = urllib.request.Request(
+            GOOGLE_TOKEN_URL,
+            data=urllib.parse.urlencode(token_data).encode(),
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            method="POST",
+        )
+        with urllib.request.urlopen(token_req) as token_resp:
+            import json
+            token_json = json.loads(token_resp.read().decode())
+        
+        access_token = token_json.get("access_token")
+        if not access_token:
+            raise HTTPException(status_code=400, detail="No se pudo obtener access token de Google")
+        
+        # Obtener info del usuario
+        userinfo_req = urllib.request.Request(
+            GOOGLE_USERINFO_URL,
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        with urllib.request.urlopen(userinfo_req) as userinfo_resp:
+            userinfo = json.loads(userinfo_resp.read().decode())
+        
+        google_id = userinfo.get("id")
+        google_email = userinfo.get("email", "").lower()
+        google_name = userinfo.get("name", "")
+        
+        if not google_id or not google_email:
+            raise HTTPException(status_code=400, detail="Información incompleta de Google")
+        
+        # Verificar si ya existe un usuario con este google_id
+        cursor.execute("SELECT id, name, email, role, rayos_balance, is_banned FROM users WHERE google_id = %s", (google_id,))
+        existing_google_user = cursor.fetchone()
+        
+        if existing_google_user:
+            # Usuario ya vinculado a Google - loguear directamente
+            if existing_google_user["is_banned"]:
+                raise HTTPException(status_code=403, detail="Tu cuenta ha sido suspendida")
+            
+            user_id = existing_google_user["id"]
+            set_auth_cookies(
+                response,
+                create_access_token(user_id, existing_google_user["email"]),
+                create_refresh_token(user_id),
+            )
+            return {
+                "_id": str(user_id),
+                "id": str(user_id),
+                "email": existing_google_user["email"],
+                "name": existing_google_user["name"],
+                "role": existing_google_user["role"],
+                "rayos_balance": existing_google_user["rayos_balance"],
+            }
+        
+        # Verificar si existe un usuario con el mismo email (sin google_id)
+        cursor.execute("SELECT id, name, email, role, rayos_balance, is_banned, google_id FROM users WHERE email = %s", (google_email,))
+        existing_email_user = cursor.fetchone()
+        
+        if existing_email_user:
+            # Usuario existe con mismo email - vincular cuenta de Google
+            if existing_email_user["is_banned"]:
+                raise HTTPException(status_code=403, detail="Tu cuenta ha sido suspendida")
+            
+            if existing_email_user["google_id"]:
+                # Ya tiene otro Google vinculado (edge case)
+                raise HTTPException(status_code=400, detail="Este correo ya está vinculado a otra cuenta de Google")
+            
+            user_id = existing_email_user["id"]
+            cursor.execute(
+                "UPDATE users SET google_id = %s, google_email = %s, email_verified = TRUE WHERE id = %s",
+                (google_id, google_email, user_id),
+            )
+            db.commit()
+            
+            set_auth_cookies(
+                response,
+                create_access_token(user_id, existing_email_user["email"]),
+                create_refresh_token(user_id),
+            )
+            return {
+                "_id": str(user_id),
+                "id": str(user_id),
+                "email": existing_email_user["email"],
+                "name": existing_email_user["name"],
+                "role": existing_email_user["role"],
+                "rayos_balance": existing_email_user["rayos_balance"],
+            }
+        
+        # Usuario nuevo - crear cuenta con Google
+        base_username = "".join(c for c in google_name.lower() if c.isalnum())
+        random_suffix = "".join(random.choices(string.digits, k=4))
+        username = f"{base_username}{random_suffix}"
+        now = datetime.now(timezone.utc).isoformat()
+        
+        cursor.execute(
+            """INSERT INTO users (name, email, hashed_password, role, rayos_balance, created_at, username, google_id, google_email, email_verified) 
+               VALUES (%s, %s, %s, 'user', %s, %s, %s, %s, %s, TRUE) RETURNING id""",
+            (google_name, google_email, "", REGISTRATION_REWARD_AMOUNT, now, username, google_id, google_email),
+        )
+        user_id = cursor.fetchone()["id"]
+        
+        # Recompensa de registro
+        _credit_rayos(
+            cursor,
+            user_id,
+            REGISTRATION_REWARD_AMOUNT,
+            "registration_reward",
+            "Recompensa por crear tu cuenta en AETERNUM con Google",
+        )
+        db.commit()
+        
+        set_auth_cookies(
+            response,
+            create_access_token(user_id, google_email),
+            create_refresh_token(user_id),
+        )
+        
+        return {
+            "_id": str(user_id),
+            "id": str(user_id),
+            "email": google_email,
+            "name": google_name,
+            "role": "user",
+            "rayos_balance": REGISTRATION_REWARD_AMOUNT,
+        }
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error en Google OAuth: {str(e)}")
+    finally:
+        db.close()
 
 
 @api_router.post("/qr/{code}/visit")
@@ -953,7 +1274,7 @@ async def login(login_data: UserLogin, response: Response, request: Request):
             db.commit()
 
     cursor.execute(
-        "SELECT id, name, email, hashed_password, role, rayos_balance, is_banned FROM users WHERE email = %s",
+        "SELECT id, name, email, hashed_password, role, rayos_balance, is_banned, google_id, email_verified FROM users WHERE email = %s",
         (login_data.email,),
     )
     row = cursor.fetchone()
@@ -962,12 +1283,16 @@ async def login(login_data: UserLogin, response: Response, request: Request):
     if row:
         stored_hash = row["hashed_password"]
         try:
-            pwd_check = verify_password(login_data.password, stored_hash)
+            # Si el usuario tiene google_id vinculado, permitir login sin password (o con password si tiene)
+            if row.get("google_id") and not stored_hash:
+                pwd_check = True  # Usuario de Google, no necesita password
+            else:
+                pwd_check = verify_password(login_data.password, stored_hash)
         except Exception as verify_err:
             print(f"[LOGIN-DEBUG] Error en verify_password: {verify_err}")
             pwd_check = False
         print(f"[LOGIN-DEBUG] Usuario ID={row['id']}, email={row['email']}")
-        print(f"[LOGIN-DEBUG] Hash almacenado empieza con: {stored_hash[:25]}...")
+        print(f"[LOGIN-DEBUG] Hash almacenado empieza con: {stored_hash[:25] if stored_hash else 'empty'}...")
         print(f"[LOGIN-DEBUG] Verificacion resultado: {pwd_check}")
     else:
         pwd_check = False
@@ -2270,11 +2595,11 @@ def _guardar_paginas_libro(cursor, book_id, paginas, capitulos):
 async def repaginate_book(book_id: int, request: Request):
     """Repaginación admin segura de UN solo libro (FASE 2).
 
-    Secuencia obligatoria: fuente → extracción/paginación → capítulos →
+    Secuencia obligatoria: validación archivo → extracción/paginación → capítulos →
     validación central (patológico, placeholder, basura, insuficiente) →
     transacción → borrar anteriores → insertar nuevos → actualizar books →
     commit. NUNCA borra páginas antes de generar y validar el nuevo contenido.
-    PDF corrupto/ilegible → 422 sin modificar nada; contenido inválido
+    PDF corrupto/ilegible/inexistente → 422 sin modificar nada; contenido inválido
     (placeholder, duplicado, basura, insuficiente) → 422 sin modificar nada."""
     user = await get_current_user(request)
     if user["role"] != "admin":
@@ -2294,29 +2619,15 @@ async def repaginate_book(book_id: int, request: Request):
 
         pdf_path = _resolver_pdf_path(book["pdf_path"])
 
+        # Usar pipeline central que incluye validación de archivo
         if pdf_path:
-            try:
-                paginas, capitulos = lectura.extraer_paginas_pdf(pdf_path)
-            except lectura.PDFSinTextoExtraible as e:
-                db.rollback()
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"PDF sin texto extraíble, no se repagina: {str(e)}",
-                )
-            except Exception as e:
-                db.rollback()
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"PDF corrupto o ilegible, no se repagina: {str(e)}",
-                )
+            procesado = lectura.procesar_contenido_para_publicacion(pdf_path=pdf_path, fuente="pdf")
             fuente = "pdf"
-            fuente_texto = "\n".join(paginas)
         else:
-            fuente_texto = book["content"] or ""
-            paginas, capitulos = lectura.paginar_desde_contenido_con_capitulos(fuente_texto)
+            procesado = lectura.procesar_contenido_para_publicacion(content=book["content"] or "", fuente="content")
             fuente = "content"
 
-        validacion = lectura.validar_contenido_libro(fuente_texto, paginas, fuente=fuente)
+        validacion = procesado["validacion"]
         if not validacion["valid"]:
             db.rollback()
             return JSONResponse(
@@ -2330,6 +2641,9 @@ async def repaginate_book(book_id: int, request: Request):
                     **validacion["detalle"],
                 },
             )
+
+        paginas = procesado["paginas"]
+        capitulos = procesado["capitulos"]
 
         cursor.execute("DELETE FROM book_pages WHERE book_id = %s", (book_id,))
         cursor.execute("DELETE FROM chapters WHERE book_id = %s", (book_id,))
@@ -3196,9 +3510,19 @@ async def fetch_gutenberg_book(book_id: int = Form(...), request: Request = None
 
         cover_url = meta_data.get("formats", {}).get("image/jpeg", "https://via.placeholder.com/400x600?text=Gutenberg")
 
-        # PASO 3: validación central. Un texto de Gutenberg vacío, degradado,
-        # con repetición patológica o insuficiente NO se publica.
+        # PASO 3: validación central + pipeline con source tracking.
+        # Un texto de Gutenberg vacío, degradado, con repetición patológica o insuficiente NO se publica.
         contenido_recortado = content[:100000]
+        
+        # Source tracking para trazabilidad (requiere migración BD - ver database.py)
+        source = "gutenberg"
+        source_url = text_url
+        source_id = str(book_id)
+        source_format = "text/plain"
+        # source_hash: hash del contenido para detectar cambios
+        import hashlib
+        source_hash = hashlib.sha256(contenido_recortado.encode()).hexdigest()
+        
         validacion = lectura.validar_contenido_libro(contenido_recortado, None, fuente="gutenberg")
         if not validacion["valid"]:
             raise HTTPException(
@@ -3207,19 +3531,25 @@ async def fetch_gutenberg_book(book_id: int = Form(...), request: Request = None
                 + "; ".join(validacion["errors"]),
             )
 
+        paginas_libro, capitulos_libro = lectura.paginar_desde_contenido_con_capitulos(contenido_recortado)
+        if not paginas_libro:
+            raise HTTPException(
+                status_code=422,
+                detail="No se pudieron generar páginas a partir del contenido.",
+            )
+
         now = datetime.now(timezone.utc).isoformat()
         db = get_db()
         cursor = db.cursor()
         cursor.execute(
             """
-            INSERT INTO books (title, author_name, content, category, price, cover_image_url, pdf_path, views, likes, average_rating, total_reviews, published, created_at, uploader_id)
-            VALUES (%s, %s, %s, %s, 0, %s, NULL, 0, 0, 0.0, 0, 1, %s, %s)
+            INSERT INTO books (title, author_name, content, category, price, cover_image_url, pdf_path, views, likes, average_rating, total_reviews, published, created_at, uploader_id, source, source_url, source_id, source_format, source_hash)
+            VALUES (%s, %s, %s, %s, 0, %s, NULL, 0, 0, 0.0, 0, 1, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
-            (title, author_name, contenido_recortado, "Clásicos", cover_url, now, user["id"])
+            (title, author_name, contenido_recortado, "Clásicos", cover_url, now, user["id"], source, source_url, source_id, source_format, source_hash)
         )
         new_book_id = cursor.fetchone()["id"]
-        paginas_libro, capitulos_libro = lectura.paginar_desde_contenido_con_capitulos(contenido_recortado)
         if paginas_libro:
             _guardar_paginas_libro(cursor, new_book_id, paginas_libro, capitulos_libro)
             cursor.execute("UPDATE books SET page_count = %s WHERE id = %s", (len(paginas_libro), new_book_id))

@@ -3,7 +3,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { sanitizeRef } from '../utils/ref';
-import { Zap, Mail, Lock, User, AlertCircle } from 'lucide-react';
+import { Zap, Mail, Lock, User, AlertCircle, Chrome, Loader2 } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_URL || '/api';
 
@@ -13,6 +13,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -41,9 +42,28 @@ export default function RegisterPage() {
       await register(name, email, password, ref);
       navigate('/');
     } catch (err) {
+      // Si el backend requiere verificación, redirigir a la página de verificación
+      if (err.response?.data?.requires_verification) {
+        navigate('/verify-email', { state: { email: err.response.data.email, user_id: err.response.data.user_id } });
+        return;
+      }
       setError(err.response?.data?.detail || 'Error al registrarse. Inténtalo de nuevo.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      // Obtener URL de autorización de Google
+      const { data } = await axios.get(`${API}/auth/google`);
+      // Redirigir a Google OAuth
+      window.location.href = data.auth_url;
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Error al iniciar sesión con Google');
+      setGoogleLoading(false);
     }
   };
 
@@ -71,6 +91,27 @@ export default function RegisterPage() {
             <span>{error}</span>
           </div>
         )}
+
+        {/* Botón Google OAuth */}
+        <button
+          type="button"
+          onClick={handleGoogleSignIn}
+          disabled={loading || googleLoading}
+          className="w-full flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold py-3.5 rounded-lg transition-all duration-200 disabled:opacity-50 mb-6"
+        >
+          <Chrome className="w-5 h-5" />
+          <span>{googleLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Continuar con Google'}</span>
+        </button>
+
+        {/* Separador */}
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-white/10" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-4 bg-[#121212] text-[#A0A0A0]">o regístrate con correo</span>
+          </div>
+        </div>
 
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="space-y-5">
