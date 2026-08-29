@@ -919,7 +919,7 @@ async def google_auth_url():
 @api_router.post("/auth/google/callback")
 async def google_callback(req: GoogleAuthRequest, response: Response):
     """Intercambia el código de autorización por tokens y registra/loguea al usuario."""
-    if not GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET:
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
         raise HTTPException(status_code=503, detail="Google OAuth no configurado")
     
     db = get_db()
