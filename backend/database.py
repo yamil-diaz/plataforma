@@ -11,6 +11,9 @@ if not DATABASE_URL:
         "Asegúrate de enlazar una base de datos PostgreSQL en Render."
     )
 
+# Detección de entorno de producción (mismo mecanismo que storage_config.py)
+IS_PRODUCTION = os.getenv("RENDER") == "true" or os.getenv("ENV") == "production"
+
 # psycopg2 requiere 'postgresql://' en vez de 'postgres://' (que usa Render por defecto)
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
@@ -502,12 +505,14 @@ def init_db():
             )
         conn.commit()
 
-    # ── Datos semilla ────────────────────────────────────────────────────────
+    # ── Datos semilla (SOLO en desarrollo/demo) ──────────────────────────────
+    # En producción, una tabla books vacía debe permanecer vacía.
+    # El seed automático puede interferir con la reconstrucción real del catálogo.
     cursor.execute("SELECT COUNT(*) AS cnt FROM books")
     row = cursor.fetchone()
     count = row["cnt"] if row else 0
 
-    if count == 0:
+    if count == 0 and not IS_PRODUCTION:
         now = datetime.now(timezone.utc).isoformat()
         books_seed = [
             (
