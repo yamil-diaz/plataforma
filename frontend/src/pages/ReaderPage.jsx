@@ -5,6 +5,7 @@ import { Navbar } from '../components/Navbar';
 import PDFViewer from '../components/PDFViewer';
 import ThumbnailSidebar from '../components/ThumbnailSidebar';
 import ReaderToolbar from '../components/ReaderToolbar';
+import BookPreviewModal from '../components/BookPreviewModal';
 import { ChevronLeft, Heart, Zap, Star, Send, Download, Eye, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -70,6 +71,7 @@ export default function ReaderPage() {
   const [pdfDocument, setPdfDocument] = useState(null);
   const [pdfTotalPages, setPdfTotalPages] = useState(null);
   const [pdfError, setPdfError] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   const reportProgress = async (pageNumber) => {
     if (!user || reportingRef.current) return;
@@ -343,8 +345,17 @@ export default function ReaderPage() {
             </div>
           </div>
 
-          {/* Botón de Descarga PDF */}
-            <div className="mt-4 sm:mt-6">
+          {/* Botones: Vista previa + Descarga PDF */}
+            <div className="flex flex-wrap items-center gap-3 mt-4 sm:mt-6">
+              {book.pdf_path && (
+                <button
+                  onClick={() => setShowPreview(true)}
+                  className="inline-flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-[#F5F5F5] font-semibold px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg transition-all duration-200 text-sm sm:text-base"
+                >
+                  <Eye className="w-5 h-5" />
+                  Vista previa del libro
+                </button>
+              )}
               <a
                 href={`${API}/books/${book._id || book.id}/download`}
                 target="_blank"
@@ -597,6 +608,15 @@ export default function ReaderPage() {
             <div className="text-[#A0A0A0] text-sm">Sigue leyendo para ganar más</div>
           </div>
         </div>
+      )}
+
+      {/* Modal de Vista Previa del PDF */}
+      {showPreview && book.pdf_path && (
+        <BookPreviewModal
+          pdfUrl={`${API}/books/${book.id}/download`}
+          bookTitle={book.title}
+          onClose={() => setShowPreview(false)}
+        />
       )}
     </div>
   );
