@@ -18,12 +18,15 @@ export default function BookPreviewModal({ pdfUrl, bookTitle, onClose }) {
   const [error, setError] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [renderedThumbs, setRenderedThumbs] = useState(new Set());
+  const [renderError, setRenderError] = useState(null);
 
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const renderingRef = useRef(false);
+  const renderRequestRef = useRef(0);
   const pageCacheRef = useRef(new Map());
   const thumbScrollRef = useRef(null);
+  const containerWidthRef = useRef(0);
   const [containerWidth, setContainerWidth] = useState(0);
   const currentPageRef = useRef(currentPage);
 
@@ -57,30 +60,46 @@ export default function BookPreviewModal({ pdfUrl, bookTitle, onClose }) {
     return () => { cancelled = true; if (pdfDoc) pdfDoc.destroy(); };
   }, [pdfUrl]);
 
-  // Container resize
+  // Container resize — uses ref for stable width tracking
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const obs = new ResizeObserver((entries) => {
-      for (const e of entries) {
-        const w = e.contentRect.width;
-        if (w > 0 && Math.abs(w - containerWidth) > 1) setContainerWidth(w);
+
+    const updateWidth = () => {
+      const w = container.clientWidth;
+      if (w > 0) {
+        containerWidthRef.current = w;
+        setContainerWidth(w);
       }
+    };
+
+    // Initial measurement
+    updateWidth();
+
+    const obs = new ResizeObserver(() => {
+      updateWidth();
     });
     obs.observe(container);
-    setContainerWidth(container.clientWidth);
     return () => obs.disconnect();
   }, []);
 
-  // Render page
+  // Render page — core fix: request ID, guard on containerWidth, error display
   const renderPage = useCallback(async (pageNum) => {
-    if (!pdfDoc || !canvasRef.current || renderingRef.current) return;
+    const cw = containerWidthRef.current;
+    if (!pdfDoc || !canvasRef.current || cw <= 0) return;
     if (pageNum < 1 || pageNum > pdfDoc.numPages) return;
+
+    // Cancel any previous in-flight render
+    const requestId = ++renderRequestRef.current;
     renderingRef.current = true;
+    setRenderError(null);
+
     try {
       let pageData = pageCacheRef.current.get(pageNum);
       if (!pageData) {
         const page = await pdfDoc.getPage(pageNum);
+        // Check if this render was superseded while awaiting page
+        if (requestId !== renderRequestRef.current) return;
         const unscaled = page.getViewport({ scale: 1 });
         pageData = { page, w: unscaled.width, h: unscaled.height };
         if (pageCacheRef.current.size > 15) {
@@ -89,30 +108,72 @@ export default function BookPreviewModal({ pdfUrl, bookTitle, onClose }) {
         }
         pageCacheRef.current.set(pageNum, pageData);
       }
+
       const { page, w, h } = pageData;
-      const maxW = containerWidth - 32;
+      const maxW = cw - 32;
+      if (maxW <= 0) return;
       const scale = (maxW / w) * zoom;
       const vp = page.getViewport({ scale });
+
+      // Check again before painting
+      if (requestId !== renderRequestRef.current) return;
+
       const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
       canvas.width = vp.width;
       canvas.height = vp.height;
       canvas.style.width = vp.width + 'px';
       canvas.style.height = vp.height + 'px';
-      const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+
       await page.render({ canvasContext: ctx, viewport: vp }).promise;
-      renderingRef.current = false;
+
+      // Final check — only mark done if still the latest request
+      if (requestId === renderRequestRef.current) {
+        renderingRef.current = false;
+      }
     } catch (err) {
       console.error('Preview render error:', err);
-      renderingRef.current = false;
+      if (requestId === renderRequestRef.current) {
+        renderingRef.current = false;
+        setRenderError(err.message || 'Error al renderizar la página');
+        // Paint error on canvas so it's not blank
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          canvas.width = Math.max(cw - 32, 200);
+          canvas.height = 200;
+          canvas.style.width = canvas.width + 'px';
+          canvas.style.height = '200px';
+          ctx.fillStyle = '#1a1a1a';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = '#ef4444';
+          ctx.font = '14px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('Error al renderizar', canvas.width / 2, 90);
+          ctx.fillStyle = '#a0a0a0';
+          ctx.font = '12px sans-serif';
+          ctx.fillText(err.message || 'Error desconocido', canvas.width / 2, 115);
+        }
+      }
     }
-  }, [pdfDoc, containerWidth, zoom]);
+  }, [pdfDoc, zoom]);
 
+  // Render on page/zoom/load changes — uses containerWidthRef for stable width
   useEffect(() => {
-    if (!loading && pdfDoc) renderPage(currentPage);
+    if (!loading && pdfDoc && containerWidthRef.current > 0) {
+      renderPage(currentPage);
+    }
   }, [currentPage, loading, renderPage]);
+
+  // Re-render when containerWidth transitions from 0 to a real value
+  useEffect(() => {
+    if (containerWidth > 0 && pdfDoc && !loading) {
+      renderPage(currentPage);
+    }
+  }, [containerWidth, pdfDoc, loading, renderPage, currentPage]);
 
   // Thumbnail rendering
   const renderThumb = useCallback(async (pageNum, canvas) => {
