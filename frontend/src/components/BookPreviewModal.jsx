@@ -81,7 +81,7 @@ export default function BookPreviewModal({ pdfUrl, bookTitle, onClose }) {
     });
     obs.observe(container);
     return () => obs.disconnect();
-  }, []);
+  }, [loading, pdfDoc]);
 
   // Render page — core fix: request ID, guard on containerWidth, error display
   const renderPage = useCallback(async (pageNum) => {
