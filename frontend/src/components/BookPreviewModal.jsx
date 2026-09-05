@@ -27,6 +27,7 @@ export default function BookPreviewModal({ pdfUrl, bookTitle, onClose }) {
   const pageCacheRef = useRef(new Map());
   const thumbScrollRef = useRef(null);
   const containerWidthRef = useRef(0);
+  const containerHeightRef = useRef(0);
   const [containerWidth, setContainerWidth] = useState(0);
   const currentPageRef = useRef(currentPage);
 
@@ -65,19 +66,23 @@ export default function BookPreviewModal({ pdfUrl, bookTitle, onClose }) {
     const container = containerRef.current;
     if (!container) return;
 
-    const updateWidth = () => {
+    const updateDimensions = () => {
       const w = container.clientWidth;
+      const h = container.clientHeight;
       if (w > 0) {
         containerWidthRef.current = w;
         setContainerWidth(w);
       }
+      if (h > 0) {
+        containerHeightRef.current = h;
+      }
     };
 
     // Initial measurement
-    updateWidth();
+    updateDimensions();
 
     const obs = new ResizeObserver(() => {
-      updateWidth();
+      updateDimensions();
     });
     obs.observe(container);
     return () => obs.disconnect();
@@ -111,8 +116,12 @@ export default function BookPreviewModal({ pdfUrl, bookTitle, onClose }) {
 
       const { page, w, h } = pageData;
       const maxW = cw - 32;
+      const ch = containerHeightRef.current;
+      const maxH = ch > 0 ? ch - 80 : 0;
       if (maxW <= 0) return;
-      const scale = (maxW / w) * zoom;
+      const scaleW = maxW / w;
+      const scaleH = maxH > 0 ? maxH / h : Infinity;
+      const scale = Math.min(scaleW, scaleH) * zoom;
       const vp = page.getViewport({ scale });
 
       // Check again before painting
@@ -160,13 +169,6 @@ export default function BookPreviewModal({ pdfUrl, bookTitle, onClose }) {
       }
     }
   }, [pdfDoc, zoom]);
-
-  // Render on page/zoom/load changes — uses containerWidthRef for stable width
-  useEffect(() => {
-    if (!loading && pdfDoc && containerWidthRef.current > 0) {
-      renderPage(currentPage);
-    }
-  }, [currentPage, loading, renderPage]);
 
   // Re-render when containerWidth transitions from 0 to a real value
   useEffect(() => {
