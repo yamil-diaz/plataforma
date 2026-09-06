@@ -5,6 +5,7 @@ Port validado de lectura_pura.py (11/11 tests PASS en la fase de validación).
 Extracción por páginas, detección de capítulos (no recompensan, solo organizan)
 y paginación de respaldo para libros sin PDF.
 """
+import os
 import re
 from collections import Counter
 from difflib import SequenceMatcher
@@ -109,16 +110,41 @@ def detectar_capitulos(paginas):
     return capitulos
 
 
+def validar_antes_de_paginar(content: str, fuente: str = "content") -> dict:
+    """Barrera obligatoria ANTES de paginar cualquier contenido.
+    
+    Valida que el contenido no sea:
+    - placeholder (extracción fallida)
+    - patológico (duplicación masiva, páginas repetidas)
+    - basura (extracción degradada)
+    - insuficiente (< MIN_CONTENIDO_TOTAL caracteres)
+    
+    Devuelve {"valid": bool, "errors": [str], "detalle": {...}}.
+    Si no es válido, NO se debe paginar ni crear páginas/capítulos."""
+    return validar_contenido_libro(content, None, fuente=fuente)
+
+
 def paginar_desde_contenido(content: str, deduplicate: bool = False):
     """Fallback para libros sin PDF (p. ej. Gutenberg): genera páginas
     estimadas de ~PAGE_CHARS caracteres, sin perder contenido y sin dividir
-    párrafos salvo que un párrafo exceda el tope. Nunca devuelve 0 páginas
-    si existe contenido.
-
+    párrafos salvo que un párrafo exceda el tope.
+    
+    REGLAS OBLIGATORIAS (barrera de entrada):
+    - NO pagina placeholders (CONTENIDO_NO_DISPONIBLE)
+    - NO pagina contenido patológico (duplicación masiva)
+    - NO pagina contenido basura (extracción degradada)
+    - NO pagina contenido insuficiente (< MIN_CONTENIDO_TOTAL)
+    - Si el contenido no pasa validar_antes_de_paginar, devuelve [] (cero páginas)
+    
     Si deduplicate=True (solo para reparaciones administrativas), elimina
     bloques consecutivos idénticos para evitar páginas duplicadas cuando el
     contenido origen tiene párrafos repetidos (corrupción de datos).
     En flujo normal (deduplicate=False) se conserva TODO el contenido."""
+    # BARRERA OBLIGATORIA: validar ANTES de paginar
+    validacion = validar_antes_de_paginar(content, fuente="content")
+    if not validacion["valid"]:
+        return []
+    
     if not content or not content.strip():
         return []
 
@@ -166,6 +192,9 @@ def paginar_desde_contenido(content: str, deduplicate: bool = False):
         longitud_actual += len(bloque) + 2
 
     cerrar_pagina()
+    
+    # Verificación final: no páginas vacías, contenido no vacío
+    paginas = [p for p in paginas if p.strip()]
     return paginas
 
 
@@ -173,8 +202,19 @@ def paginar_desde_contenido_con_capitulos(content: str, deduplicate: bool = Fals
     """Pagina libros sin PDF desde su contenido textual y detecta capítulos
     sobre las páginas generadas (misma regla que los PDF: encabezados
     reconocibles). Nunca inventa capítulos: si no hay encabezados válidos,
-    capitulos = []. Devuelve (paginas, capitulos)."""
+    capitulos = [].
+    
+    REGLAS OBLIGATORIAS (barrera de entrada):
+    - NO pagina placeholders (CONTENIDO_NO_DISPONIBLE)
+    - NO pagina contenido patológico (duplicación masiva)
+    - NO pagina contenido basura (extracción degradada)
+    - NO pagina contenido insuficiente (< MIN_CONTENIDO_TOTAL)
+    - Si el contenido no pasa validar_antes_de_paginar, devuelve ([], [])
+    
+    Devuelve (paginas, capitulos)."""
     paginas = paginar_desde_contenido(content, deduplicate=deduplicate)
+    if not paginas:
+        return [], []
     capitulos = detectar_capitulos(paginas)
     return paginas, capitulos
 
@@ -411,15 +451,74 @@ def validar_contenido_libro(content, paginas=None, fuente="pdf"):
     return {"valid": not errores, "errors": errores, "detalle": detalle}
 
 
-def procesar_contenido_para_publicacion(pdf_path=None, content=None, fuente="pdf"):
-    """Pipeline central de contenido: extracción -> capítulos -> validación.
+def validar_archivo_pdf(pdf_path: str) -> dict:
+    """Valida un archivo PDF ANTES de intentar extracción.
+    
+    Comprueba:
+    - Existe el archivo
+    - Es un archivo (no directorio)
+    - Puede abrirse
+    - Tiene formato PDF válido (magic bytes %PDF)
+    - Contiene al menos una página
+    
+    Devuelve {"valid": bool, "errors": [str], "pdf_path": str|None}.
+    Si no es válido, NO se debe intentar extracción."""
+    errors = []
+    
+    if not pdf_path:
+        errors.append("pdf_path no proporcionado")
+        return {"valid": False, "errors": errors, "pdf_path": None}
+    
+    if not os.path.exists(pdf_path):
+        errors.append(f"Archivo no encontrado: {pdf_path}")
+        return {"valid": False, "errors": errors, "pdf_path": None}
+    
+    if not os.path.isfile(pdf_path):
+        errors.append(f"La ruta no es un archivo: {pdf_path}")
+        return {"valid": False, "errors": errors, "pdf_path": None}
+    
+    # Verificar magic bytes PDF
+    try:
+        with open(pdf_path, "rb") as f:
+            header = f.read(1024)
+        if b"%PDF" not in header[:1024]:
+            errors.append("Archivo no es un PDF válido (falta magic bytes %PDF)")
+            return {"valid": False, "errors": errors, "pdf_path": pdf_path}
+    except Exception as e:
+        errors.append(f"No se puede abrir el archivo: {e}")
+        return {"valid": False, "errors": errors, "pdf_path": pdf_path}
+    
+    # Verificar que tiene páginas (pypdf)
+    try:
+        from pypdf import PdfReader
+        reader = PdfReader(pdf_path)
+        if len(reader.pages) == 0:
+            errors.append("PDF sin páginas")
+            return {"valid": False, "errors": errors, "pdf_path": pdf_path}
+    except Exception as e:
+        errors.append(f"Error leyendo estructura PDF: {e}")
+        return {"valid": False, "errors": errors, "pdf_path": pdf_path}
+    
+    return {"valid": True, "errors": [], "pdf_path": pdf_path}
 
-    - Con pdf_path: extrae el PDF. Si no hay texto extraíble, devuelve validación fallida.
-    - Sin pdf_path: pagina desde el contenido textual (Gutenberg, contenido
-      previo) y valida.
+
+def procesar_contenido_para_publicacion(pdf_path=None, content=None, fuente="pdf"):
+    """Pipeline central de contenido: validación archivo -> extracción -> capítulos -> validación.
+
+    - Con pdf_path: valida archivo -> extrae el PDF. Si falla validación o extracción, devuelve validación fallida.
+    - Sin pdf_path: pagina desde el contenido textual (Gutenberg, contenido previo) y valida.
     Devuelve {"content", "paginas", "capitulos", "validacion"}. El llamador
     decide: si validacion["valid"] es False, NO debe publicar ni paginar."""
     if pdf_path:
+        # BARRERA: validar archivo ANTES de extraer
+        validacion_archivo = validar_archivo_pdf(pdf_path)
+        if not validacion_archivo["valid"]:
+            return {
+                "content": CONTENIDO_NO_DISPONIBLE,
+                "paginas": [],
+                "capitulos": [],
+                "validacion": {"valid": False, "errors": validacion_archivo["errors"], "detalle": {"fuente": "validacion_archivo"}},
+            }
         try:
             content, paginas, capitulos = extraer_contenido_libro(pdf_path)
         except PDFSinTextoExtraible as e:

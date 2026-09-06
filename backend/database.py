@@ -125,12 +125,24 @@ def init_db():
         cursor.execute("ALTER TABLE books ADD COLUMN IF NOT EXISTS page_count INTEGER DEFAULT 0")
         cursor.execute("ALTER TABLE books ADD COLUMN IF NOT EXISTS paginated_at TEXT")
         # Source tracking (FASE 1 - Pipeline de libros): campos para trazabilidad de origen
-        # NO EJECUTAR EN PRODUCCIÓN HASTA APROBACIÓN EXPLÍCITA - documentados aquí para migración futura
         cursor.execute("ALTER TABLE books ADD COLUMN IF NOT EXISTS source TEXT")
         cursor.execute("ALTER TABLE books ADD COLUMN IF NOT EXISTS source_url TEXT")
         cursor.execute("ALTER TABLE books ADD COLUMN IF NOT EXISTS source_id TEXT")
         cursor.execute("ALTER TABLE books ADD COLUMN IF NOT EXISTS source_format TEXT")
         cursor.execute("ALTER TABLE books ADD COLUMN IF NOT EXISTS source_hash TEXT")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        pass
+
+    # UNIQUE index sobre source_hash (previene duplicados a nivel DB)
+    # Solo aplica a valores no NULL (允许多 libros sin hash durante backfill)
+    try:
+        cursor.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_books_source_hash
+            ON books(source_hash)
+            WHERE source_hash IS NOT NULL
+        """)
         conn.commit()
     except Exception as e:
         conn.rollback()

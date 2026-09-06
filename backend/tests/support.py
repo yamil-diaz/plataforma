@@ -86,6 +86,22 @@ class FakeCursor:
                     })
             self._last_result = results
 
+        elif q.startswith("select source_hash from books where source_hash is not null"):
+            results = []
+            for book in self.state["books"].values():
+                h = book.get("source_hash")
+                if h:
+                    results.append({"source_hash": h})
+            self._last_result = results
+
+        elif q.startswith("select id, source_hash from books where source_hash = %s"):
+            target_hash = params[0]
+            self._last_result = None
+            for book in self.state["books"].values():
+                if book.get("source_hash") == target_hash:
+                    self._last_result = {"id": book["id"], "source_hash": target_hash}
+                    break
+
         elif q.startswith("select id from books where content = %s limit 1"):
             # Duplicate check by content hash
             target_content = params[0] if params else ""
@@ -130,12 +146,31 @@ class FakeCursor:
         elif q.startswith("insert into books") and "returning id" in q:
             new_id = self.state["next_book_id"]
             self.state["next_book_id"] += 1
-            if len(params) == 10:
+            source = None
+            source_hash = None
+            uploader_id = None
+            if len(params) == 14:
+                (title, author_name, content, category, price, cover_url,
+                 pdf_path, _v1, _v2, _v3, _v4, published, now,
+                 source) = params
+                source_hash = params[13] if len(params) > 13 else None
+            elif len(params) == 15:
+                (title, author_name, content, category, price, cover_url,
+                 pdf_path, _v1, _v2, _v3, _v4, published, now,
+                 source, source_hash) = params
+            elif len(params) == 11:
+                (title, author_name, content, category, price, cover_url,
+                 pdf_path, published, now, uploader_id, source_hash) = params
+            elif len(params) == 10:
                 title, author_name, content, category, price, cover_url, pdf_path, published, now, uploader_id = params
+            elif len(params) == 9:
+                (title, author_name, content, category, price, cover_url,
+                 pdf_path, now, source_hash) = params
+                source = "import"
+                published = 1
             else:
                 title, author_name, content, category, price, cover_url, pdf_path, now = params
                 published = 1
-                uploader_id = None
             self.state["books"][new_id] = {
                 "id": new_id,
                 "title": title,
@@ -152,8 +187,10 @@ class FakeCursor:
                 "total_reviews": 0,
                 "published": published,
                 "created_at": now,
-                "uploader_id": uploader_id,
+                "uploader_id": uploader_id if len(params) in (10, 11) else None,
                 "page_count": 0,
+                "source": source,
+                "source_hash": source_hash,
             }
             self._last_result = {"id": new_id}
             self.rowcount = 1

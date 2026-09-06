@@ -10,6 +10,7 @@ import logging
 import hashlib
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, List
+from hash_utils import calcular_hash_archivo, calcular_hash_texto
 
 import jwt
 import bcrypt
@@ -40,54 +41,34 @@ import lectura
 from ai_service import process_chat, AIServiceError
 import ai_conversations
 
+# Importar configuración centralizada de storage
+from storage_config import (
+    STORAGE_DIR,
+    STORAGE_BOOKS,
+    STORAGE_COVERS,
+    STORAGE_VIDEOS,
+    TEMP_DIR,
+    ensure_storage_directories,
+    migrate_legacy_storage,
+    BASE_DIR,
+    DEFAULT_STORAGE_DIR,
+)
+
+# Alias para compatibilidad con tests
+_migrar_storage_legacy = migrate_legacy_storage
+
 # Logger del servidor (FASE 8.4): registro mínimo y seguro del endpoint IA.
 # Nunca se registran tokens, cookies, contraseñas ni contenido de mensajes.
 logger_server = logging.getLogger("aeternum.server")
 
-# ── Directorios de almacenamiento ───────────────────────────────────────────
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_STORAGE_DIR = os.path.join(BASE_DIR, "storage")
-# STORAGE_DIR permite apuntar el almacenamiento a un medio persistente (p. ej.
-# el Persistent Disk de Render montado en /var/data/aeternum). Sin la variable
-# se mantiene exactamente el comportamiento actual (backend/storage).
-STORAGE_DIR = os.path.abspath(os.getenv("STORAGE_DIR") or DEFAULT_STORAGE_DIR)
-STORAGE_BOOKS = os.path.join(STORAGE_DIR, "books")
-STORAGE_COVERS = os.path.join(STORAGE_DIR, "covers")
-STORAGE_VIDEOS = os.path.join(STORAGE_DIR, "videos")
-TEMP_DIR = os.path.join(STORAGE_DIR, "temp")
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend_dist")
 
 # Crear directorios ANTES de que FastAPI los monte como StaticFiles
 # NOTA: FRONTEND_DIR lo crea el build de npm — no lo creamos aquí
-for directory in (STORAGE_BOOKS, STORAGE_COVERS, STORAGE_VIDEOS, TEMP_DIR):
-    os.makedirs(directory, exist_ok=True)
+ensure_storage_directories()
 
-
-def _migrar_storage_legacy():
-    """Copia idempotente (NUNCA mueve ni borra) de los archivos del directorio
-    por defecto al directorio configurado vía STORAGE_DIR (p. ej. el Persistent
-    Disk de Render). Se ejecuta en cada arranque: si el destino ya tiene el
-    archivo, no se vuelve a copiar; si el origen no existe, no hace nada."""
-    if os.path.abspath(STORAGE_DIR) == os.path.abspath(DEFAULT_STORAGE_DIR):
-        return
-    for subdir in ("books", "covers", "videos"):
-        origen = os.path.join(DEFAULT_STORAGE_DIR, subdir)
-        destino = os.path.join(STORAGE_DIR, subdir)
-        if not os.path.isdir(origen):
-            continue
-        os.makedirs(destino, exist_ok=True)
-        for nombre in os.listdir(origen):
-            ruta_origen = os.path.join(origen, nombre)
-            if os.path.isfile(ruta_origen):
-                ruta_destino = os.path.join(destino, nombre)
-                if not os.path.exists(ruta_destino):
-                    try:
-                        shutil.copy2(ruta_origen, ruta_destino)
-                    except OSError:
-                        pass
-
-
-_migrar_storage_legacy()
+# Migración legacy idempotente
+migrate_legacy_storage()
 
 
 def _normalizar_texto(texto: str) -> str:
@@ -103,38 +84,58 @@ def _normalizar_texto(texto: str) -> str:
 
 
 def _calcular_hash_pdf(pdf_path: str) -> str:
-    """Calcula SHA-256 del archivo PDF."""
-    h = hashlib.sha256()
-    with open(pdf_path, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            h.update(chunk)
-    return h.hexdigest()
+    """Calcula SHA-256 del archivo PDF. Delega a hash_utils."""
+    return calcular_hash_archivo(pdf_path)
 
 
-def _verificar_duplicado(cursor, title: str, author_name: str, content: str, pdf_path: str = None, pdf_hash: str = None) -> Optional[int]:
+def _cargar_hashes_existentes(cursor) -> set:
+    """Carga todos los source_hash no nulos de books en un set para dedup O(1)."""
+    cursor.execute("SELECT source_hash FROM books WHERE source_hash IS NOT NULL")
+    return {row["source_hash"] for row in cursor.fetchall() if row.get("source_hash")}
+
+
+class DeduplicationUnavailable(Exception):
+    """Se lanza cuando la deduplicación no puede ejecutarse porque falta
+    el conjunto pre-cargado de hashes. Esto previene que libros se inserten
+    sin verificación de duplicados."""
+    pass
+
+
+def _verificar_duplicado(cursor, title: str, author_name: str, content: str,
+                         pdf_path: str = None, pdf_hash: str = None,
+                         existing_hashes: set = None) -> Optional[int]:
     """
     Verifica si ya existe un libro duplicado.
     Prioridad:
     1. Si hay PDF: buscar por SHA-256 del PDF (duplicado real de archivo).
+       - Primero check against existing_hashes set (O(1)) si está disponible.
+       - Si el set no se proporcionó → lanza DeduplicationUnavailable.
        Si el hash coincide → duplicado real (mismo archivo).
        Si el hash NO coincide → NO es duplicado, permitir aunque título/autor coincidan.
     2. Si NO hay PDF (pdf_hash is None): buscar por título+autor normalizado (fallback para contenido sin PDF).
     Retorna el ID del libro existente si hay duplicado, None si no.
+    Lanza DeduplicationUnavailable si existing_hashes es None y se requiere dedup por hash.
     """
     # 1. Si hay PDF, buscar por hash. Si coincide → duplicado.
-    # Si NO coincide → NO es duplicado, NO verificar título+autor.
     if pdf_hash:
-        cursor.execute(
-            "SELECT id, pdf_path FROM books WHERE pdf_path IS NOT NULL",
+        # Fast path: check against pre-loaded hash set (O(1))
+        if existing_hashes is not None:
+            if pdf_hash not in existing_hashes:
+                return None
+            # Hash found in set → need to find which book has it
+            cursor.execute(
+                "SELECT id, source_hash FROM books WHERE source_hash = %s LIMIT 1",
+                (pdf_hash,),
+            )
+            row = cursor.fetchone()
+            return row["id"] if row else None
+
+        # Sin set pre-cargado → NO se puede verificar. Fail closed, not open.
+        raise DeduplicationUnavailable(
+            "No se puede verificar duplicados: existing_hashes no proporcionado. "
+            "Todos los callers deben pre-cargar el conjunto de hashes con "
+            "_cargar_hashes_existentes() antes de llamar a _verificar_duplicado."
         )
-        for row in cursor.fetchall():
-            existing_pdf = _resolver_pdf_path(row["pdf_path"])
-            if existing_pdf and os.path.isfile(existing_pdf):
-                existing_hash = _calcular_hash_pdf(existing_pdf)
-                if existing_hash == pdf_hash:
-                    return row["id"]
-        # Hash no coincidió con ningún PDF existente → NO es duplicado
-        return None
 
     # 2. Fallback: solo si NO hay PDF (pdf_hash is None), verificar título+autor
     title_norm = _normalizar_texto(title)
@@ -2126,6 +2127,9 @@ async def create_book(
     db = get_db()
     cursor = db.cursor()
 
+    # Pre-load existing hashes for O(1) duplicate detection
+    existing_hashes = _cargar_hashes_existentes(cursor)
+
     pdf_path = None
     cover_path = None
     content = lectura.CONTENIDO_NO_DISPONIBLE
@@ -2159,7 +2163,7 @@ async def create_book(
 
         # Verificar duplicado ANTES de insertar (título+autor normalizado o hash de PDF)
         pdf_hash = _calcular_hash_pdf(pdf_path) if pdf_path and os.path.isfile(pdf_path) else None
-        dup_id = _verificar_duplicado(cursor, title, author_name, content, pdf_path, pdf_hash)
+        dup_id = _verificar_duplicado(cursor, title, author_name, content, pdf_path, pdf_hash, existing_hashes)
         if dup_id:
             raise HTTPException(
                 status_code=409,
@@ -2183,11 +2187,11 @@ async def create_book(
         # libros fantasma ni libros sin páginas).
         cursor.execute(
             """
-            INSERT INTO books (title, author_name, content, category, price, cover_image_url, pdf_path, views, likes, average_rating, total_reviews, published, created_at, uploader_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, 0, 0, 0.0, 0, %s, %s, %s)
+            INSERT INTO books (title, author_name, content, category, price, cover_image_url, pdf_path, views, likes, average_rating, total_reviews, published, created_at, uploader_id, source, source_hash)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 0, 0, 0.0, 0, %s, %s, %s, 'upload', %s)
             RETURNING id
             """,
-            (title, author_name, content, category, price, cover_url, pdf_path, published_status, now, user["id"]),
+            (title, author_name, content, category, price, cover_url, pdf_path, published_status, now, user["id"], pdf_hash),
         )
         book_id = cursor.fetchone()["id"]
 
@@ -2210,6 +2214,20 @@ async def create_book(
                 except OSError:
                     pass
         raise
+    except psycopg2.errors.UniqueViolation:
+        # UNIQUE constraint en source_hash: otro proceso insertó el mismo hash.
+        db.rollback()
+        for ruta in (pdf_path, cover_path):
+            if ruta and os.path.exists(ruta):
+                try:
+                    os.remove(ruta)
+                except OSError:
+                    pass
+        raise HTTPException(
+            status_code=409,
+            detail="Ya existe un libro con el mismo archivo (hash duplicado). "
+                   "No se permiten duplicados.",
+        )
     except Exception as e:
         db.rollback()
         # Sin filas huérfanas en BD (rollback) y sin archivos huérfanos en disco.
@@ -2238,12 +2256,19 @@ async def create_book(
     }
 
 
+MAX_IMPORT_PDF_COUNT = 20  # Límite de PDFs por solicitud de importación vía API web
+
+
 def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default_price: float):
     import pypdf
+    import psycopg2 as _psycopg2
 
     db = get_db()
     cursor = db.cursor()
     task_status = import_tasks[task_id]
+
+    # Pre-load existing hashes for O(1) duplicate detection
+    existing_hashes = _cargar_hashes_existentes(cursor)
 
     try:
         task_temp_dir = os.path.join(TEMP_DIR, task_id)
@@ -2262,6 +2287,15 @@ def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default
         image_files = [
             file for file in all_files if file.lower().endswith((".jpg", ".jpeg", ".png", ".webp"))
         ]
+
+        # Límite de PDFs por solicitud (estabilidad del backend)
+        if len(pdf_files) > MAX_IMPORT_PDF_COUNT:
+            task_status["status"] = "failed"
+            task_status["message"] = (
+                f"Demasiados PDFs: {len(pdf_files)} encontrados, máximo {MAX_IMPORT_PDF_COUNT}. "
+                "Divide el archivo en lotes más pequeños o usa import_masiva.py para cargas grandes."
+            )
+            return
 
         task_status["total"] = len(pdf_files)
         task_status["message"] = f"Encontrados {len(pdf_files)} PDFs. Iniciando procesamiento..."
@@ -2320,7 +2354,7 @@ def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default
 
                 # Verificar duplicado ANTES de insertar
                 pdf_hash = _calcular_hash_pdf(pdf) if pdf and os.path.isfile(pdf) else None
-                dup_id = _verificar_duplicado(cursor, title, author, content, pdf, pdf_hash)
+                dup_id = _verificar_duplicado(cursor, title, author, content, pdf, pdf_hash, existing_hashes)
                 if dup_id:
                     task_status["errors"].append(
                         f"Duplicado detectado en {filename}: ya existe libro ID {dup_id} con mismo contenido"
@@ -2342,22 +2376,38 @@ def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default
                     cover_url = f"/static/covers/{unique_cover_name}"
 
                 now = datetime.now(timezone.utc).isoformat()
-                cursor.execute(
-                    """
-                    INSERT INTO books (title, author_name, content, category, price, cover_image_url, pdf_path, views, likes, average_rating, total_reviews, published, created_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, 0, 0, 0.0, 0, 1, %s)
-                    RETURNING id
-                    """,
-                    (title, author, content, default_category, default_price, cover_url, final_pdf_path, now),
-                )
-                new_book_id = cursor.fetchone()["id"]
-                if paginas_libro:
-                    _guardar_paginas_libro(cursor, new_book_id, paginas_libro, capitulos_libro)
+                try:
                     cursor.execute(
-                        "UPDATE books SET page_count = %s, paginated_at = %s WHERE id = %s",
-                        (len(paginas_libro), now, new_book_id),
+                        """
+                        INSERT INTO books (title, author_name, content, category, price, cover_image_url, pdf_path, views, likes, average_rating, total_reviews, published, created_at, source, source_hash)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, 0, 0, 0.0, 0, 1, %s, 'import', %s)
+                        RETURNING id
+                        """,
+                        (title, author, content, default_category, default_price, cover_url, final_pdf_path, now, pdf_hash),
                     )
-                db.commit()
+                    new_book_id = cursor.fetchone()["id"]
+                    if paginas_libro:
+                        _guardar_paginas_libro(cursor, new_book_id, paginas_libro, capitulos_libro)
+                        cursor.execute(
+                            "UPDATE books SET page_count = %s, paginated_at = %s WHERE id = %s",
+                            (len(paginas_libro), now, new_book_id),
+                        )
+                    db.commit()
+                except Exception as insert_err:
+                    db.rollback()
+                    # UNIQUE violation: el hash ya existe en la DB (concurrencia)
+                    if hasattr(insert_err, 'pgcode') and insert_err.pgcode == '23505':
+                        task_status["errors"].append(
+                            f"Duplicado detectado en {filename}: UNIQUE constraint en source_hash"
+                        )
+                        # Limpiar PDF copiado
+                        try:
+                            os.remove(final_pdf_path)
+                        except OSError:
+                            pass
+                        continue
+                    # Otro error de INSERT: re-lanzar para que el handler general lo capture
+                    raise
 
                 task_status["processed"] += 1
                 task_status["message"] = (
@@ -2378,6 +2428,7 @@ def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default
         )
     except Exception as e:
         task_status["status"] = "failed"
+        task_status["message"] = f"Error crítico en la importación: {str(e)}"
         task_status["message"] = f"Error crítico en la importación: {str(e)}"
     finally:
         db.close()
@@ -3519,9 +3570,7 @@ async def fetch_gutenberg_book(book_id: int = Form(...), request: Request = None
         source_url = text_url
         source_id = str(book_id)
         source_format = "text/plain"
-        # source_hash: hash del contenido para detectar cambios
-        import hashlib
-        source_hash = hashlib.sha256(contenido_recortado.encode()).hexdigest()
+        source_hash = calcular_hash_texto(contenido_recortado)
         
         validacion = lectura.validar_contenido_libro(contenido_recortado, None, fuente="gutenberg")
         if not validacion["valid"]:
