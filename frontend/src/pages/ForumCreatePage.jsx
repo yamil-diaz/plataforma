@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { API } from '../utils/api';
+import { API } from '../config/api';
+import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { Navbar } from '../components/Navbar';
 import {
@@ -30,7 +31,7 @@ export default function ForumCreatePage() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const res = await API.get('/api/forum/categories');
+        const res = await axios.get(`${API}/forum/categories`);
         setCategories(res.data.categories || res.data);
       } catch (err) {
         console.error('Error fetching categories:', err);
@@ -86,7 +87,7 @@ export default function ForumCreatePage() {
       if (bookId.trim()) {
         payload.book_id = parseInt(bookId);
       }
-      const res = await API.post('/api/forum/posts', payload);
+      const res = await axios.post(`${API}/forum/posts`, payload);
       navigate(`/forum/post/${res.data.post.id}`);
     } catch (err) {
       console.error('Error creating post:', err);
