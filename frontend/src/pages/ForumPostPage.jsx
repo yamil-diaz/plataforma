@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { API } from '../config/api';
+import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { Navbar } from '../components/Navbar';
 import {
@@ -63,7 +64,7 @@ export default function ForumPostPage() {
 
   const fetchPost = useCallback(async () => {
     try {
-      const res = await API.get(`/api/forum/posts/${postId}`);
+      const res = await axios.get(`${API}/forum/posts/${postId}`);
       setPost(res.data.post);
       setLiked(res.data.user_liked);
       setBookmarked(res.data.user_bookmarked);
@@ -75,7 +76,7 @@ export default function ForumPostPage() {
 
   const fetchReplies = useCallback(async (page = 1) => {
     try {
-      const res = await API.get(`/api/forum/posts/${postId}/replies`, {
+      const res = await axios.get(`${API}/forum/posts/${postId}/replies`, {
         params: { page, limit: 10 }
       });
       setReplies(res.data.replies);
@@ -100,7 +101,7 @@ export default function ForumPostPage() {
 
   const handleLike = async () => {
     try {
-      const res = await API.post(`/api/forum/posts/${postId}/like`);
+      const res = await axios.post(`${API}/forum/posts/${postId}/like`);
       setLiked(res.data.liked);
       setPost(prev => ({ ...prev, like_count: res.data.like_count }));
     } catch (err) {
@@ -110,7 +111,7 @@ export default function ForumPostPage() {
 
   const handleBookmark = async () => {
     try {
-      const res = await API.post(`/api/forum/posts/${postId}/bookmark`);
+      const res = await axios.post(`${API}/forum/posts/${postId}/bookmark`);
       setBookmarked(res.data.bookmarked);
     } catch (err) {
       console.error('Error toggling bookmark:', err);
@@ -119,7 +120,7 @@ export default function ForumPostPage() {
 
   const handleFollow = async () => {
     try {
-      const res = await API.post(`/api/forum/posts/${postId}/follow`);
+      const res = await axios.post(`${API}/forum/posts/${postId}/follow`);
       setFollowing(res.data.following);
     } catch (err) {
       console.error('Error toggling follow:', err);
@@ -131,7 +132,7 @@ export default function ForumPostPage() {
     if (!replyContent.trim() || replyContent.length < 2) return;
     setSubmitting(true);
     try {
-      await API.post(`/api/forum/posts/${postId}/replies`, { content: replyContent });
+      await axios.post(`${API}/forum/posts/${postId}/replies`, { content: replyContent });
       setReplyContent('');
       await fetchReplies(repliesMeta.pages);
     } catch (err) {
@@ -143,7 +144,7 @@ export default function ForumPostPage() {
 
   const handleAcceptReply = async (replyId) => {
     try {
-      await API.post(`/api/forum/replies/${replyId}/accept`);
+      await axios.post(`${API}/forum/replies/${replyId}/accept`);
       await Promise.all([fetchPost(), fetchReplies(repliesMeta.page)]);
     } catch (err) {
       console.error('Error accepting reply:', err);
@@ -153,7 +154,7 @@ export default function ForumPostPage() {
   const handleEditReply = async (replyId) => {
     if (!editContent.trim() || editContent.length < 2) return;
     try {
-      await API.put(`/api/forum/replies/${replyId}`, { content: editContent });
+      await axios.put(`${API}/forum/replies/${replyId}`, { content: editContent });
       setEditingReplyId(null);
       setEditContent('');
       await fetchReplies(repliesMeta.page);
@@ -167,10 +168,10 @@ export default function ForumPostPage() {
     setDeleting(true);
     try {
       if (deleteConfirm.type === 'post') {
-        await API.delete(`/api/forum/posts/${postId}`);
+        await axios.delete(`${API}/forum/posts/${postId}`);
         navigate('/forum');
       } else {
-        await API.delete(`/api/forum/replies/${deleteConfirm.id}`);
+        await axios.delete(`${API}/forum/replies/${deleteConfirm.id}`);
         await fetchReplies(repliesMeta.page);
         await fetchPost();
       }
@@ -196,7 +197,7 @@ export default function ForumPostPage() {
       } else {
         payload.reply_id = reportModal.id;
       }
-      await API.post('/api/forum/reports', payload);
+      await axios.post(`${API}/forum/reports`, payload);
       setReportModal({ open: false, type: null, id: null });
       setReportReason('');
       setReportExplanation('');
@@ -209,7 +210,7 @@ export default function ForumPostPage() {
 
   const handleStatusChange = async (status) => {
     try {
-      await API.put(`/api/admin/forum/posts/${postId}/status`, { status });
+      await axios.put(`${API}/admin/forum/posts/${postId}/status`, { status });
       await fetchPost();
     } catch (err) {
       console.error('Error changing status:', err);

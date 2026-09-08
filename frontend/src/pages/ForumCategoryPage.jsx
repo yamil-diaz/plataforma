@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { API } from '../config/api';
+import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { Navbar } from '../components/Navbar';
 import {
@@ -40,8 +41,8 @@ export default function ForumCategoryPage() {
     setLoading(true);
     try {
       const [catRes, postsRes] = await Promise.all([
-        API.get('/api/forum/categories'),
-        API.get('/api/forum/posts', {
+        axios.get(`${API}/forum/categories`),
+        axios.get(`${API}/forum/posts`, {
           params: {
             category: categoryId,
             sort,

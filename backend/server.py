@@ -3644,7 +3644,7 @@ async def create_competition(comp: CompetitionCreate, request: Request):
         emails_list = []
         for u in all_users:
             cursor.execute(
-                "INSERT INTO notifications (user_id, type, content, created_at) VALUES (%s, 'system', %s, %s)",
+                "INSERT INTO notifications (user_id, message, created_at) VALUES (%s, %s, %s)",
                 (u["id"], notif_msg, now)
             )
             if u["email"]:
@@ -3955,7 +3955,7 @@ async def follow_user(username: str, request: Request):
             (current_user["id"], target["id"], now))
 
         # Notificar al usuario seguido
-        cursor.execute("INSERT INTO notifications (user_id, type, content, created_at) VALUES (%s, 'follow', %s, %s)",
+        cursor.execute("INSERT INTO notifications (user_id, message, created_at) VALUES (%s, %s, %s)",
             (target["id"], f"@{current_user['username']} ha empezado a seguirte.", now))
 
         db.commit()
@@ -4037,7 +4037,7 @@ async def donate_rayos(username: str, req: DonationRequest, request: Request):
             )
 
         now = datetime.now(timezone.utc).isoformat()
-        cursor.execute("INSERT INTO notifications (user_id, type, content, created_at) VALUES (%s, 'system', %s, %s)",
+        cursor.execute("INSERT INTO notifications (user_id, message, created_at) VALUES (%s, %s, %s)",
             (target["id"], f"¡Felicidades! @{donor['username']} te ha donado {received} Rayos.", now))
 
         db.commit()
@@ -4752,7 +4752,7 @@ async def forum_create_reply(post_id: int, request: Request):
             if post["user_id"] and post["user_id"] != user["id"]:
                 notif_content = f"@{user.get('username', 'usuario')} respondió a tu publicación '{post.get('title', '')}'"
                 cursor.execute(
-                    "INSERT INTO notifications (user_id, type, content, created_at) VALUES (%s, 'forum_reply', %s, %s)",
+                    "INSERT INTO notifications (user_id, message, created_at) VALUES (%s, %s, %s)",
                     (post["user_id"], notif_content, now),
                 )
             cursor.execute(
@@ -4763,7 +4763,7 @@ async def forum_create_reply(post_id: int, request: Request):
                 if follower["user_id"] and follower["user_id"] != post.get("user_id"):
                     notif_content = f"Nueva respuesta en '{post.get('title', '')}' que sigues"
                     cursor.execute(
-                        "INSERT INTO notifications (user_id, type, content, created_at) VALUES (%s, 'forum_follow', %s, %s)",
+                        "INSERT INTO notifications (user_id, message, created_at) VALUES (%s, %s, %s)",
                         (follower["user_id"], notif_content, now),
                     )
             db.commit()
@@ -4878,7 +4878,7 @@ async def forum_accept_reply(reply_id: int, request: Request):
             if reply["user_id"] and reply["user_id"] != user["id"]:
                 notif_content = "Tu respuesta fue marcada como solución"
                 cursor.execute(
-                    "INSERT INTO notifications (user_id, type, content, created_at) VALUES (%s, 'forum_accepted', %s, %s)",
+                    "INSERT INTO notifications (user_id, message, created_at) VALUES (%s, %s, %s)",
                     (reply["user_id"], notif_content, datetime.now(timezone.utc).isoformat()),
                 )
                 db.commit()

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { API } from '../config/api';
+import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { Navbar } from '../components/Navbar';
 import {
@@ -90,7 +91,7 @@ export default function AdminForumPage() {
 
   const fetchDashboard = useCallback(async () => {
     try {
-      const res = await API.get('/api/admin/forum/stats');
+      const res = await axios.get(`${API}/admin/forum/stats`);
       setStats(res.data);
     } catch (err) {
       console.error('Error fetching stats:', err);
@@ -102,7 +103,7 @@ export default function AdminForumPage() {
     try {
       const params = { page: postsPage, limit: 15 };
       if (postsStatusFilter) params.status = postsStatusFilter;
-      const res = await API.get('/api/admin/forum/posts', { params });
+      const res = await axios.get(`${API}/admin/forum/posts`, { params });
       setPosts(res.data.posts || []);
       setPostsMeta({
         total: res.data.total || 0,
@@ -121,7 +122,7 @@ export default function AdminForumPage() {
     try {
       const params = { page: reportsPage, limit: 15 };
       if (reportsStatusFilter) params.status = reportsStatusFilter;
-      const res = await API.get('/api/admin/forum/reports', { params });
+      const res = await axios.get(`${API}/admin/forum/reports`, { params });
       setReports(res.data.reports || []);
       setReportsMeta({
         total: res.data.total || 0,
@@ -138,7 +139,7 @@ export default function AdminForumPage() {
   const fetchCategories = useCallback(async () => {
     setCategoriesLoading(true);
     try {
-      const res = await API.get('/api/forum/categories');
+      const res = await axios.get(`${API}/forum/categories`);
       setCategories(res.data.categories || res.data);
     } catch (err) {
       console.error('Error fetching categories:', err);
@@ -150,7 +151,7 @@ export default function AdminForumPage() {
   const fetchAudit = useCallback(async () => {
     setAuditLoading(true);
     try {
-      const res = await API.get('/api/admin/forum/audit');
+      const res = await axios.get(`${API}/admin/forum/audit`);
       setAuditLogs(res.data.logs || res.data);
     } catch (err) {
       console.error('Error fetching audit logs:', err);
@@ -187,7 +188,7 @@ export default function AdminForumPage() {
 
   const handleStatusChange = async (postId, status) => {
     try {
-      await API.put(`/api/admin/forum/posts/${postId}/status`, { status });
+      await axios.put(`${API}/admin/forum/posts/${postId}/status`, { status });
       fetchPosts();
     } catch (err) {
       console.error('Error changing status:', err);
@@ -196,7 +197,7 @@ export default function AdminForumPage() {
 
   const handlePinToggle = async (postId) => {
     try {
-      await API.put(`/api/admin/forum/posts/${postId}/pin`);
+      await axios.put(`${API}/admin/forum/posts/${postId}/pin`);
       fetchPosts();
     } catch (err) {
       console.error('Error toggling pin:', err);
@@ -207,7 +208,7 @@ export default function AdminForumPage() {
     if (!resolveModal.report) return;
     setResolving(true);
     try {
-      await API.put(`/api/admin/forum/reports/${resolveModal.report.id}`, {
+      await axios.put(`${API}/admin/forum/reports/${resolveModal.report.id}`, {
         status: resolveStatus,
         admin_note: adminNote
       });
@@ -227,12 +228,12 @@ export default function AdminForumPage() {
     setCategorySaving(true);
     try {
       if (categoryModal.edit) {
-        await API.put(`/api/admin/forum/categories/${categoryModal.edit.id}`, {
+        await axios.put(`${API}/admin/forum/categories/${categoryModal.edit.id}`, {
           name: categoryName.trim(),
           description: categoryDesc.trim()
         });
       } else {
-        await API.post('/api/admin/forum/categories', {
+        await axios.post(`${API}/admin/forum/categories`, {
           name: categoryName.trim(),
           description: categoryDesc.trim()
         });
@@ -250,7 +251,7 @@ export default function AdminForumPage() {
 
   const handleCategoryDeactivate = async (catId) => {
     try {
-      await API.put(`/api/admin/forum/categories/${catId}/deactivate`);
+      await axios.put(`${API}/admin/forum/categories/${catId}/deactivate`);
       fetchCategories();
     } catch (err) {
       console.error('Error deactivating category:', err);
