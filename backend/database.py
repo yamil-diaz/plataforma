@@ -251,6 +251,8 @@ def init_db():
     )
     """)
 
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id)")
+
     # ── Tabla de interacciones (Likes/Dislikes) ──────────────────────────────
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS book_interactions (
