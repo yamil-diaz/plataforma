@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { API } from '../config/api';
+import { API } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
 import { Navbar } from '../components/Navbar';
 import {
