@@ -88,7 +88,7 @@ export default function ForumCreatePage() {
         payload.book_id = parseInt(bookId);
       }
       const res = await axios.post(`${API}/forum/posts`, payload);
-      navigate(`/forum/post/${res.data.post.id}`);
+      navigate(`/forum/post/${res.data.id}`);
     } catch (err) {
       console.error('Error creating post:', err);
       if (err.response?.data?.error) {
