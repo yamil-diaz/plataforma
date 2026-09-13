@@ -9,6 +9,7 @@ import re
 import logging
 import hashlib
 from datetime import datetime, timezone, timedelta
+from decimal import Decimal
 from typing import Optional, Dict, List
 from hash_utils import calcular_hash_archivo, calcular_hash_texto
 
@@ -53,6 +54,12 @@ from storage_config import (
     BASE_DIR,
     DEFAULT_STORAGE_DIR,
 )
+
+# Comercio
+import flow_service
+import commerce_service
+import payment_providers
+import webhook_handler
 
 # Alias para compatibilidad con tests
 _migrar_storage_legacy = migrate_legacy_storage
@@ -296,6 +303,13 @@ try:
     migrate_db_foro.migrate()
 except Exception as e:
     print(f"Error ejecutando migración del foro: {e}")
+
+# Comercio: migración idempotente
+try:
+    import migrate_db_commerce
+    migrate_db_commerce.migrate()
+except Exception as e:
+    print(f"Error ejecutando migración de comercio: {e}")
 
 # ── Aplicación FastAPI ───────────────────────────────────────────────────────
 app = FastAPI(title="Aeternum API")
@@ -649,8 +663,11 @@ async def health_check():
 
 
 @api_router.get("/debug/files")
-async def debug_files():
-    """Endpoint temporal para diagnosticar qué archivos y tablas existen en Render."""
+async def debug_files(request: Request):
+    """Endpoint de diagnóstico. Solo accesible para administradores en producción."""
+    user = await get_current_user(request)
+    if not user or user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
     result = {
         "base_dir": BASE_DIR,
         "frontend_dir": FRONTEND_DIR,
@@ -2007,16 +2024,23 @@ async def get_my_books(request: Request):
 
 
 @api_router.get("/books/{book_id}/download")
-async def download_book_pdf(book_id: int):
+async def download_book_pdf(book_id: int, request: Request):
     """Genera un PDF del contenido del libro y lo devuelve para descarga."""
     db = get_db()
     cursor = db.cursor()
     cursor.execute("SELECT * FROM books WHERE id = %s", (book_id,))
     book = cursor.fetchone()
-    db.close()
 
     if not book:
+        db.close()
         raise HTTPException(status_code=404, detail="Libro no encontrado")
+
+    user = await get_current_user_optional(request)
+    if not _puede_acceder_libro(book, user):
+        db.close()
+        raise HTTPException(status_code=403, detail="No tienes acceso a este libro")
+
+    db.close()
 
     # Si el libro ya tiene un PDF almacenado, devolverlo
     pdf_resuelto = _resolver_pdf_path(book["pdf_path"])
@@ -2611,11 +2635,30 @@ async def reading_reward(book_id: int, request: Request):
 # 15/15 y la recompensa. El frontend solo reporta qué página está leyendo.
 
 def _puede_acceder_libro(book, user):
-    """Un libro se puede leer si está publicado, si el usuario es admin o si
-    el usuario es el propio uploader (previsualización de libros pendientes).
-    El resto (terceros y no autenticados) no puede leer un libro pendiente."""
+    """Un libro se puede leer si está publicado, si el usuario es admin, si
+    el usuario es el propio uploader, o si tiene un entitlement activo (compra o alquiler).
+    Para libros de pago (price > 0), se requiere entitlement."""
+    # Libros gratuitos o publicados: acceso libre
     if book["published"]:
-        return True
+        price = book.get("price", 0) or 0
+        if price <= 0:
+            return True
+        # Libro de pago: verificar entitlement si hay usuario
+        if not user:
+            return False
+        if user["role"] == "admin":
+            return True
+        if book.get("uploader_id") is not None and book["uploader_id"] == user["id"]:
+            return True
+        # Verificar entitlement
+        try:
+            from commerce_service import has_access_to_book
+            result = has_access_to_book(get_db(), user["id"], book["id"])
+            return result.get("has_access", False)
+        except Exception:
+            return False
+
+    # Libros no publicados
     if not user:
         return False
     if user["role"] == "admin":
@@ -2767,7 +2810,7 @@ async def start_reading_session(book_id: int, request: Request):
     db = get_db()
     cursor = db.cursor()
     try:
-        cursor.execute("SELECT id, title, published, page_count, uploader_id FROM books WHERE id = %s", (book_id,))
+        cursor.execute("SELECT id, title, published, page_count, uploader_id, price FROM books WHERE id = %s", (book_id,))
         book = cursor.fetchone()
         if not book:
             raise HTTPException(status_code=404, detail="Libro no encontrado")
@@ -2812,7 +2855,7 @@ async def report_page_progress(book_id: int, req: ProgressRequest, request: Requ
     db = get_db()
     cursor = db.cursor()
     try:
-        cursor.execute("SELECT id, title, published, page_count, uploader_id FROM books WHERE id = %s", (book_id,))
+        cursor.execute("SELECT id, title, published, page_count, uploader_id, price FROM books WHERE id = %s", (book_id,))
         book = cursor.fetchone()
         if not book:
             raise HTTPException(status_code=404, detail="Libro no encontrado")
@@ -2944,7 +2987,7 @@ async def get_reading_progress(book_id: int, request: Request):
     db = get_db()
     cursor = db.cursor()
     try:
-        cursor.execute("SELECT id, published, page_count, uploader_id FROM books WHERE id = %s", (book_id,))
+        cursor.execute("SELECT id, published, page_count, uploader_id, price FROM books WHERE id = %s", (book_id,))
         book = cursor.fetchone()
         if not book:
             raise HTTPException(status_code=404, detail="Libro no encontrado")
@@ -2980,7 +3023,7 @@ async def get_book_chapters(book_id: int, request: Request):
     db = get_db()
     cursor = db.cursor()
     try:
-        cursor.execute("SELECT id, title, published, uploader_id FROM books WHERE id = %s", (book_id,))
+        cursor.execute("SELECT id, title, published, uploader_id, price FROM books WHERE id = %s", (book_id,))
         book = cursor.fetchone()
         if not book:
             raise HTTPException(status_code=404, detail="Libro no encontrado")
@@ -3003,7 +3046,7 @@ async def get_book_page(book_id: int, page: int, request: Request):
     db = get_db()
     cursor = db.cursor()
     try:
-        cursor.execute("SELECT id, published, page_count, uploader_id FROM books WHERE id = %s", (book_id,))
+        cursor.execute("SELECT id, published, page_count, uploader_id, price FROM books WHERE id = %s", (book_id,))
         book = cursor.fetchone()
         if not book:
             raise HTTPException(status_code=404, detail="Libro no encontrado")
@@ -5481,6 +5524,1044 @@ async def forum_admin_audit(request: Request, page: int = 1, limit: int = FORUM_
         }
     finally:
         db.close()
+
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMERCIO — Endpoints
+# ══════════════════════════════════════════════════════════════════════════════
+
+@api_router.get("/commerce/currencies")
+async def get_available_currencies():
+    """Retorna las monedas habilitadas y sus símbolos. Público (sin auth)."""
+    return {
+        "currencies": [
+            {"code": code, "symbol": payment_providers.get_currency_symbol(code)}
+            for code in payment_providers.ENABLED_DIGITAL_CURRENCIES
+        ]
+    }
+
+
+@api_router.get("/books/{book_id}/prices")
+async def get_book_prices(book_id: int):
+    """Retorna precios de un libro en todas las monedas habilitadas. Público."""
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        prices = {}
+        for currency in payment_providers.ENABLED_DIGITAL_CURRENCIES:
+            info = commerce_service.get_book_price(db, book_id, currency)
+            if info["found"]:
+                prices[currency] = {
+                    "price": float(info["price"]),
+                    "rental_price": float(info["rental_price"]) if info["rental_price"] else None,
+                    "symbol": payment_providers.get_currency_symbol(currency),
+                }
+        return {"book_id": book_id, "prices": prices}
+    finally:
+        db.close()
+
+
+class CheckoutRequest(BaseModel):
+    book_id: int
+    item_type: str = Field(..., pattern="^(digital_purchase|digital_rental|physical_purchase)$")
+    currency: str = "PEN"
+    rental_days: Optional[int] = None
+    address_id: Optional[int] = None
+
+    @field_validator("currency", mode="before")
+    @classmethod
+    def validate_currency(cls, v):
+        v = (v or "PEN").upper()
+        if v not in payment_providers.ENABLED_DIGITAL_CURRENCIES:
+            raise ValueError(f"Moneda no válida. Use: {', '.join(payment_providers.ENABLED_DIGITAL_CURRENCIES[:5])}...")
+        return v
+
+    @field_validator("rental_days", mode="before")
+    @classmethod
+    def validate_rental_days(cls, v, info):
+        if info.data.get("item_type") == "digital_rental":
+            if v is None:
+                return 14
+            if v not in (7, 14, 30):
+                raise ValueError("Duración de alquiler inválida. Use 7, 14 o 30 días.")
+        return v
+
+
+@api_router.post("/checkout")
+async def create_checkout(req: CheckoutRequest, request: Request):
+    """Crea una orden de pago. Paddle para digitales, Culqi para físicos."""
+    user = await get_current_user(request)
+    from decimal import Decimal
+
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        # Obtener libro real de la DB (nunca confiar en el frontend)
+        cursor.execute(
+            "SELECT id, title, price, published, is_physical, physical_price, stock FROM books WHERE id = %s",
+            (req.book_id,),
+        )
+        book = cursor.fetchone()
+        if not book:
+            raise HTTPException(status_code=404, detail="Libro no encontrado")
+        if not book["published"]:
+            raise HTTPException(status_code=403, detail="Libro no disponible")
+
+        currency = req.currency
+
+        # Validar moneda para físicos: solo PEN/Perú
+        if req.item_type == "physical_purchase":
+            if currency != "PEN":
+                raise HTTPException(status_code=400, detail="Los productos físicos solo están disponibles en PEN (Perú).")
+
+        # Validar moneda digital habilitada
+        if req.item_type in ("digital_purchase", "digital_rental"):
+            if currency not in payment_providers.ENABLED_DIGITAL_CURRENCIES:
+                raise HTTPException(status_code=400, detail=f"Moneda {currency} no habilitada para productos digitales.")
+
+        # Obtener precio desde book_prices o books.price
+        price_info = commerce_service.get_book_price(db, req.book_id, currency)
+
+        if req.item_type == "digital_purchase":
+            if not price_info["found"] or price_info["price"] <= 0:
+                raise HTTPException(status_code=400, detail=f"Este libro no tiene precio configurado para {currency}.")
+            unit_price = price_info["price"]
+
+        elif req.item_type == "digital_rental":
+            if not price_info["found"] or price_info["rental_price"] <= 0:
+                raise HTTPException(status_code=400, detail=f"Este libro no tiene precio de alquiler para {currency}.")
+            unit_price = price_info["rental_price"]
+
+        elif req.item_type == "physical_purchase":
+            if not book["is_physical"]:
+                raise HTTPException(status_code=400, detail="Este libro no está disponible en físico.")
+            unit_price = Decimal(str(book["physical_price"] or 0))
+            if unit_price <= 0:
+                raise HTTPException(status_code=400, detail="Precio físico no configurado.")
+            if (book["stock"] or 0) <= 0:
+                raise HTTPException(status_code=400, detail="Sin stock disponible.")
+            if not req.address_id:
+                raise HTTPException(status_code=400, detail="Dirección de envío requerida.")
+            cursor.execute(
+                "SELECT id, country FROM user_addresses WHERE id = %s AND user_id = %s",
+                (req.address_id, user["id"]),
+            )
+            addr = cursor.fetchone()
+            if not addr:
+                raise HTTPException(status_code=404, detail="Dirección no encontrada")
+            if addr.get("country", "PE") != "PE":
+                raise HTTPException(status_code=400, detail="Los productos físicos solo se envían a Perú.")
+        else:
+            raise HTTPException(status_code=400, detail="Tipo de item inválido")
+
+        items_data = [{
+            "book_id": req.book_id,
+            "item_type": req.item_type,
+            "quantity": 1,
+            "unit_price": unit_price,
+            "rental_days": req.rental_days if req.item_type == "digital_rental" else None,
+        }]
+
+        result = commerce_service.create_order(
+            db, user["id"], req.item_type, currency, items_data,
+            rental_days=req.rental_days if req.item_type == "digital_rental" else None,
+            address_id=req.address_id,
+        )
+
+        if not result["success"]:
+            raise HTTPException(status_code=500, detail=result["error"])
+
+        # Obtener proveedor según tipo de orden
+        provider = payment_providers.get_provider_for_order(req.item_type)
+
+        provider_result = provider.create_checkout(
+            order_number=result["order_number"],
+            amount=result["total"],
+            currency=currency,
+            description=f"Compra en AETERNUM - {book['title']}",
+            email=user["email"],
+            metadata={"book_id": req.book_id, "user_id": user["id"]},
+        )
+
+        if not provider_result["success"]:
+            cursor.execute(
+                "UPDATE orders SET payment_status = 'cancelled', updated_at = %s WHERE id = %s",
+                (datetime.now(timezone.utc).isoformat(), result["order_id"]),
+            )
+            db.commit()
+            raise HTTPException(status_code=502, detail=f"Error al conectar con {provider.name}: {provider_result['error']}")
+
+        # Actualizar orden con datos del proveedor
+        cursor.execute(
+            "UPDATE orders SET provider = %s, provider_token = %s, provider_order_id = %s WHERE id = %s",
+            (provider.name,
+             provider_result.get("provider_token", ""),
+             provider_result.get("provider_order_id", ""),
+             result["order_id"]),
+        )
+        db.commit()
+
+        # Para Culqi (físicos), retornar datos para tokenización del frontend
+        if provider.name == "culqi":
+            return {
+                "order_id": result["order_id"],
+                "order_number": result["order_number"],
+                "checkout_type": "culqi_token",
+                "culqi_data": provider_result,
+                "total": float(result["total"]),
+                "currency": result["currency"],
+            }
+
+        # Para Paddle (digitales), retornar URL de checkout
+        return {
+            "order_id": result["order_id"],
+            "order_number": result["order_number"],
+            "payment_url": provider_result.get("checkout_url", ""),
+            "total": float(result["total"]),
+            "currency": result["currency"],
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+@api_router.get("/checkout/{order_id}")
+async def get_checkout_status(order_id: int, request: Request):
+    """Consulta el estado de una orden."""
+    user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute(
+            """SELECT o.*, oi.book_id, b.title as book_title 
+               FROM orders o
+               LEFT JOIN order_items oi ON oi.order_id = o.id
+               LEFT JOIN books b ON b.id = oi.book_id
+               WHERE o.id = %s AND o.user_id = %s""",
+            (order_id, user["id"]),
+        )
+        order = cursor.fetchone()
+        if not order:
+            raise HTTPException(status_code=404, detail="Orden no encontrada")
+        return {
+            "order_id": order["id"],
+            "order_number": order["order_number"],
+            "order_type": order["order_type"],
+            "payment_status": order["payment_status"],
+            "order_status": order["order_status"],
+            "total": float(order["total"]),
+            "currency": order["currency"],
+            "book_title": order.get("book_title"),
+            "created_at": order["created_at"],
+            "paid_at": order.get("paid_at"),
+        }
+    finally:
+        db.close()
+
+
+@api_router.post("/flow/webhook")
+async def flow_webhook(request: Request):
+    """
+    Webhook de Flow para notificación de pagos.
+    Flow envía POST con un token. El backend debe consultar Flow para obtener el estado real.
+    Flow NO envía firma en callbacks.
+    """
+    # Flow envía content-type: application/x-www-form-urlencoded
+    form_data = await request.form()
+    body = dict(form_data)
+
+    # Fallback: intentar JSON si no hay form data
+    if not body:
+        try:
+            body = await request.json()
+        except Exception:
+            pass
+
+    db = get_db()
+    cursor = db.cursor()
+    now = datetime.now(timezone.utc).isoformat()
+
+    try:
+        # Flow solo envía token
+        token = body.get("token")
+        if not token:
+            cursor.execute(
+                """INSERT INTO payment_events
+                   (provider, event_type, payload, processing_status, error_message, created_at)
+                   VALUES ('flow', 'webhook_no_token', %s, 'failed', 'Token no proporcionado', %s)""",
+                (json.dumps(body), now),
+            )
+            db.commit()
+            return {"status": "error", "message": "Token not provided"}
+
+        # Registrar evento
+        cursor.execute(
+            """INSERT INTO payment_events
+               (provider, provider_event_id, event_type, payload, processing_status, created_at)
+               VALUES ('flow', %s, 'webhook_received', %s, 'received', %s)
+               RETURNING id""",
+            (token, json.dumps(body), now),
+        )
+        event_id = cursor.fetchone()["id"]
+        db.commit()
+
+        # Consultar estado real en Flow (fuente de verdad)
+        verify_result = flow_service.verify_payment(token)
+        if not verify_result["success"]:
+            cursor.execute(
+                "UPDATE payment_events SET processing_status = 'failed', error_message = %s WHERE id = %s",
+                (verify_result.get("error", "Error verificando con Flow"), event_id),
+            )
+            db.commit()
+            return {"status": "error", "message": "Payment verification failed"}
+
+        payment_data = verify_result["data"]
+        flow_status = payment_data.get("status")
+        flow_amount = payment_data.get("amount")
+        flow_currency = payment_data.get("currency")
+        commerce_order = payment_data.get("commerceOrder")
+        flow_order = payment_data.get("flowOrder")
+
+        # Actualizar payment_event con datos de Flow
+        cursor.execute(
+            """UPDATE payment_events SET
+               flow_status = %s, flow_amount = %s, flow_currency = %s,
+               flow_commerce_order = %s
+               WHERE id = %s""",
+            (flow_status, flow_amount, flow_currency, commerce_order, event_id),
+        )
+        db.commit()
+
+        if not commerce_order:
+            cursor.execute(
+                "UPDATE payment_events SET processing_status = 'failed', error_message = 'commerceOrder no encontrado en respuesta Flow' WHERE id = %s",
+                (event_id,),
+            )
+            db.commit()
+            return {"status": "error", "message": "commerceOrder not found in Flow response"}
+
+        # Buscar orden local por order_number (= commerceOrder)
+        cursor.execute(
+            "SELECT id, user_id, payment_status, total, currency, order_type FROM orders WHERE order_number = %s FOR UPDATE",
+            (commerce_order,),
+        )
+        order = cursor.fetchone()
+        if not order:
+            cursor.execute(
+                "UPDATE payment_events SET processing_status = 'failed', error_message = %s WHERE id = %s",
+                (f"Orden local no encontrada: {commerce_order}", event_id),
+            )
+            db.commit()
+            return {"status": "error", "message": "Local order not found"}
+
+        # Verificar monto usando la misma función que payment/create
+        # PEN/USD/EUR: Flow envía centavos (×100). CLP: Flow envía la unidad entera.
+        expected_amount = flow_service.format_amount_for_flow(Decimal(str(order["total"])), order["currency"])
+        if flow_amount is not None and flow_amount != expected_amount:
+            cursor.execute(
+                "UPDATE payment_events SET processing_status = 'failed', error_message = %s WHERE id = %s",
+                (f"Monto mismatch: esperado {expected_amount}, Flow {flow_amount}", event_id),
+            )
+            db.commit()
+            return {"status": "error", "message": "Amount mismatch"}
+
+        # Verificar moneda
+        if flow_currency and flow_currency != order["currency"]:
+            cursor.execute(
+                "UPDATE payment_events SET processing_status = 'failed', error_message = %s WHERE id = %s",
+                (f"Currency mismatch: esperado {order['currency']}, Flow {flow_currency}", event_id),
+            )
+            db.commit()
+            return {"status": "error", "message": "Currency mismatch"}
+
+        # Procesar según estado
+        if flow_service.is_payment_approved(payment_data):
+            # Pago aprobado: confirmar orden (idempotente)
+            confirm_result = commerce_service.confirm_payment(
+                db, order["id"],
+                provider_token=token,
+                provider_flow_order=flow_order,
+            )
+            cursor.execute(
+                "UPDATE payment_events SET order_id = %s, processing_status = 'processed' WHERE id = %s",
+                (order["id"], event_id),
+            )
+            db.commit()
+            return {"status": "ok", "message": "Payment confirmed"}
+
+        elif flow_service.is_payment_rejected(payment_data):
+            status_text = flow_service.get_payment_status_code(payment_data)
+            cursor.execute(
+                "UPDATE orders SET payment_status = 'rejected', order_status = 'cancelled', updated_at = %s WHERE id = %s",
+                (now, order["id"]),
+            )
+            cursor.execute(
+                "UPDATE payment_events SET order_id = %s, processing_status = 'processed' WHERE id = %s",
+                (order["id"], event_id),
+            )
+            db.commit()
+            return {"status": "ok", "message": f"Payment {status_text}"}
+
+        else:
+            # Pago pendiente u otro estado
+            cursor.execute(
+                "UPDATE payment_events SET processing_status = 'ignored' WHERE id = %s",
+                (event_id,),
+            )
+            db.commit()
+            return {"status": "ok", "message": "Payment pending"}
+
+    except Exception as e:
+        db.rollback()
+        try:
+            cursor.execute(
+                """INSERT INTO payment_events
+                   (provider, event_type, payload, processing_status, error_message, created_at)
+                   VALUES ('flow', 'webhook_error', %s, 'failed', %s, %s)""",
+                (json.dumps(body) if isinstance(body, dict) else "{}", str(e), now),
+            )
+            db.commit()
+        except Exception:
+            pass
+        return {"status": "error", "message": "Internal error"}
+    finally:
+        db.close()
+
+
+@api_router.get("/flow/result")
+async def flow_payment_result(token: str = None, request: Request = None):
+    """Endpoint de retorno después de que el usuario paga en Flow."""
+    if not token:
+        raise HTTPException(status_code=400, detail="Token no proporcionado")
+
+    verify_result = flow_service.verify_payment(token)
+    if verify_result["success"]:
+        payment_data = verify_result["data"]
+        status = flow_service.get_payment_status_code(payment_data)
+        commerce_order = payment_data.get("commerceOrder")
+        return {
+            "status": status,
+            "order_number": commerce_order,
+            "message": "Pago procesado" if status == "approved" else "Pago no completado",
+        }
+    else:
+        raise HTTPException(status_code=502, detail="Error verificando pago")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PADDLE — Webhook (productos digitales)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@api_router.post("/paddle/webhook")
+async def paddle_webhook(request: Request):
+    """
+    Webhook de Paddle para notificación de pagos digitales.
+    Paddle envía POST con JSON y firma HMAC-SHA256 en header.
+    """
+    body = await request.body()
+    headers = dict(request.headers)
+
+    db = get_db()
+    try:
+        result = webhook_handler.handle_webhook("paddle", headers, body, db)
+        return result
+    finally:
+        db.close()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CULQI — Webhook (productos físicos)
+# ══════════════════════════════════════════════════════════════════════════════
+
+@api_router.post("/culqi/webhook")
+async def culqi_webhook(request: Request):
+    """
+    Webhook de Culqi para notificación de pagos físicos.
+    Culqi envía POST con JSON y firma HMAC-SHA256 en header.
+    """
+    body = await request.body()
+    headers = dict(request.headers)
+
+    db = get_db()
+    try:
+        result = webhook_handler.handle_webhook("culqi", headers, body, db)
+        return result
+    finally:
+        db.close()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CULQI — Cargo directo (físicos, cobro con token del frontend)
+# ══════════════════════════════════════════════════════════════════════════════
+
+class CulqiChargeRequest(BaseModel):
+    order_id: int
+    token_id: str
+
+
+@api_router.post("/culqi/charge")
+async def culqi_charge(req: CulqiChargeRequest, request: Request):
+    """
+    Realiza un cobro con Culqi usando un token del frontend.
+    Solo para productos físicos en Perú.
+    """
+    user = await get_current_user(request)
+
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        # Verificar que la orden pertenece al usuario y está pendiente
+        cursor.execute(
+            """SELECT id, user_id, order_number, total, currency, order_type, payment_status
+               FROM orders WHERE id = %s AND user_id = %s FOR UPDATE""",
+            (req.order_id, user["id"]),
+        )
+        order = cursor.fetchone()
+        if not order:
+            raise HTTPException(status_code=404, detail="Orden no encontrada")
+        if order["payment_status"] != "pending":
+            raise HTTPException(status_code=400, detail=f"Orden en estado {order['payment_status']}")
+        if order["order_type"] != "physical_purchase":
+            raise HTTPException(status_code=400, detail="Este endpoint es solo para productos físicos")
+        if order["currency"] != "PEN":
+            raise HTTPException(status_code=400, detail="Culqi solo soporta PEN")
+
+        # Obtener provider Culqi
+        culqi = payment_providers.get_culqi_provider()
+        amount_int = payment_providers.format_amount_for_provider(order["total"], order["currency"])
+
+        charge_result = culqi.charge(
+            token_id=req.token_id,
+            amount=amount_int,
+            currency=order["currency"],
+            description=f"Pedido #{order['order_number']} - AETERNUM",
+            email=user["email"],
+            order_number=order["order_number"],
+            metadata={"book_id": order.get("book_id", ""), "user_id": user["id"]},
+        )
+
+        if charge_result["success"]:
+            # Confirmar pago (idempotente)
+            confirm_result = commerce_service.confirm_payment(
+                db, order["id"],
+                provider_token=charge_result.get("provider_token", ""),
+                provider_order_id=charge_result.get("provider_order_id", ""),
+                provider="culqi",
+            )
+            return {
+                "success": True,
+                "order_id": order["id"],
+                "order_number": order["order_number"],
+                "status": "approved",
+            }
+        else:
+            # Marcar como fallido
+            cursor.execute(
+                "UPDATE orders SET payment_status = 'rejected', updated_at = %s WHERE id = %s",
+                (datetime.now(timezone.utc).isoformat(), order["id"]),
+            )
+            db.commit()
+            raise HTTPException(
+                status_code=502,
+                detail=f"Error al procesar cobro: {charge_result.get('error', 'Error desconocido')}",
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PADDLE — Verificar estado de orden
+# ══════════════════════════════════════════════════════════════════════════════
+
+@api_router.get("/checkout/{order_id}")
+async def get_checkout_status(order_id: int, request: Request):
+    """Consulta el estado de una orden."""
+    user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute(
+            """SELECT o.*, oi.book_id, b.title as book_title 
+               FROM orders o
+               LEFT JOIN order_items oi ON oi.order_id = o.id
+               LEFT JOIN books b ON b.id = oi.book_id
+               WHERE o.id = %s AND o.user_id = %s""",
+            (order_id, user["id"]),
+        )
+        order = cursor.fetchone()
+        if not order:
+            raise HTTPException(status_code=404, detail="Orden no encontrada")
+        return {
+            "order_id": order["id"],
+            "order_number": order["order_number"],
+            "order_type": order["order_type"],
+            "payment_status": order["payment_status"],
+            "order_status": order["order_status"],
+            "total": float(order["total"]),
+            "currency": order["currency"],
+            "provider": order.get("provider", "flow"),
+            "book_title": order.get("book_title"),
+            "created_at": order["created_at"],
+            "paid_at": order.get("paid_at"),
+        }
+    finally:
+        db.close()
+
+
+# ── Direcciones de usuario ──────────────────────────────────────────────────
+
+@api_router.get("/user/addresses")
+async def get_my_addresses(request: Request):
+    """Lista las direcciones del usuario autenticado."""
+    user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute(
+            "SELECT * FROM user_addresses WHERE user_id = %s ORDER BY is_default DESC, created_at DESC",
+            (user["id"],),
+        )
+        return cursor.fetchall()
+    finally:
+        db.close()
+
+
+@api_router.post("/user/addresses")
+async def create_address(request: Request):
+    """Crea una nueva dirección para el usuario."""
+    user = await get_current_user(request)
+    body = await request.json()
+    
+    required = ["recipient_name", "recipient_phone", "address_line1"]
+    for field in required:
+        if not body.get(field):
+            raise HTTPException(status_code=400, detail=f"Campo requerido: {field}")
+
+    db = get_db()
+    cursor = db.cursor()
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        # Si es la primera dirección, marcar como default
+        cursor.execute("SELECT COUNT(*) as cnt FROM user_addresses WHERE user_id = %s", (user["id"],))
+        count = cursor.fetchone()["cnt"]
+        is_default = count == 0
+
+        cursor.execute(
+            """INSERT INTO user_addresses 
+               (user_id, label, recipient_name, recipient_phone, address_line1, address_line2,
+                district, city, department, postal_code, is_default, created_at)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+               RETURNING id""",
+            (user["id"], body.get("label", "Principal"), body["recipient_name"],
+             body["recipient_phone"], body["address_line1"], body.get("address_line2"),
+             body.get("district"), body.get("city"), body.get("department"),
+             body.get("postal_code"), is_default, now),
+        )
+        addr_id = cursor.fetchone()["id"]
+        db.commit()
+        return {"id": addr_id, "created_at": now}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+@api_router.delete("/user/addresses/{address_id}")
+async def delete_address(address_id: int, request: Request):
+    """Elimina una dirección del usuario."""
+    user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute(
+            "DELETE FROM user_addresses WHERE id = %s AND user_id = %s",
+            (address_id, user["id"]),
+        )
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Dirección no encontrada")
+        db.commit()
+        return {"message": "Dirección eliminada"}
+    finally:
+        db.close()
+
+
+# ── Historial de compras del usuario ────────────────────────────────────────
+
+@api_router.get("/user/purchases")
+async def get_my_purchases(request: Request):
+    """Historial de compras del usuario."""
+    user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute(
+            """SELECT o.id, o.order_number, o.order_type, o.total, o.currency, 
+                      o.payment_status, o.order_status, o.created_at, o.paid_at,
+                      oi.book_id, b.title as book_title, b.cover_image_url
+               FROM orders o
+               LEFT JOIN order_items oi ON oi.order_id = o.id
+               LEFT JOIN books b ON b.id = oi.book_id
+               WHERE o.user_id = %s
+               ORDER BY o.created_at DESC
+               LIMIT 50""",
+            (user["id"],),
+        )
+        return cursor.fetchall()
+    finally:
+        db.close()
+
+
+@api_router.get("/user/entitlements")
+async def get_my_entitlements(request: Request):
+    """Libros con acceso digital (compras permanentes y alquileres activos)."""
+    user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        cursor.execute(
+            """SELECT de.id, de.book_id, de.entitlement_type, de.starts_at, de.expires_at,
+                      de.is_active, b.title as book_title, b.author_name, b.cover_image_url,
+                      b.category
+               FROM digital_entitlements de
+               JOIN books b ON b.id = de.book_id
+               WHERE de.user_id = %s AND de.is_active = TRUE
+               ORDER BY de.created_at DESC""",
+            (user["id"],),
+        )
+        entitlements = cursor.fetchall()
+        result = []
+        for e in entitlements:
+            entry = dict(e)
+            # Verificar si expiró
+            if entry["expires_at"]:
+                try:
+                    exp_dt = datetime.fromisoformat(entry["expires_at"])
+                    if exp_dt.tzinfo is None:
+                        now_dt = datetime.now(timezone.utc).replace(tzinfo=None)
+                    else:
+                        now_dt = datetime.now(timezone.utc)
+                    if now_dt > exp_dt:
+                        entry["status"] = "expired"
+                        entry["days_remaining"] = 0
+                    else:
+                        entry["status"] = "active"
+                        delta = exp_dt - now_dt
+                        entry["days_remaining"] = max(0, delta.days)
+                except Exception:
+                    entry["status"] = "active"
+                    entry["days_remaining"] = None
+            else:
+                entry["status"] = "permanent"
+                entry["days_remaining"] = None
+            result.append(entry)
+        return result
+    finally:
+        db.close()
+
+
+@api_router.get("/user/physical-orders")
+async def get_my_physical_orders(request: Request):
+    """Pedidos físicos del usuario."""
+    user = await get_current_user(request)
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute(
+            """SELECT o.id, o.order_number, o.total, o.currency, o.payment_status,
+                      o.order_status, o.created_at, o.paid_at,
+                      po.fulfillment_status, po.carrier, po.tracking_number,
+                      po.shipped_at, po.delivered_at,
+                      oi.book_id, b.title as book_title
+               FROM orders o
+               LEFT JOIN physical_orders po ON po.order_id = o.id
+               LEFT JOIN order_items oi ON oi.order_id = o.id
+               LEFT JOIN books b ON b.id = oi.book_id
+               WHERE o.user_id = %s AND o.order_type = 'physical_purchase'
+               ORDER BY o.created_at DESC""",
+            (user["id"],),
+        )
+        return cursor.fetchall()
+    finally:
+        db.close()
+
+
+# ── Verificar acceso a libro (API) ─────────────────────────────────────────
+
+@api_router.get("/books/{book_id}/access")
+async def check_book_access(book_id: int, request: Request):
+    """Verifica si el usuario tiene acceso a un libro digital."""
+    user = await get_current_user(request)
+    db = get_db()
+    try:
+        # Verificar si el libro es gratuito
+        cursor = db.cursor()
+        cursor.execute("SELECT id, price, published, uploader_id FROM books WHERE id = %s", (book_id,))
+        book = cursor.fetchone()
+        if not book:
+            raise HTTPException(status_code=404, detail="Libro no encontrado")
+        
+        price = float(book["price"] or 0)
+        if price <= 0:
+            return {"has_access": True, "reason": "free"}
+        
+        if user["role"] == "admin":
+            return {"has_access": True, "reason": "admin"}
+        
+        if book.get("uploader_id") == user["id"]:
+            return {"has_access": True, "reason": "uploader"}
+        
+        from commerce_service import has_access_to_book
+        result = has_access_to_book(db, user["id"], book_id)
+        return result
+    finally:
+        db.close()
+
+
+# ── Admin: Estadísticas de comercio ────────────────────────────────────────
+
+@api_router.get("/admin/commerce/stats")
+async def admin_commerce_stats(request: Request):
+    """Estadísticas de comercio para el panel admin."""
+    user = await get_current_user(request)
+    if not user or user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        # Ventas totales
+        cursor.execute("SELECT COUNT(*) as total, COALESCE(SUM(total), 0) as revenue FROM orders WHERE payment_status = 'approved'")
+        sales = cursor.fetchone()
+
+        # Por tipo
+        cursor.execute(
+            "SELECT order_type, COUNT(*) as count, COALESCE(SUM(total), 0) as revenue FROM orders WHERE payment_status = 'approved' GROUP BY order_type"
+        )
+        by_type = cursor.fetchall()
+
+        # Pendientes
+        cursor.execute("SELECT COUNT(*) as pending FROM orders WHERE payment_status = 'pending'")
+        pending = cursor.fetchone()
+
+        # Rechazados
+        cursor.execute("SELECT COUNT(*) as rejected FROM orders WHERE payment_status = 'rejected'")
+        rejected = cursor.fetchone()
+
+        # Libros más vendidos
+        cursor.execute(
+            """SELECT b.id, b.title, COUNT(oi.id) as sales_count, SUM(oi.total_price) as revenue
+               FROM order_items oi
+               JOIN orders o ON o.id = oi.order_id
+               JOIN books b ON b.id = oi.book_id
+               WHERE o.payment_status = 'approved'
+               GROUP BY b.id, b.title
+               ORDER BY sales_count DESC
+               LIMIT 10"""
+        )
+        top_books = cursor.fetchall()
+
+        # Rayos entregados por compras
+        cursor.execute(
+            "SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total FROM rayos_transactions WHERE type = 'purchase_reward'"
+        )
+        rayos_purchases = cursor.fetchone()
+
+        # Últimas órdenes
+        cursor.execute(
+            """SELECT o.id, o.order_number, o.order_type, o.total, o.currency, o.payment_status,
+                      o.created_at, u.name as user_name, u.email as user_email
+               FROM orders o
+               JOIN users u ON u.id = o.user_id
+               ORDER BY o.created_at DESC
+               LIMIT 20"""
+        )
+        recent_orders = cursor.fetchall()
+
+        return {
+            "total_sales": sales["total"],
+            "total_revenue": float(sales["revenue"]),
+            "by_type": [dict(r) for r in by_type],
+            "pending_orders": pending["pending"],
+            "rejected_orders": rejected["rejected"],
+            "top_books": [dict(r) for r in top_books],
+            "rayos_by_purchase": {"count": rayos_purchases["count"], "total": rayos_purchases["total"]},
+            "recent_orders": [dict(r) for r in recent_orders],
+        }
+    finally:
+        db.close()
+
+
+@api_router.get("/admin/commerce/orders")
+async def admin_commerce_orders(request: Request, status: str = None, page: int = 1):
+    """Lista de órdenes para admin."""
+    user = await get_current_user(request)
+    if not user or user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    limit = 20
+    offset = (max(page, 1) - 1) * limit
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        where = ["1=1"]
+        params = []
+        if status:
+            where.append("o.payment_status = %s")
+            params.append(status)
+        where_sql = " AND ".join(where)
+
+        cursor.execute(
+            f"""SELECT o.id, o.order_number, o.order_type, o.total, o.currency,
+                       o.payment_status, o.order_status, o.created_at, o.paid_at,
+                       u.name as user_name, u.email as user_email,
+                       oi.book_id, b.title as book_title,
+                       po.fulfillment_status, po.carrier, po.tracking_number
+                FROM orders o
+                JOIN users u ON u.id = o.user_id
+                LEFT JOIN order_items oi ON oi.order_id = o.id
+                LEFT JOIN books b ON b.id = oi.book_id
+                LEFT JOIN physical_orders po ON po.order_id = o.id
+                WHERE {where_sql}
+                ORDER BY o.created_at DESC
+                LIMIT %s OFFSET %s""",
+            tuple(params) + (limit, offset),
+        )
+        orders = cursor.fetchall()
+
+        cursor.execute(f"SELECT COUNT(*) as total FROM orders o WHERE {where_sql}", tuple(params))
+        total = cursor.fetchone()["total"]
+
+        return {"orders": [dict(r) for r in orders], "total": total, "page": page}
+    finally:
+        db.close()
+
+
+@api_router.put("/admin/commerce/orders/{order_id}/fulfillment")
+async def admin_update_fulfillment(order_id: int, request: Request):
+    """Actualiza el estado logístico de un pedido físico."""
+    user = await get_current_user(request)
+    if not user or user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    body = await request.json()
+    db = get_db()
+    cursor = db.cursor()
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        cursor.execute(
+            "SELECT id, order_id, fulfillment_status FROM physical_orders WHERE order_id = %s",
+            (order_id,),
+        )
+        po = cursor.fetchone()
+        if not po:
+            raise HTTPException(status_code=404, detail="Pedido físico no encontrado")
+
+        updates = []
+        params = []
+        if "fulfillment_status" in body:
+            updates.append("fulfillment_status = %s")
+            params.append(body["fulfillment_status"])
+            if body["fulfillment_status"] == "shipped":
+                updates.append("shipped_at = %s")
+                params.append(now)
+            elif body["fulfillment_status"] == "delivered":
+                updates.append("delivered_at = %s")
+                params.append(now)
+        if "carrier" in body:
+            updates.append("carrier = %s")
+            params.append(body["carrier"])
+        if "tracking_number" in body:
+            updates.append("tracking_number = %s")
+            params.append(body["tracking_number"])
+        if "notes" in body:
+            updates.append("notes = %s")
+            params.append(body["notes"])
+
+        if not updates:
+            raise HTTPException(status_code=400, detail="Sin cambios")
+
+        updates.append("updated_at = %s")
+        params.append(now)
+        params.append(po["id"])
+        cursor.execute(f"UPDATE physical_orders SET {', '.join(updates)} WHERE id = %s", tuple(params))
+
+        # Crear notificación al usuario
+        cursor.execute("SELECT user_id FROM orders WHERE id = %s", (order_id,))
+        order_row = cursor.fetchone()
+        if order_row and "fulfillment_status" in body:
+            status = body["fulfillment_status"]
+            if status == "shipped":
+                carrier = body.get("carrier", "Shalom")
+                tracking = body.get("tracking_number", "")
+                notif = f"Tu pedido #{order_id} fue enviado via {carrier}. Tracking: {tracking}"
+            elif status == "delivered":
+                notif = f"Tu pedido #{order_id} fue entregado exitosamente."
+            else:
+                notif = f"Estado de tu pedido #{order_id} actualizado a: {status}"
+            cursor.execute(
+                "INSERT INTO notifications (user_id, type, content, created_at) VALUES (%s, 'commerce', %s, %s)",
+                (order_row["user_id"], notif, now),
+            )
+
+        db.commit()
+        return {"message": "Estado actualizado"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+# ── Admin: Configuración de comercio ───────────────────────────────────────
+
+@api_router.get("/admin/commerce/config")
+async def admin_commerce_config(request: Request):
+    """Retorna la configuración actual de comercio. No expone secretos."""
+    user = await get_current_user(request)
+    if not user or user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+    paddle = payment_providers.get_paddle_provider()
+    culqi = payment_providers.get_culqi_provider()
+    return {
+        "purchase_reward_rayos": commerce_service.PURCHASE_REWARD_RAYOS,
+        "rental_durations": [7, 14, 30],
+        "rental_price_factor": 0.3,
+        "shipping_cost": 10.00,
+        "default_currency": "PEN",
+        "enabled_currencies": list(payment_providers.ENABLED_DIGITAL_CURRENCIES),
+        "currency_config": {
+            code: {"decimals": cfg["decimals"], "symbol": cfg["symbol"]}
+            for code, cfg in payment_providers.PADDLE_CURRENCY_CONFIG.items()
+        },
+        "providers": {
+            "paddle": {
+                "configured": bool(paddle.api_key and paddle.webhook_secret),
+                "environment": paddle.environment,
+            },
+            "culqi": {
+                "configured": bool(culqi.secret_key),
+                "environment": culqi.environment,
+            },
+        },
+        "flow_configured": bool(flow_service.FLOW_API_KEY and flow_service.FLOW_SECRET_KEY),
+        "flow_sandbox": "sandbox" in flow_service.FLOW_BASE_URL,
+    }
 
 
 # ── Montar rutas ─────────────────────────────────────────────────────────────

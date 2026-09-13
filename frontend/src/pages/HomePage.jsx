@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { Navbar } from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
-import { Star, Eye, Heart, BookOpen, Search, Trash2 } from 'lucide-react';
+import { Star, Eye, Heart, BookOpen, Search, Trash2, CreditCard, Clock, Truck } from 'lucide-react';
 import { API } from '../config/api';
 
 export default function HomePage() {
@@ -203,6 +203,121 @@ export default function HomePage() {
         </div>
 
       </section>
+
+      {/* Secciones destacadas por tipo */}
+      {!loading && !selectedCategory && !searchQuery && (
+        <div className="max-w-7xl mx-auto px-6 mb-10 space-y-10">
+
+          {/* Libros de pago (digitales) */}
+          {books.filter(b => b.price > 0).length > 0 && (
+            <section>
+              <div className="flex items-center gap-3 mb-5">
+                <CreditCard className="w-5 h-5 text-[#D92B2B]" />
+                <h2 className="text-xl md:text-2xl font-bold text-white font-['Outfit']">Libros digitales de pago</h2>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {books.filter(b => b.price > 0).slice(0, 4).map((book) => (
+                  <Link
+                    key={book.id}
+                    to={`/books/${book.id}`}
+                    className="group bg-[#121212] border border-white/5 rounded-xl overflow-hidden hover:border-[#D92B2B]/30 transition-all duration-300 flex flex-col shadow-xl hover:-translate-y-1"
+                  >
+                    <div className="aspect-[3/4] overflow-hidden bg-[#181818]">
+                      <img src={book.cover_image_url || "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400"} alt={book.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                    </div>
+                    <div className="p-4 flex-1 flex flex-col justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold tracking-wider uppercase text-[#D92B2B]">{book.category}</span>
+                        <h3 className="text-sm font-semibold text-white mt-1 line-clamp-1">{book.title}</h3>
+                        <p className="text-xs text-[#A0A0A0] mt-0.5">por {book.author_name}</p>
+                      </div>
+                      <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-3">
+                        <span className="text-xs text-[#606060] flex items-center gap-1"><Eye className="w-3 h-3" />{book.views}</span>
+                        <span className="text-xs font-bold text-[#D4AF37]">${parseFloat(book.price).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Libros físicos */}
+          {books.filter(b => b.is_physical).length > 0 && (
+            <section>
+              <div className="flex items-center gap-3 mb-5">
+                <Truck className="w-5 h-5 text-emerald-400" />
+                <h2 className="text-xl md:text-2xl font-bold text-white font-['Outfit']">Libros físicos</h2>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {books.filter(b => b.is_physical).slice(0, 4).map((book) => (
+                  <Link
+                    key={book.id}
+                    to={`/books/${book.id}`}
+                    className="group bg-[#121212] border border-white/5 rounded-xl overflow-hidden hover:border-emerald-500/30 transition-all duration-300 flex flex-col shadow-xl hover:-translate-y-1"
+                  >
+                    <div className="aspect-[3/4] overflow-hidden bg-[#181818]">
+                      <img src={book.cover_image_url || "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400"} alt={book.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                    </div>
+                    <div className="p-4 flex-1 flex flex-col justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold tracking-wider uppercase text-emerald-400">{book.category}</span>
+                        <h3 className="text-sm font-semibold text-white mt-1 line-clamp-1">{book.title}</h3>
+                        <p className="text-xs text-[#A0A0A0] mt-0.5">por {book.author_name}</p>
+                      </div>
+                      <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-3">
+                        <span className="text-xs text-[#606060] flex items-center gap-1"><Eye className="w-3 h-3" />{book.views}</span>
+                        <span className="text-xs font-bold text-emerald-400">S/ {parseFloat(book.physical_price || 0).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Sección de alquiler — todos los libros digitales de pago admiten alquiler */}
+          {books.filter(b => b.price > 0).length > 0 && (
+            <section>
+              <div className="flex items-center gap-3 mb-2">
+                <Clock className="w-5 h-5 text-[#D4AF37]" />
+                <h2 className="text-xl md:text-2xl font-bold text-white font-['Outfit']">Alquiler de libros</h2>
+              </div>
+              <p className="text-[#A0A0A0] text-sm mb-1">
+                Todos los libros digitales de pago están disponibles para alquiler por 7, 14 o 30 días.
+              </p>
+              <p className="text-[#A0A0A0] text-xs mb-5">
+                Precio de alquiler: 30% del precio de compra. Elige la duración en la página de cada libro.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {books.filter(b => b.price > 0).slice(0, 4).map((book) => (
+                  <Link
+                    key={book.id}
+                    to={`/books/${book.id}`}
+                    className="group bg-[#121212] border border-white/5 rounded-xl overflow-hidden hover:border-[#D4AF37]/30 transition-all duration-300 flex flex-col shadow-xl hover:-translate-y-1"
+                  >
+                    <div className="aspect-[3/4] overflow-hidden bg-[#181818]">
+                      <img src={book.cover_image_url || "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400"} alt={book.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                    </div>
+                    <div className="p-4 flex-1 flex flex-col justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold tracking-wider uppercase text-[#D4AF37]">{book.category}</span>
+                        <h3 className="text-sm font-semibold text-white mt-1 line-clamp-1">{book.title}</h3>
+                        <p className="text-xs text-[#A0A0A0] mt-0.5">por {book.author_name}</p>
+                      </div>
+                      <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-3">
+                        <span className="text-xs text-[#606060]">Alquiler desde</span>
+                        <span className="text-xs font-bold text-[#D4AF37]">${parseFloat(book.price * 0.3).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+        </div>
+      )}
 
       {/* Grid de Libros */}
       <main className="max-w-7xl mx-auto px-6">

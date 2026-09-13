@@ -6,7 +6,7 @@ import PDFViewer from '../components/PDFViewer';
 import ThumbnailSidebar from '../components/ThumbnailSidebar';
 import ReaderToolbar from '../components/ReaderToolbar';
 import BookPreviewModal from '../components/BookPreviewModal';
-import { ChevronLeft, Heart, Zap, Star, Send, Download, Eye, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { ChevronLeft, Heart, Zap, Star, Send, Download, Eye, ThumbsUp, ThumbsDown, CreditCard, Clock, Truck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 import { API } from '../config/api';
@@ -62,6 +62,7 @@ export default function ReaderPage() {
   const [daily, setDaily] = useState({ pages: 0, goal: 15, completed: false, reward_claimed: false, books: [] });
   const [readerLoading, setReaderLoading] = useState(false);
   const [readerError, setReaderError] = useState(null);
+  const [hasAccess, setHasAccess] = useState(null);
   const reportingRef = useRef(false);
   const pageRequestRef = useRef(0);
 
@@ -72,6 +73,7 @@ export default function ReaderPage() {
   const [pdfTotalPages, setPdfTotalPages] = useState(null);
   const [pdfError, setPdfError] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [showCoverPreview, setShowCoverPreview] = useState(false);
 
   const reportProgress = async (pageNumber) => {
     if (!user || reportingRef.current) return;
@@ -169,6 +171,7 @@ export default function ReaderPage() {
           {},
           { withCredentials: true }
         );
+        setHasAccess(true);
         if (startData.total_pages > 0) {
           setTotalPages(startData.total_pages);
           setPaginated(true);
@@ -179,7 +182,12 @@ export default function ReaderPage() {
         }
       } catch (error) {
         console.error('Error iniciando sesión de lectura:', error);
-        setReaderError('No se pudo iniciar la lectura. Intenta recargar la página.');
+        if (error.response?.status === 403) {
+          setHasAccess(false);
+          setReaderError(null);
+        } else {
+          setReaderError('No se pudo iniciar la lectura. Intenta recargar la página.');
+        }
         setPaginated(false);
         setTotalPages(0);
       }
@@ -345,17 +353,56 @@ export default function ReaderPage() {
             </div>
           </div>
 
-          {/* Botones: Vista previa + Descarga PDF */}
-            <div className="flex flex-wrap items-center gap-3 mt-4 sm:mt-6">
-              {book.pdf_path && (
-                <button
-                  onClick={() => setShowPreview(true)}
-                  className="inline-flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-[#F5F5F5] font-semibold px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg transition-all duration-200 text-sm sm:text-base"
+          {/* Sección de Compra (libros de pago) */}
+          {book.price > 0 && (
+            <div className="bg-gradient-to-r from-[#D4AF37]/10 to-[#D92B2B]/10 border border-[#D4AF37]/30 rounded-xl p-4 sm:p-6 mb-6">
+              <p className="text-[#A0A0A0] text-sm mb-3">Este libro tiene un costo</p>
+              <div className="flex flex-wrap gap-3">
+                <a
+                  href={`/checkout?book_id=${book.id}`}
+                  className="inline-flex items-center gap-2 bg-[#D92B2B] hover:bg-[#F03C3C] text-white font-bold px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-[#D92B2B]/20 text-sm"
                 >
-                  <Eye className="w-5 h-5" />
-                  Vista previa del libro
-                </button>
-              )}
+                  <CreditCard className="w-4 h-4" />
+                  Comprar — ${parseFloat(book.price).toFixed(2)}
+                </a>
+                <a
+                  href={`/checkout?book_id=${book.id}`}
+                  className="inline-flex items-center gap-2 bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 text-[#D4AF37] font-bold px-5 py-2.5 rounded-xl border border-[#D4AF37]/30 transition-all text-sm"
+                >
+                  <Clock className="w-4 h-4" />
+                  Alquilar — ${parseFloat(book.price * 0.3).toFixed(2)}
+                </a>
+                {book.is_physical && book.physical_price > 0 && (
+                  <a
+                    href={`/checkout?book_id=${book.id}`}
+                    className="inline-flex items-center gap-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 font-bold px-5 py-2.5 rounded-xl border border-emerald-500/30 transition-all text-sm"
+                  >
+                    <Truck className="w-4 h-4" />
+                    Comprar libro físico — S/ {parseFloat(book.physical_price).toFixed(2)}
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Botones: Vista previa + Descarga PDF */}
+          <div className="flex flex-wrap items-center gap-3 mt-4 sm:mt-6">
+            {book.pdf_path && (
+              <button
+                onClick={() => {
+                  if (hasAccess || book.price <= 0) {
+                    setShowPreview(true);
+                  } else {
+                    setShowCoverPreview(true);
+                  }
+                }}
+                className="inline-flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-[#F5F5F5] font-semibold px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg transition-all duration-200 text-sm sm:text-base"
+              >
+                <Eye className="w-5 h-5" />
+                {hasAccess || book.price <= 0 ? 'Vista previa del libro' : 'Ver portada'}
+              </button>
+            )}
+            {(hasAccess || book.price <= 0) && (
               <a
                 href={`${API}/books/${book._id || book.id}/download`}
                 target="_blank"
@@ -365,11 +412,12 @@ export default function ReaderPage() {
                 <Download className="w-5 h-5" />
                 Descargar PDF
               </a>
-            </div>
+            )}
+          </div>
 
-          {/* Contenido de Lectura (FASE 2: lector paginado) */}
-          <div className="border-t border-white/10 pt-8">
-            {/* Barra de Meta Diaria */}
+          {/* Contenido de Lectura (solo si tiene acceso) */}
+          {hasAccess ? (
+            <React.Fragment>
             <div className="bg-[#D4AF37]/10 border border-[#D4AF37]/30 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 mb-4 sm:mb-6">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-[#D4AF37] tracking-wider uppercase flex items-center gap-1.5">
@@ -488,7 +536,28 @@ export default function ReaderPage() {
                 <p className="text-sm mt-2">Este libro no está disponible en el lector paginado.</p>
               </div>
             )}
-          </div>
+          </React.Fragment>
+          ) : (
+            <div className="border-t border-white/10 pt-8">
+              <div className="text-center py-12 sm:py-16">
+                <div className="bg-[#D4AF37]/10 border border-[#D4AF37]/30 rounded-xl p-6 sm:p-8 max-w-md mx-auto">
+                  <Zap className="w-10 h-10 text-[#D4AF37] mx-auto mb-4" />
+                  <p className="text-white font-semibold text-lg mb-2">Contenido bloqueado</p>
+                  <p className="text-[#A0A0A0] text-sm mb-4">
+                    Este libro tiene un costo de ${parseFloat(book.price).toFixed(2)}. 
+                    Compra o alquilalo para acceder al contenido completo.
+                  </p>
+                  <a
+                    href={`/checkout?book_id=${book.id}`}
+                    className="inline-flex items-center gap-2 bg-[#D92B2B] hover:bg-[#F03C3C] text-white font-bold px-6 py-3 rounded-xl transition-all shadow-lg shadow-[#D92B2B]/20"
+                  >
+                    <Zap className="w-5 h-5" />
+                    Comprar / Alquilar
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
 
         </div>
 
@@ -617,6 +686,37 @@ export default function ReaderPage() {
           bookTitle={book.title}
           onClose={() => setShowPreview(false)}
         />
+      )}
+
+      {/* Modal de Portada (libros de pago sin acceso) */}
+      {showCoverPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => setShowCoverPreview(false)}>
+          <div className="relative max-w-lg w-[90vw]" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setShowCoverPreview(false)}
+              className="absolute -top-3 -right-3 w-8 h-8 flex items-center justify-center rounded-full bg-[#121212] border border-white/10 text-[#A0A0A0] hover:text-white z-10"
+            >
+              X
+            </button>
+            <img
+              src={book.cover_image_url || "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=800"}
+              alt={book.title}
+              className="w-full rounded-xl shadow-2xl"
+            />
+            <div className="text-center mt-4">
+              <p className="text-white font-semibold">{book.title}</p>
+              <p className="text-[#A0A0A0] text-sm">por {book.author_name}</p>
+              {book.price > 0 && (
+                <a
+                  href={`/checkout?book_id=${book.id}`}
+                  className="inline-flex items-center gap-2 bg-[#D92B2B] hover:bg-[#F03C3C] text-white font-bold px-6 py-2.5 rounded-xl mt-3 transition-all text-sm"
+                >
+                  Comprar — ${parseFloat(book.price).toFixed(2)}
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
