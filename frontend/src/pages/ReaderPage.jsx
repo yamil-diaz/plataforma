@@ -154,6 +154,10 @@ export default function ReaderPage() {
       const { data: bookDetails } = await axios.get(`${API}/books/${bookId}`);
       setBook(bookDetails);
 
+      // Usar hasAccess del backend para decidir si intentar cargar el lector
+      const serverHasAccess = bookDetails.hasAccess === true;
+      setHasAccess(serverHasAccess);
+
       if (user) {
         try {
           const { data: interactData } = await axios.get(`${API}/books/${bookId}/interaction`, { withCredentials: true });
@@ -163,46 +167,41 @@ export default function ReaderPage() {
 
       loadReviews(bookDetails._id || bookDetails.id);
 
-      // FASE 2: iniciar sesión de lectura y reanudar donde quedó
-      let resumePage = 1;
-      try {
-        const { data: startData } = await axios.post(
-          `${API}/books/${bookId}/start`,
-          {},
-          { withCredentials: true }
-        );
-        setHasAccess(true);
-        if (startData.total_pages > 0) {
-          setTotalPages(startData.total_pages);
-          setPaginated(true);
-          if (startData.last_page) resumePage = startData.last_page;
-        } else {
-          setTotalPages(0);
+      // Solo intentar iniciar sesión de lectura si el backend confirma acceso
+      if (serverHasAccess) {
+        let resumePage = 1;
+        try {
+          const { data: startData } = await axios.post(
+            `${API}/books/${bookId}/start`,
+            {},
+            { withCredentials: true }
+          );
+          if (startData.total_pages > 0) {
+            setTotalPages(startData.total_pages);
+            setPaginated(true);
+            if (startData.last_page) resumePage = startData.last_page;
+          } else {
+            setTotalPages(0);
+            setPaginated(false);
+          }
+        } catch (error) {
+          console.error('Error iniciando sesión de lectura:', error);
           setPaginated(false);
+          setTotalPages(0);
         }
-      } catch (error) {
-        console.error('Error iniciando sesión de lectura:', error);
-        if (error.response?.status === 403) {
-          setHasAccess(false);
-          setReaderError(null);
-        } else {
-          setReaderError('No se pudo iniciar la lectura. Intenta recargar la página.');
-        }
-        setPaginated(false);
-        setTotalPages(0);
+
+        try {
+          const { data: chaptersData } = await axios.get(`${API}/books/${bookId}/chapters`, { withCredentials: true });
+          setChapters(chaptersData || []);
+        } catch (error) {}
+
+        try {
+          const { data: todayData } = await axios.get(`${API}/reading/today`, { withCredentials: true });
+          setDaily(todayData);
+        } catch (error) {}
+
+        await goToPage(resumePage);
       }
-
-      try {
-        const { data: chaptersData } = await axios.get(`${API}/books/${bookId}/chapters`, { withCredentials: true });
-        setChapters(chaptersData || []);
-      } catch (error) {}
-
-      try {
-        const { data: todayData } = await axios.get(`${API}/reading/today`, { withCredentials: true });
-        setDaily(todayData);
-      } catch (error) {}
-
-      await goToPage(resumePage);
     } catch (error) {
       console.error('Error loading book:', error);
     } finally {

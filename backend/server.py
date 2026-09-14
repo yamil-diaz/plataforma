@@ -1804,18 +1804,30 @@ async def get_book(book_id: str, request: Request):
             raise HTTPException(status_code=404, detail="Book not found")
 
         book = dict(row)
-        # Un tercero (o un no autenticado) no puede ver un libro pendiente
-        # solo conociendo su ID: solo publicado, admin o el propio uploader.
         user = await get_current_user_optional(request)
-        if not _puede_acceder_libro(book, user):
-            raise HTTPException(status_code=403, detail="Este libro no está publicado")
 
-        cursor.execute("UPDATE books SET views = views + 1 WHERE id = %s", (int(book_id),))
-        db.commit()
+        # Libros no publicados: solo admin/uploader pueden ver
+        if not book["published"]:
+            if not _puede_acceder_libro(book, user):
+                raise HTTPException(status_code=403, detail="Este libro no está publicado")
 
-        book["views"] += 1
+        # Determinar acceso para libros publicados
+        has_access = _puede_acceder_libro(book, user)
+
+        # Para libros de pago sin acceso: excluir contenido completo
+        price = book.get("price", 0) or 0
+        if price > 0 and not has_access:
+            book.pop("content", None)
+
+        # Incrementar vistas solo si tiene acceso
+        if has_access:
+            cursor.execute("UPDATE books SET views = views + 1 WHERE id = %s", (int(book_id),))
+            db.commit()
+            book["views"] = (book.get("views") or 0) + 1
+
         book["_id"] = str(book["id"])
         book["id"] = book["_id"]
+        book["hasAccess"] = has_access
         return book
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid book ID format")
