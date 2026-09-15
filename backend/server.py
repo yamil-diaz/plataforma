@@ -5702,7 +5702,8 @@ async def create_checkout(req: CheckoutRequest, request: Request):
                 (datetime.now(timezone.utc).isoformat(), result["order_id"]),
             )
             db.commit()
-            raise HTTPException(status_code=502, detail=f"Error al conectar con {provider.name}: {provider_result['error']}")
+            paddle_details = str(provider_result.get("details", ""))[:500]
+            raise HTTPException(status_code=502, detail=f"Error al conectar con {provider.name}: {provider_result['error']} | Paddle: {paddle_details}")
 
         # Actualizar orden con datos del proveedor
         cursor.execute(
