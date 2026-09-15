@@ -265,11 +265,12 @@ class PaddleProvider(PaymentProvider):
         try:
             data_bytes = json.dumps(payload).encode("utf-8")
             req = urllib.request.Request(
-                f"{self.api_base}/1.0/transactions",
+                f"{self.api_base}/transactions",
                 data=data_bytes,
                 headers={
                     "Content-Type": "application/json",
                     "Authorization": f"Bearer {self.api_key}",
+                    "Paddle-Version": "1",
                     "User-Agent": "AeternumBackend/2.0",
                 },
                 method="POST",
