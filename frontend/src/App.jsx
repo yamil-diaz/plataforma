@@ -30,6 +30,11 @@ import ForumPostPage from './pages/ForumPostPage';
 import ForumCategoryPage from './pages/ForumCategoryPage';
 import ForumCreatePage from './pages/ForumCreatePage';
 import AdminForumPage from './pages/AdminForumPage';
+import CheckoutPage from './pages/CheckoutPage';
+import PaymentResultPage from './pages/PaymentResultPage';
+import MyBooksPage from './pages/MyBooksPage';
+import MyPurchasesPage from './pages/MyPurchasesPage';
+import MyPhysicalOrdersPage from './pages/MyPhysicalOrdersPage';
 
 // Componente para proteger rutas (Debe estar autenticado)
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -80,6 +85,41 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <ForumCreatePage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Comercio */}
+      <Route
+        path="/checkout"
+        element={
+          <ProtectedRoute>
+            <CheckoutPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/checkout/result" element={<PaymentResultPage />} />
+      <Route
+        path="/mis-libros"
+        element={
+          <ProtectedRoute>
+            <MyBooksPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/mis-compras"
+        element={
+          <ProtectedRoute>
+            <MyPurchasesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/mis-pedidos"
+        element={
+          <ProtectedRoute>
+            <MyPhysicalOrdersPage />
           </ProtectedRoute>
         }
       />
