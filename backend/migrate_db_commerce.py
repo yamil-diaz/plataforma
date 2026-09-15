@@ -139,7 +139,7 @@ def migrate():
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS physical_orders (
         id SERIAL PRIMARY KEY,
-        order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE UNIQUE,
+        order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
         shipping_address_snapshot JSONB NOT NULL,
         carrier TEXT DEFAULT 'shalom',
         tracking_number TEXT,
@@ -148,7 +148,8 @@ def migrate():
         delivered_at TEXT,
         notes TEXT,
         created_at TEXT NOT NULL,
-        updated_at TEXT
+        updated_at TEXT,
+        UNIQUE(order_id)
     )
     """)
     print("Tabla 'physical_orders' verificada.")
@@ -225,6 +226,23 @@ def migrate():
     except Exception as e:
         conn.rollback()
         print(f"Error poblando book_prices: {e}")
+
+    # ── 10b. Precio USD del libro 176 (Rayuelas mentales) ───────────────────
+    try:
+        cursor.execute("""
+            INSERT INTO book_prices (book_id, currency, price, rental_price, is_active, created_at)
+            VALUES (176, 'USD', 10.00, 3.00, TRUE, NOW()::text)
+            ON CONFLICT (book_id, currency) DO UPDATE
+            SET price = EXCLUDED.price,
+                rental_price = EXCLUDED.rental_price,
+                is_active = TRUE,
+                updated_at = NOW()::text
+        """)
+        conn.commit()
+        print("book_prices: precio USD configurado para libro 176.")
+    except Exception as e:
+        conn.rollback()
+        print(f"Error configurando precio USD libro 176: {e}")
 
     # ── 11. Índices ───────────────────────────────────────────────────────────
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id)")
