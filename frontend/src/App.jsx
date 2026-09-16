@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 import HomePage from './pages/HomePage';
@@ -39,6 +39,7 @@ import MyPhysicalOrdersPage from './pages/MyPhysicalOrdersPage';
 // Componente para proteger rutas (Debe estar autenticado)
 const ProtectedRoute = ({ children, adminOnly = false }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -49,7 +50,7 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   if (adminOnly && user.role !== 'admin') {

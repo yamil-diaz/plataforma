@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Zap, Mail, Lock, AlertCircle, Chrome, Loader2 } from 'lucide-react';
 import axios from 'axios';
@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,7 +22,12 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      navigate('/');
+      const returnTo = location.state?.from;
+      if (returnTo) {
+        navigate(returnTo.pathname + (returnTo.search || ''), { replace: true });
+      } else {
+        navigate('/');
+      }
     } catch (err) {
       setError(err.response?.data?.detail || 'Error al iniciar sesión. Revisa tus credenciales.');
     } finally {
