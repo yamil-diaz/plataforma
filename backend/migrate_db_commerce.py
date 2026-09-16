@@ -263,6 +263,7 @@ def migrate():
     # ── 12. Migración multi-proveedor (Paddle + Culqi) ──────────────────────
     # Agregar columnas nuevas a orders si no existen
     try:
+        cursor.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS provider TEXT DEFAULT 'flow'")
         cursor.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS provider_payment_id TEXT")
         conn.commit()
     except Exception:
