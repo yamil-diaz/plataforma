@@ -254,12 +254,6 @@ class PaddleProvider(PaymentProvider):
                 "order_number": order_number,
                 **(metadata or {}),
             },
-            "checkout": {
-                "url": os.getenv(
-                    "PADDLE_SUCCESS_URL",
-                    "https://aeternumlibrary.com/checkout/result?provider=paddle"
-                ),
-            },
         }
 
         try:
