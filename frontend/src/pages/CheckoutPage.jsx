@@ -138,6 +138,7 @@ export default function CheckoutPage() {
 
       // Paddle (digitales): redirigir a checkout URL
       if (data.payment_url) {
+        localStorage.setItem('paddle_pending_order_id', String(data.order_id));
         window.location.href = data.payment_url;
         return;
       }

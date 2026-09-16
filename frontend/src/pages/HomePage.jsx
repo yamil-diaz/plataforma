@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { Navbar } from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,6 +14,8 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   
   const heroPhrases = [
     "Descubre Nuevos Mundos",
@@ -28,6 +30,13 @@ export default function HomePage() {
     }, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const ptxn = searchParams.get('_ptxn');
+    if (ptxn) {
+      navigate(`/checkout/result?_ptxn=${encodeURIComponent(ptxn)}`, { replace: true });
+    }
+  }, [searchParams, navigate]);
 
   const loadBooks = async () => {
     setLoading(true);

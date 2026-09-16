@@ -14,10 +14,27 @@ export default function PaymentResultPage() {
 
   const token = searchParams.get('token');
   const provider = searchParams.get('provider') || 'paddle';
-  const orderId = searchParams.get('order_id');
+  const ptxn = searchParams.get('_ptxn');
+  const orderId = searchParams.get('order_id') || localStorage.getItem('paddle_pending_order_id');
 
   useEffect(() => {
-    // Paddle: usar token
+    if (ptxn && orderId) {
+      localStorage.removeItem('paddle_pending_order_id');
+    }
+  }, [ptxn, orderId]);
+
+  useEffect(() => {
+    // Paddle via _ptxn (retorno estándar de Paddle)
+    if (ptxn) {
+      if (orderId) {
+        verifyOrderByStatus();
+      } else {
+        setStatus('pending');
+        setMessage('Verificando pago...');
+      }
+      return;
+    }
+    // Paddle legacy: usar token
     if (provider === 'paddle' && token) {
       verifyPaddlePayment();
       return;
@@ -29,7 +46,7 @@ export default function PaymentResultPage() {
     }
     setStatus('error');
     setMessage('Parámetros de pago no válidos');
-  }, [token, orderId, provider]);
+  }, [ptxn, token, orderId, provider]);
 
   const verifyPaddlePayment = async () => {
     try {
