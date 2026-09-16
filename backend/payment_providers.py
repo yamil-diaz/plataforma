@@ -312,6 +312,78 @@ class PaddleProvider(PaymentProvider):
                 "error": f"Error inesperado al crear checkout: {str(e)}",
             }
 
+    def get_transaction_status(self, transaction_id: str) -> dict:
+        """
+        Consulta el estado de una transacción directamente vía API de Paddle.
+        Usado como fallback cuando el webhook no llega.
+        """
+        if not self.api_key or not transaction_id:
+            return {"success": False, "error": "API key o transaction_id no disponible"}
+
+        try:
+            req = urllib.request.Request(
+                f"{self.api_base}/transactions/{transaction_id}",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Paddle-Version": "1",
+                    "User-Agent": "AeternumBackend/2.0",
+                },
+                method="GET",
+            )
+            with urllib.request.urlopen(req, timeout=15) as response:
+                result = json.loads(response.read().decode("utf-8"))
+
+            data = result.get("data", {})
+            paddle_status = data.get("status", "")
+
+            status_map = {
+                "completed": "approved",
+                "paid": "approved",
+                "ready": "pending",
+                "pending": "pending",
+                "cancelled": "cancelled",
+                "canceled": "cancelled",
+                "failed": "rejected",
+            }
+            status = status_map.get(paddle_status, "pending")
+
+            details = data.get("details", {})
+            amount = Decimal("0")
+            if details:
+                totals = details.get("totals", {})
+                if totals:
+                    amount = Decimal(str(totals.get("total", "0")))
+
+            currency = ""
+            checkout = data.get("checkout", {})
+            if checkout:
+                currency = checkout.get("currency_code", "")
+
+            payment_id = ""
+            payments = data.get("payments", [])
+            if payments:
+                payment_id = str(payments[0].get("id", ""))
+
+            return {
+                "success": True,
+                "status": status,
+                "paddle_status": paddle_status,
+                "transaction_id": transaction_id,
+                "amount": amount,
+                "currency": currency,
+                "provider_payment_id": payment_id,
+            }
+
+        except urllib.error.HTTPError as e:
+            body = ""
+            try:
+                body = e.read().decode("utf-8")
+            except Exception:
+                pass
+            return {"success": False, "error": f"HTTP {e.code}: {body[:300]}"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     def verify_webhook(self, headers: dict, body: bytes) -> bool:
         """
         Verifica la firma del webhook de Paddle.

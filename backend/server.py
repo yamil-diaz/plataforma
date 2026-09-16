@@ -5746,7 +5746,7 @@ async def create_checkout(req: CheckoutRequest, request: Request):
 
 @api_router.get("/checkout/{order_id}")
 async def get_checkout_status(order_id: int, request: Request):
-    """Consulta el estado de una orden."""
+    """Consulta el estado de una orden. Verifica con Paddle si sigue pendiente."""
     user = await get_current_user(request)
     db = get_db()
     cursor = db.cursor()
@@ -5762,6 +5762,31 @@ async def get_checkout_status(order_id: int, request: Request):
         order = cursor.fetchone()
         if not order:
             raise HTTPException(status_code=404, detail="Orden no encontrada")
+
+        # Si la orden sigue pendiente y tiene provider_token (Paddle transaction),
+        # verificar directamente con la API de Paddle (fallback del webhook)
+        if order["payment_status"] == "pending" and order.get("provider_token"):
+            provider = payment_providers.get_provider_for_order(order["order_type"])
+            if provider and provider.name == "paddle":
+                paddle_result = provider.get_transaction_status(order["provider_token"])
+                if paddle_result.get("success") and paddle_result["status"] == "approved":
+                    commerce_service.confirm_payment(
+                        db, order["id"],
+                        provider_token=order["provider_token"],
+                        provider_order_id=paddle_result.get("transaction_id", ""),
+                        provider="paddle",
+                    )
+                    # Re-leer la orden actualizada
+                    cursor.execute(
+                        """SELECT o.*, oi.book_id, b.title as book_title
+                           FROM orders o
+                           LEFT JOIN order_items oi ON oi.order_id = o.id
+                           LEFT JOIN books b ON b.id = oi.book_id
+                           WHERE o.id = %s AND o.user_id = %s""",
+                        (order_id, user["id"]),
+                    )
+                    order = cursor.fetchone()
+
         return {
             "order_id": order["id"],
             "order_number": order["order_number"],
