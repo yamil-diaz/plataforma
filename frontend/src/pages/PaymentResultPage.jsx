@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Navbar } from '../components/Navbar';
 import { API } from '../config/api';
 import { CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
+
+const POLL_INTERVAL = 3000;
+const MAX_POLLS = 20;
 
 export default function PaymentResultPage() {
   const [searchParams] = useSearchParams();
@@ -11,6 +14,8 @@ export default function PaymentResultPage() {
   const [status, setStatus] = useState('loading');
   const [message, setMessage] = useState('');
   const [orderNumber, setOrderNumber] = useState('');
+  const pollRef = useRef(null);
+  const pollCountRef = useRef(0);
 
   const token = searchParams.get('token');
   const provider = searchParams.get('provider') || 'paddle';
@@ -23,54 +28,84 @@ export default function PaymentResultPage() {
     }
   }, [ptxn, orderId]);
 
+  const fetchOrderStatus = async () => {
+    if (!orderId) return null;
+    try {
+      const { data } = await axios.get(`${API}/checkout/${orderId}`);
+      return data;
+    } catch {
+      return null;
+    }
+  };
+
+  const applyStatus = (data) => {
+    if (!data) return;
+    const s = data.payment_status || 'pending';
+    setStatus(s);
+    setMessage(s === 'approved' ? 'Pago procesado' : 'Pago no completado');
+    setOrderNumber(data.order_number || '');
+  };
+
+  const startPolling = () => {
+    pollCountRef.current = 0;
+    pollRef.current = setInterval(async () => {
+      pollCountRef.current += 1;
+      if (pollCountRef.current > MAX_POLLS) {
+        clearInterval(pollRef.current);
+        setStatus('pending');
+        setMessage('El pago está tardando más de lo esperado. Puedes revisar en "Mis Libros" más tarde.');
+        return;
+      }
+      const data = await fetchOrderStatus();
+      if (data && data.payment_status !== 'pending') {
+        clearInterval(pollRef.current);
+        applyStatus(data);
+      }
+    }, POLL_INTERVAL);
+  };
+
   useEffect(() => {
-    // Paddle via _ptxn (retorno estándar de Paddle)
+    let cancelled = false;
+
+    const verify = async () => {
+      const data = await fetchOrderStatus();
+      if (cancelled) return;
+
+      if (data) {
+        if (data.payment_status !== 'pending') {
+          applyStatus(data);
+        } else {
+          setStatus('pending');
+          setMessage('Pago pendiente de confirmación...');
+          startPolling();
+        }
+      } else {
+        setStatus('error');
+        setMessage('Error al verificar el pago');
+      }
+    };
+
     if (ptxn) {
       if (orderId) {
-        verifyOrderByStatus();
+        verify();
       } else {
         setStatus('pending');
         setMessage('Verificando pago...');
       }
-      return;
+    } else if (provider === 'paddle' && token) {
+      verify();
+    } else if (orderId) {
+      verify();
+    } else {
+      setStatus('error');
+      setMessage('Parámetros de pago no válidos');
     }
-    // Paddle legacy: usar token
-    if (provider === 'paddle' && token) {
-      verifyPaddlePayment();
-      return;
-    }
-    // Culqi u otro: verificar por order_id
-    if (orderId) {
-      verifyOrderByStatus();
-      return;
-    }
-    setStatus('error');
-    setMessage('Parámetros de pago no válidos');
+
+    return () => {
+      cancelled = true;
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
   }, [ptxn, token, orderId, provider]);
-
-  const verifyPaddlePayment = async () => {
-    try {
-      const { data } = await axios.get(`${API}/checkout/${orderId || ''}`);
-      setStatus(data.payment_status || 'pending');
-      setMessage(data.payment_status === 'approved' ? 'Pago procesado' : 'Pago no completado');
-      setOrderNumber(data.order_number || '');
-    } catch (err) {
-      setStatus('error');
-      setMessage(err.response?.data?.detail || 'Error al verificar el pago');
-    }
-  };
-
-  const verifyOrderByStatus = async () => {
-    try {
-      const { data } = await axios.get(`${API}/checkout/${orderId}`);
-      setStatus(data.payment_status || 'pending');
-      setMessage(data.payment_status === 'approved' ? 'Pago procesado' : 'Pago no completado');
-      setOrderNumber(data.order_number || '');
-    } catch (err) {
-      setStatus('error');
-      setMessage(err.response?.data?.detail || 'Error al verificar el pago');
-    }
-  };
 
   const getStatusIcon = () => {
     switch (status) {
