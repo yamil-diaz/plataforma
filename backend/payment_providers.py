@@ -244,7 +244,7 @@ class PaddleProvider(PaymentProvider):
                     },
                     "product": {
                         "name": description[:200],
-                        "tax_category": "digital-goods",
+                        "tax_category": "ebooks",
                     },
                 },
             }],
