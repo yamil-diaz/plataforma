@@ -171,12 +171,20 @@ def handle_webhook(provider_name: str, headers: dict, body: bytes, db) -> dict:
                 provider_order_id=event.get("provider_order_id", ""),
                 provider=provider_name,
             )
-            cursor.execute(
-                "UPDATE payment_events SET order_id = %s, processing_status = 'processed' WHERE id = %s",
-                (order["id"], event_id),
-            )
-            db.commit()
-            return {"status": "ok", "message": "Payment confirmed"}
+            if confirm_result.get("success"):
+                cursor.execute(
+                    "UPDATE payment_events SET order_id = %s, processing_status = 'processed' WHERE id = %s",
+                    (order["id"], event_id),
+                )
+                db.commit()
+                return {"status": "ok", "message": "Payment confirmed"}
+            else:
+                cursor.execute(
+                    "UPDATE payment_events SET processing_status = 'failed', error_message = %s WHERE id = %s",
+                    (confirm_result.get("error", "confirm_payment failed"), event_id),
+                )
+                db.commit()
+                return {"status": "error", "message": confirm_result.get("error", "confirm_payment failed")}
 
         elif status in ("rejected", "cancelled"):
             cursor.execute(

@@ -5694,6 +5694,7 @@ async def create_checkout(req: CheckoutRequest, request: Request):
             description=f"Compra en AETERNUM - {book['title']}",
             email=user["email"],
             metadata={"book_id": req.book_id, "user_id": user["id"]},
+            order_id=result["order_id"],
         )
 
         if not provider_result["success"]:
@@ -5766,7 +5767,10 @@ async def get_checkout_status(order_id: int, request: Request):
         # Si la orden sigue pendiente y tiene provider_token (Paddle transaction),
         # verificar directamente con la API de Paddle (fallback del webhook)
         if order["payment_status"] == "pending" and order.get("provider_token"):
-            provider = payment_providers.get_provider_for_order(order["order_type"])
+            try:
+                provider = payment_providers.get_provider_for_order(order["order_type"])
+            except ValueError:
+                provider = None
             if provider and provider.name == "paddle":
                 paddle_result = provider.get_transaction_status(order["provider_token"])
                 if paddle_result.get("success") and paddle_result["status"] == "approved":
