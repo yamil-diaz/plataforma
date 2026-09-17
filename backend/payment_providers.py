@@ -359,6 +359,12 @@ class PaddleProvider(PaymentProvider):
             }
             status = status_map.get(paddle_status, "pending")
 
+            print(f"[PAYMENT DEBUG] Paddle transaction request", flush=True)
+            print(f"[PAYMENT DEBUG] transaction_id={transaction_id}", flush=True)
+            print(f"[PAYMENT DEBUG] Paddle HTTP status=200", flush=True)
+            print(f"[PAYMENT DEBUG] Paddle transaction status={paddle_status}", flush=True)
+            print(f"[PAYMENT DEBUG] mapped internal status={status}", flush=True)
+
             details = data.get("details", {})
             amount = Decimal("0")
             if details:
@@ -392,8 +398,13 @@ class PaddleProvider(PaymentProvider):
                 body = e.read().decode("utf-8")
             except Exception:
                 pass
+            print(f"[PAYMENT DEBUG] Paddle API ERROR", flush=True)
+            print(f"[PAYMENT DEBUG] HTTP status={e.code}", flush=True)
+            print(f"[PAYMENT DEBUG] error type=HTTPError", flush=True)
             return {"success": False, "error": f"HTTP {e.code}: {body[:300]}"}
         except Exception as e:
+            print(f"[PAYMENT DEBUG] Paddle API ERROR", flush=True)
+            print(f"[PAYMENT DEBUG] error type={type(e).__name__}", flush=True)
             return {"success": False, "error": str(e)}
 
     def verify_webhook(self, headers: dict, body: bytes) -> bool:

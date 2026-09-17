@@ -5764,6 +5764,13 @@ async def get_checkout_status(order_id: int, request: Request):
         if not order:
             raise HTTPException(status_code=404, detail="Orden no encontrada")
 
+        print(f"[PAYMENT DEBUG] checkout verification", flush=True)
+        print(f"[PAYMENT DEBUG] order_id={order['id']}", flush=True)
+        print(f"[PAYMENT DEBUG] user_id={user['id']}", flush=True)
+        print(f"[PAYMENT DEBUG] order payment_status BEFORE={order['payment_status']}", flush=True)
+        print(f"[PAYMENT DEBUG] provider={order.get('provider', 'flow')}", flush=True)
+        print(f"[PAYMENT DEBUG] provider_token exists={bool(order.get('provider_token'))}", flush=True)
+
         # Si la orden sigue pendiente y tiene provider_token (Paddle transaction),
         # verificar directamente con la API de Paddle (fallback del webhook)
         if order["payment_status"] == "pending" and order.get("provider_token"):
@@ -5773,7 +5780,10 @@ async def get_checkout_status(order_id: int, request: Request):
                 provider = None
             if provider and provider.name == "paddle":
                 paddle_result = provider.get_transaction_status(order["provider_token"])
+                print(f"[PAYMENT DEBUG] provider status={paddle_result.get('paddle_status', 'N/A')}", flush=True)
+                print(f"[PAYMENT DEBUG] mapped status={paddle_result.get('status', 'N/A')}", flush=True)
                 if paddle_result.get("success") and paddle_result["status"] == "approved":
+                    print(f"[PAYMENT DEBUG] confirm_payment executed=true", flush=True)
                     commerce_service.confirm_payment(
                         db, order["id"],
                         provider_token=order["provider_token"],
@@ -5790,6 +5800,11 @@ async def get_checkout_status(order_id: int, request: Request):
                         (order_id, user["id"]),
                     )
                     order = cursor.fetchone()
+                    print(f"[PAYMENT DEBUG] order payment_status AFTER={order['payment_status']}", flush=True)
+                else:
+                    print(f"[PAYMENT DEBUG] confirm_payment executed=false", flush=True)
+        else:
+            print(f"[PAYMENT DEBUG] fallback skipped: status={order['payment_status']} token={bool(order.get('provider_token'))}", flush=True)
 
         return {
             "order_id": order["id"],

@@ -47,13 +47,19 @@ def handle_webhook(provider_name: str, headers: dict, body: bytes, db) -> dict:
 
     # 1. Verificar autenticidad/firma
     if not provider.verify_webhook(headers, body):
+        print(f"[PAYMENT DEBUG] Paddle webhook received", flush=True)
+        print(f"[PAYMENT DEBUG] webhook auth FAILED - invalid signature", flush=True)
         _log_event(db, provider_name, "webhook_auth_failed", body, "failed",
                     "Firma de webhook inválida")
         return {"status": "error", "message": "Invalid signature"}
 
     # 2. Parsear evento
     event = provider.parse_webhook_event(headers, body)
+    print(f"[PAYMENT DEBUG] Paddle webhook received", flush=True)
+    print(f"[PAYMENT DEBUG] event_type={event.get('event_type', 'N/A')}", flush=True)
+    print(f"[PAYMENT DEBUG] transaction_id={event.get('provider_event_id', 'N/A')}", flush=True)
     if "error" in event:
+        print(f"[PAYMENT DEBUG] webhook parse ERROR={event['error']}", flush=True)
         _log_event(db, provider_name, "webhook_parse_error", body, "failed",
                     event["error"])
         return {"status": "error", "message": event["error"]}
@@ -171,6 +177,7 @@ def handle_webhook(provider_name: str, headers: dict, body: bytes, db) -> dict:
                 provider_order_id=event.get("provider_order_id", ""),
                 provider=provider_name,
             )
+            print(f"[PAYMENT DEBUG] webhook confirm_payment success={confirm_result.get('success', False)}", flush=True)
             if confirm_result.get("success"):
                 cursor.execute(
                     "UPDATE payment_events SET order_id = %s, processing_status = 'processed' WHERE id = %s",
@@ -202,6 +209,7 @@ def handle_webhook(provider_name: str, headers: dict, body: bytes, db) -> dict:
 
         else:
             # Pendiente u otro estado
+            print(f"[PAYMENT DEBUG] webhook status={status} → event ignored", flush=True)
             cursor.execute(
                 "UPDATE payment_events SET processing_status = 'ignored' WHERE id = %s",
                 (event_id,),
