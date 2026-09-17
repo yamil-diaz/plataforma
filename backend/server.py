@@ -5795,6 +5795,7 @@ async def get_checkout_status(order_id: int, request: Request):
             "order_status": order["order_status"],
             "total": float(order["total"]),
             "currency": order["currency"],
+            "provider": order.get("provider", "flow"),
             "book_title": order.get("book_title"),
             "created_at": order["created_at"],
             "paid_at": order.get("paid_at"),
@@ -6115,45 +6116,6 @@ async def culqi_charge(req: CulqiChargeRequest, request: Request):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        db.close()
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# PADDLE — Verificar estado de orden
-# ══════════════════════════════════════════════════════════════════════════════
-
-@api_router.get("/checkout/{order_id}")
-async def get_checkout_status(order_id: int, request: Request):
-    """Consulta el estado de una orden."""
-    user = await get_current_user(request)
-    db = get_db()
-    cursor = db.cursor()
-    try:
-        cursor.execute(
-            """SELECT o.*, oi.book_id, b.title as book_title 
-               FROM orders o
-               LEFT JOIN order_items oi ON oi.order_id = o.id
-               LEFT JOIN books b ON b.id = oi.book_id
-               WHERE o.id = %s AND o.user_id = %s""",
-            (order_id, user["id"]),
-        )
-        order = cursor.fetchone()
-        if not order:
-            raise HTTPException(status_code=404, detail="Orden no encontrada")
-        return {
-            "order_id": order["id"],
-            "order_number": order["order_number"],
-            "order_type": order["order_type"],
-            "payment_status": order["payment_status"],
-            "order_status": order["order_status"],
-            "total": float(order["total"]),
-            "currency": order["currency"],
-            "provider": order.get("provider", "flow"),
-            "book_title": order.get("book_title"),
-            "created_at": order["created_at"],
-            "paid_at": order.get("paid_at"),
-        }
     finally:
         db.close()
 
