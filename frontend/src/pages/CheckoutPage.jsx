@@ -4,6 +4,7 @@ import axios from 'axios';
 import { Navbar } from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
 import { API } from '../config/api';
+import { openPaddleCheckout, isPaddleReady } from '../utils/paddle';
 import { CreditCard, Zap, Clock, Truck, CheckCircle, AlertCircle } from 'lucide-react';
 
 export default function CheckoutPage() {
@@ -136,10 +137,19 @@ export default function CheckoutPage() {
 
       const { data } = await axios.post(`${API}/checkout`, payload);
 
-      // Paddle (digitales): redirigir a checkout URL
-      if (data.payment_url) {
+      // Paddle (digitales): abrir checkout overlay
+      if (data.transaction_id) {
+        if (!isPaddleReady()) {
+          setError('No se pudo cargar el sistema de pago. Recarga la pagina e intentalo nuevamente.');
+          setProcessing(false);
+          return;
+        }
         localStorage.setItem('paddle_pending_order_id', String(data.order_id));
-        window.location.href = data.payment_url;
+        const result = openPaddleCheckout(data.transaction_id);
+        if (!result.success) {
+          setError('No se pudo inicializar el checkout. Recarga la pagina e intentalo nuevamente.');
+        }
+        setProcessing(false);
         return;
       }
 
@@ -437,7 +447,7 @@ export default function CheckoutPage() {
         <p className="text-center text-[#A0A0A0] text-xs mt-4">
           {itemType === 'physical_purchase'
             ? 'Serás redirigido para completar el pago de forma segura.'
-            : 'Serás redirigido al checkout para completar el pago de forma segura.'}
+            : 'Se abrirá el checkout de pago de forma segura.'}
         </p>
       </div>
     </div>

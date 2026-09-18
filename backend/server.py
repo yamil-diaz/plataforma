@@ -5694,7 +5694,6 @@ async def create_checkout(req: CheckoutRequest, request: Request):
             description=f"Compra en AETERNUM - {book['title']}",
             email=user["email"],
             metadata={"book_id": req.book_id, "user_id": user["id"]},
-            order_id=result["order_id"],
         )
 
         if not provider_result["success"]:
@@ -5727,11 +5726,12 @@ async def create_checkout(req: CheckoutRequest, request: Request):
                 "currency": result["currency"],
             }
 
-        # Para Paddle (digitales), retornar URL de checkout
+        # Para Paddle (digitales), retornar transaction_id + checkout URL
         return {
             "order_id": result["order_id"],
             "order_number": result["order_number"],
             "payment_url": provider_result.get("checkout_url", ""),
+            "transaction_id": provider_result.get("provider_token", ""),
             "total": float(result["total"]),
             "currency": result["currency"],
         }
