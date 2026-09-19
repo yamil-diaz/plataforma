@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { Navbar } from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
 import { API } from '../config/api';
-import { openPaddleCheckout, isPaddleReady } from '../utils/paddle';
+import { openPaddleCheckout, isPaddleReady, onCheckoutClosed, onCheckoutCompleted } from '../utils/paddle';
 import { CreditCard, Zap, Clock, Truck, CheckCircle, AlertCircle } from 'lucide-react';
 
 export default function CheckoutPage() {
@@ -39,6 +39,14 @@ export default function CheckoutPage() {
     loadAddresses();
     loadCurrencies();
   }, [bookId]);
+
+  // Cleanup: si el usuario navega fuera, limpiar el pending order
+  useEffect(() => {
+    return () => {
+      // Si el usuario cierra la pagina/navega mientras Paddle esta abierto,
+      // el pending order queda en localStorage para que PaymentResultPage lo recupere
+    };
+  }, []);
 
   const loadBook = async () => {
     try {
@@ -111,6 +119,8 @@ export default function CheckoutPage() {
     return 0;
   };
 
+  const checkoutCompletedRef = useRef(false);
+
   const handleCheckout = async () => {
     if (!book) return;
     setProcessing(true);
@@ -137,7 +147,15 @@ export default function CheckoutPage() {
 
       const { data } = await axios.post(`${API}/checkout`, payload);
 
-      // Paddle (digitales): abrir checkout overlay
+      // Paddle (digitales): redirigir al checkout URL de Paddle
+      if (data.payment_url) {
+        localStorage.setItem('paddle_pending_order_id', String(data.order_id));
+        // Redirigir directamente al checkout de Paddle (mas confiable que overlay)
+        window.location.href = data.payment_url;
+        return;
+      }
+
+      // Fallback: si hay transaction_id pero no payment_url, intentar overlay
       if (data.transaction_id) {
         if (!isPaddleReady()) {
           setError('No se pudo cargar el sistema de pago. Recarga la pagina e intentalo nuevamente.');
@@ -145,19 +163,43 @@ export default function CheckoutPage() {
           return;
         }
         localStorage.setItem('paddle_pending_order_id', String(data.order_id));
+
+        checkoutCompletedRef.current = false;
+        onCheckoutCompleted((orderId) => {
+          if (!checkoutCompletedRef.current) {
+            checkoutCompletedRef.current = true;
+            localStorage.removeItem('paddle_pending_order_id');
+            navigate(`/checkout/result?order_id=${orderId}`);
+          }
+        });
+
+        onCheckoutClosed(() => {
+          if (!checkoutCompletedRef.current) {
+            localStorage.removeItem('paddle_pending_order_id');
+            setProcessing(false);
+            setError('Checkout cancelado. Puedes intentar de nuevo.');
+          }
+        });
+
         const result = openPaddleCheckout(data.transaction_id);
         if (!result.success) {
-          setError('No se pudo inicializar el checkout. Recarga la pagina e intentalo nuevamente.');
+          // Si falla el overlay, redirigir al payment_url como ultimo recurso
+          if (data.payment_url) {
+            window.location.href = data.payment_url;
+          } else {
+            setError('No se pudo inicializar el checkout. Recarga la pagina e intentalo nuevamente.');
+            setProcessing(false);
+            localStorage.removeItem('paddle_pending_order_id');
+          }
         }
-        setProcessing(false);
         return;
       }
 
-      // Culqi (físicos): redirigir a resultado con order_id para tokenización
+      // Culqi (fisicos): redirigir a resultado con order_id para tokenizacion
       if (data.checkout_type === 'culqi_token') {
-        // TODO: Implementar Culqi tokenización en frontend
+        // TODO: Implementar Culqi tokenizacion en frontend
         // Por ahora, mostrar mensaje
-        setError('Culqi checkout pendiente de implementación en frontend');
+        setError('Culqi checkout pendiente de implementacion en frontend');
         return;
       }
 
@@ -165,7 +207,10 @@ export default function CheckoutPage() {
     } catch (err) {
       setError(err.response?.data?.detail || 'Error al procesar el checkout');
     } finally {
-      setProcessing(false);
+      // Solo resetear processing si NO es Paddle (Paddle mantiene el overlay abierto)
+      if (!localStorage.getItem('paddle_pending_order_id')) {
+        setProcessing(false);
+      }
     }
   };
 

@@ -120,26 +120,55 @@ def handle_webhook(provider_name: str, headers: dict, body: bytes, db) -> dict:
 
         # 4. Buscar orden local
         if not order_number:
-            cursor.execute(
-                "UPDATE payment_events SET processing_status = 'failed', error_message = 'No order_number in event' WHERE id = %s",
-                (event_id,),
-            )
-            db.commit()
-            return {"status": "error", "message": "No order_number"}
+            # Intentar buscar por provider_order_id (transaction_id de Paddle)
+            provider_order_id = event.get("provider_order_id", "")
+            if provider_order_id:
+                cursor.execute(
+                    """SELECT id, user_id, payment_status, total, currency, order_type, order_number
+                       FROM orders WHERE provider_token = %s FOR UPDATE""",
+                    (provider_order_id,),
+                )
+                order = cursor.fetchone()
+                if order:
+                    order_number = order["order_number"]
+                    print(f"[PAYMENT DEBUG] webhook found order by provider_token: {order_number}", flush=True)
 
-        cursor.execute(
-            """SELECT id, user_id, payment_status, total, currency, order_type
-               FROM orders WHERE order_number = %s FOR UPDATE""",
-            (order_number,),
-        )
-        order = cursor.fetchone()
-        if not order:
+            if not order_number:
+                cursor.execute(
+                    "UPDATE payment_events SET processing_status = 'failed', error_message = 'No order_number in event' WHERE id = %s",
+                    (event_id,),
+                )
+                db.commit()
+                return {"status": "error", "message": "No order_number"}
+        else:
             cursor.execute(
-                "UPDATE payment_events SET processing_status = 'failed', error_message = %s WHERE id = %s",
-                (f"Orden local no encontrada: {order_number}", event_id),
+                """SELECT id, user_id, payment_status, total, currency, order_type, order_number
+                   FROM orders WHERE order_number = %s FOR UPDATE""",
+                (order_number,),
             )
-            db.commit()
-            return {"status": "error", "message": "Local order not found"}
+            order = cursor.fetchone()
+
+        if not order:
+            # Intentar por provider_order_id como fallback
+            provider_order_id = event.get("provider_order_id", "")
+            if provider_order_id:
+                cursor.execute(
+                    """SELECT id, user_id, payment_status, total, currency, order_type, order_number
+                       FROM orders WHERE provider_token = %s FOR UPDATE""",
+                    (provider_order_id,),
+                )
+                order = cursor.fetchone()
+                if order:
+                    order_number = order["order_number"]
+                    print(f"[PAYMENT DEBUG] webhook found order by provider_token fallback: {order_number}", flush=True)
+
+            if not order:
+                cursor.execute(
+                    "UPDATE payment_events SET processing_status = 'failed', error_message = %s WHERE id = %s",
+                    (f"Orden local no encontrada: {order_number or event.get('provider_order_id', 'unknown')}", event_id),
+                )
+                db.commit()
+                return {"status": "error", "message": "Local order not found"}
 
         # 5. Verificar monto
         event_amount = event.get("amount")

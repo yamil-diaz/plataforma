@@ -16,6 +16,7 @@
 var _initialized = false;
 var _paddleAvailable = false;
 var _checkoutCompletedCallback = null;
+var _checkoutClosedCallback = null;
 
 export function isPaddleLoaded() {
   return typeof window !== 'undefined' && typeof window.Paddle !== 'undefined';
@@ -44,10 +45,18 @@ export function initializePaddle() {
   window.Paddle.Initialize({
     token: token,
     eventCallback: function (event) {
-      if (event && event.name === 'checkout.completed') {
+      if (!event || !event.name) return;
+
+      console.log('[PADDLE EVENT]', event.name, event);
+
+      if (event.name === 'checkout.completed') {
         var pendingOrderId = localStorage.getItem('paddle_pending_order_id');
         if (pendingOrderId && _checkoutCompletedCallback) {
           _checkoutCompletedCallback(pendingOrderId);
+        }
+      } else if (event.name === 'checkout.closed') {
+        if (_checkoutClosedCallback) {
+          _checkoutClosedCallback();
         }
       }
     },
@@ -58,6 +67,10 @@ export function initializePaddle() {
 
 export function onCheckoutCompleted(callback) {
   _checkoutCompletedCallback = callback;
+}
+
+export function onCheckoutClosed(callback) {
+  _checkoutClosedCallback = callback;
 }
 
 export function openPaddleCheckout(transactionId) {

@@ -1492,6 +1492,49 @@ async def logout(response: Response):
     return {"message": "Sesión cerrada correctamente"}
 
 
+@api_router.post("/refresh-token")
+async def refresh_token(request: Request, response: Response):
+    """Refresca el access_token usando el refresh_token cookie."""
+    refresh = request.cookies.get("refresh_token")
+    if not refresh:
+        raise HTTPException(status_code=401, detail="No refresh token")
+
+    try:
+        payload = jwt.decode(refresh, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("SELECT id, email FROM users WHERE id = %s", (user_id,))
+        user = cursor.fetchone()
+        db.close()
+
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+
+        # Generar nuevos tokens
+        new_access = create_access_token(user["id"], user["email"])
+        new_refresh = create_refresh_token(user["id"])
+
+        # Set cookies via Response
+        cookie_kwargs = {
+            "httponly": True,
+            "secure": IS_PRODUCTION,
+            "samesite": "lax",
+            "path": "/",
+        }
+        response.set_cookie(key="access_token", value=new_access, max_age=3600, **cookie_kwargs)
+        response.set_cookie(key="refresh_token", value=new_refresh, max_age=604800, **cookie_kwargs)
+
+        return {"message": "Token refreshed"}
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Refresh token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+
 @api_router.get("/me")
 async def get_me(user=Depends(get_current_user)):
     return user

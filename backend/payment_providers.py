@@ -214,8 +214,7 @@ class PaddleProvider(PaymentProvider):
         return missing
 
     def create_checkout(self, order_number: str, amount: Decimal, currency: str,
-                        description: str, email: str, metadata: dict = None,
-                        order_id: int = None) -> dict:
+                        description: str, email: str, metadata: dict = None) -> dict:
         """
         Crea un checkout de Paddle Billing.
 
@@ -232,14 +231,8 @@ class PaddleProvider(PaymentProvider):
 
         amount_int = format_amount_for_provider(amount, currency)
 
-        frontend_url = os.getenv("FRONTEND_URL", "").rstrip("/")
-        if not frontend_url:
-            cors = os.getenv("CORS_ORIGINS", "")
-            frontend_url = cors.split(",")[0].strip().rstrip("/") if cors else ""
-
-        checkout_settings = {}
-        if frontend_url and order_id:
-            checkout_settings["return_url"] = f"{frontend_url}/checkout/result?order_id={order_id}"
+        # URL de retorno despues del pago
+        frontend_url = os.getenv("FRONTEND_URL", "https://aeternumlibrary.com")
 
         payload = {
             "items": [{
@@ -260,13 +253,14 @@ class PaddleProvider(PaymentProvider):
             }],
             "currency_code": currency,
             "collection_mode": "automatic",
+            "checkout": {
+                "url": f"{frontend_url}/checkout/result",
+            },
             "custom_data": {
                 "order_number": order_number,
                 **(metadata or {}),
             },
         }
-        if checkout_settings:
-            payload["checkout"] = {"settings": checkout_settings}
 
         try:
             data_bytes = json.dumps(payload).encode("utf-8")
@@ -435,10 +429,11 @@ class PaddleProvider(PaymentProvider):
         if not ts or not h1:
             return False
 
-        # Verificar que el timestamp no sea muy antiguo (5 minutos)
+        # Verificar que el timestamp no sea muy antiguo (15 minutos)
+        # Paddle puede enviar webhooks con delay; ser tolerante
         try:
             ts_int = int(ts)
-            if abs(time.time() - ts_int) > 300:
+            if abs(time.time() - ts_int) > 900:
                 return False
         except ValueError:
             return False

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { initializePaddle, onCheckoutCompleted, isPaddleLoaded } from './utils/paddle';
+import { initializePaddle, isPaddleLoaded } from './utils/paddle';
 
 import HomePage from './pages/HomePage';
 import ReaderPage from './pages/ReaderPage';
@@ -62,16 +62,11 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 };
 
 function PaddleInit() {
-  const navigate = useNavigate();
-
   useEffect(() => {
     if (isPaddleLoaded()) {
       initializePaddle();
-      onCheckoutCompleted((orderId) => {
-        navigate(`/checkout/result?order_id=${orderId}`);
-      });
     }
-  }, [navigate]);
+  }, []);
 
   return null;
 }
