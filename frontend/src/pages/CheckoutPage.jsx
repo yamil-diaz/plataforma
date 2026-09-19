@@ -205,7 +205,14 @@ export default function CheckoutPage() {
 
       setError('Error al crear el pago');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error al procesar el checkout');
+      const detail = err.response?.data?.detail || '';
+      if (detail.includes('no está configurado') || detail.includes('no configurado') || err.response?.status === 503) {
+        setError('El sistema de pagos no está disponible en este momento. Por favor, contacta a soporte para más información.');
+      } else if (err.response?.status === 502) {
+        setError('Error al conectar con el proveedor de pagos. Intenta de nuevo más tarde.');
+      } else {
+        setError(detail || 'Error al procesar el checkout. Intenta de nuevo.');
+      }
     } finally {
       // Solo resetear processing si NO es Paddle (Paddle mantiene el overlay abierto)
       if (!localStorage.getItem('paddle_pending_order_id')) {

@@ -5728,7 +5728,17 @@ async def create_checkout(req: CheckoutRequest, request: Request):
             raise HTTPException(status_code=500, detail=result["error"])
 
         # Obtener proveedor según tipo de orden
-        provider = payment_providers.get_provider_for_order(req.item_type)
+        try:
+            provider = payment_providers.get_provider_for_order(req.item_type)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        missing = provider._is_configured()
+        if missing:
+            raise HTTPException(
+                status_code=503,
+                detail=f"El sistema de pagos no está configurado correctamente. Faltan variables de entorno: {', '.join(missing)}. Contacta al administrador.",
+            )
 
         provider_result = provider.create_checkout(
             order_number=result["order_number"],

@@ -231,6 +231,9 @@ class PaddleProvider(PaymentProvider):
 
         amount_int = format_amount_for_provider(amount, currency)
 
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+        return_url = f"{frontend_url}/checkout/result"
+
         payload = {
             "items": [{
                 "quantity": 1,
@@ -250,6 +253,7 @@ class PaddleProvider(PaymentProvider):
             }],
             "currency_code": currency,
             "collection_mode": "automatic",
+            "return_url": return_url,
             "custom_data": {
                 "order_number": order_number,
                 **(metadata or {}),
@@ -264,7 +268,7 @@ class PaddleProvider(PaymentProvider):
                 headers={
                     "Content-Type": "application/json",
                     "Authorization": f"Bearer {self.api_key}",
-                    "Paddle-Version": "1",
+                    "Paddle-Version": "3",
                     "User-Agent": "AeternumBackend/2.0",
                 },
                 method="POST",
@@ -325,7 +329,7 @@ class PaddleProvider(PaymentProvider):
                 f"{self.api_base}/transactions/{transaction_id}",
                 headers={
                     "Authorization": f"Bearer {self.api_key}",
-                    "Paddle-Version": "1",
+                    "Paddle-Version": "3",
                     "User-Agent": "AeternumBackend/2.0",
                 },
                 method="GET",

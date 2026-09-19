@@ -33,3 +33,13 @@ services:
         value: "https://aeternum-world.onrender.com"
       - key: STORAGE_DIR
         value: /var/data/aeternum
+      # Pagos - Configurar con tus credenciales de Paddle
+      # Obtener en: https://sandbox.paddle.com/ (sandbox) o https://vendor.paddle.com/ (produccion)
+      # - key: PADDLE_API_KEY
+      #   value: " tu_paddle_api_key_aqui"
+      # - key: PADDLE_CLIENT_TOKEN
+      #   value: " tu_paddle_client_token_aqui"
+      # - key: PADDLE_WEBHOOK_SECRET
+      #   value: " tu_paddle_webhook_secret_aqui"
+      # - key: PADDLE_ENVIRONMENT
+      #   value: "sandbox"

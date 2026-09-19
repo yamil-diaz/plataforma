@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { initializePaddle, isPaddleLoaded } from './utils/paddle';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 import HomePage from './pages/HomePage';
 import ReaderPage from './pages/ReaderPage';
@@ -240,11 +241,13 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <PaddleInit />
-        <AppRoutes />
-      </Router>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <Router>
+          <PaddleInit />
+          <AppRoutes />
+        </Router>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
