@@ -231,9 +231,6 @@ class PaddleProvider(PaymentProvider):
 
         amount_int = format_amount_for_provider(amount, currency)
 
-        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
-        return_url = f"{frontend_url}/checkout/result"
-
         payload = {
             "items": [{
                 "quantity": 1,
@@ -253,7 +250,6 @@ class PaddleProvider(PaymentProvider):
             }],
             "currency_code": currency,
             "collection_mode": "automatic",
-            "return_url": return_url,
             "custom_data": {
                 "order_number": order_number,
                 **(metadata or {}),
@@ -262,13 +258,15 @@ class PaddleProvider(PaymentProvider):
 
         try:
             data_bytes = json.dumps(payload).encode("utf-8")
+            print(f"[PADDLE DEBUG] Creating transaction: amount={amount_int} {currency}", flush=True)
+            print(f"[PADDLE DEBUG] Payload: {json.dumps(payload, indent=2)[:800]}", flush=True)
             req = urllib.request.Request(
                 f"{self.api_base}/transactions",
                 data=data_bytes,
                 headers={
                     "Content-Type": "application/json",
                     "Authorization": f"Bearer {self.api_key}",
-                    "Paddle-Version": "3",
+                    "Paddle-Version": "1",
                     "User-Agent": "AeternumBackend/2.0",
                 },
                 method="POST",
@@ -278,8 +276,14 @@ class PaddleProvider(PaymentProvider):
 
             # Paddle Billing retorna HTTP 201 con { "data": {...} }
             data = result.get("data", {})
+            print(f"[PADDLE DEBUG] Transaction created: id={data.get('id')}", flush=True)
+            print(f"[PADDLE DEBUG] Status: {data.get('status')}", flush=True)
+            print(f"[PADDLE DEBUG] Checkout: {json.dumps(data.get('checkout', {}))[:500]}", flush=True)
+
             if data.get("id"):
-                checkout_url = data.get("checkout", {}).get("url", "")
+                checkout = data.get("checkout") or {}
+                checkout_url = checkout.get("url", "")
+                print(f"[PADDLE DEBUG] Checkout URL: {checkout_url[:200]}", flush=True)
                 return {
                     "success": True,
                     "checkout_url": checkout_url,
@@ -288,6 +292,7 @@ class PaddleProvider(PaymentProvider):
                 }
             else:
                 error = result.get("error", {})
+                print(f"[PADDLE DEBUG] ERROR creating transaction: {json.dumps(result)[:500]}", flush=True)
                 return {
                     "success": False,
                     "error": error.get("message", "Error desconocido de Paddle"),
@@ -300,6 +305,7 @@ class PaddleProvider(PaymentProvider):
                 body = e.read().decode("utf-8")
             except Exception:
                 pass
+            print(f"[PADDLE DEBUG] HTTP ERROR {e.code}: {body[:500]}", flush=True)
             return {
                 "success": False,
                 "error": f"Error HTTP {e.code} de Paddle",

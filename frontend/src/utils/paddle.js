@@ -15,6 +15,7 @@
 
 var _initialized = false;
 var _paddleAvailable = false;
+var _hasValidToken = false;
 var _checkoutCompletedCallback = null;
 var _checkoutClosedCallback = null;
 
@@ -23,7 +24,7 @@ export function isPaddleLoaded() {
 }
 
 export function isPaddleReady() {
-  return _paddleAvailable;
+  return _paddleAvailable && _hasValidToken;
 }
 
 export function initializePaddle() {
@@ -40,6 +41,13 @@ export function initializePaddle() {
     token = import.meta.env.VITE_PADDLE_CLIENT_TOKEN || '';
   } catch (e) {
     token = '';
+  }
+
+  if (!token) {
+    console.warn('[PADDLE] VITE_PADDLE_CLIENT_TOKEN no está configurado. El checkout overlay no funcionará. Configure la variable en Render.');
+    _paddleAvailable = true;
+    _hasValidToken = false;
+    return;
   }
 
   window.Paddle.Initialize({
@@ -63,6 +71,8 @@ export function initializePaddle() {
   });
 
   _paddleAvailable = true;
+  _hasValidToken = true;
+  console.log('[PADDLE] SDK inicializado correctamente');
 }
 
 export function onCheckoutCompleted(callback) {
@@ -74,7 +84,7 @@ export function onCheckoutClosed(callback) {
 }
 
 export function openPaddleCheckout(transactionId) {
-  if (_paddleAvailable && isPaddleLoaded()) {
+  if (_paddleAvailable && _hasValidToken && isPaddleLoaded()) {
     window.Paddle.Checkout.open({
       transactionId: transactionId,
       settings: {
@@ -88,6 +98,10 @@ export function openPaddleCheckout(transactionId) {
 
   if (!isPaddleLoaded()) {
     return { success: false, error: 'paddle_not_loaded' };
+  }
+
+  if (!_hasValidToken) {
+    return { success: false, error: 'paddle_no_token' };
   }
 
   return { success: false, error: 'paddle_not_initialized' };

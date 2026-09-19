@@ -150,7 +150,6 @@ export default function CheckoutPage() {
       // Paddle (digitales): redirigir al checkout URL de Paddle
       if (data.payment_url) {
         localStorage.setItem('paddle_pending_order_id', String(data.order_id));
-        // Redirigir directamente al checkout de Paddle (mas confiable que overlay)
         window.location.href = data.payment_url;
         return;
       }
@@ -158,7 +157,7 @@ export default function CheckoutPage() {
       // Fallback: si hay transaction_id pero no payment_url, intentar overlay
       if (data.transaction_id) {
         if (!isPaddleReady()) {
-          setError('No se pudo cargar el sistema de pago. Recarga la pagina e intentalo nuevamente.');
+          setError('El sistema de pago no está disponible. El administrador debe configurar VITE_PADDLE_CLIENT_TOKEN en Render. Mientras tanto, intenta más tarde.');
           setProcessing(false);
           return;
         }
@@ -183,27 +182,24 @@ export default function CheckoutPage() {
 
         const result = openPaddleCheckout(data.transaction_id);
         if (!result.success) {
-          // Si falla el overlay, redirigir al payment_url como ultimo recurso
-          if (data.payment_url) {
-            window.location.href = data.payment_url;
+          if (result.error === 'paddle_no_token') {
+            setError('El sistema de pago no está configurado correctamente. Contacta al administrador.');
           } else {
-            setError('No se pudo inicializar el checkout. Recarga la pagina e intentalo nuevamente.');
-            setProcessing(false);
-            localStorage.removeItem('paddle_pending_order_id');
+            setError('No se pudo abrir el checkout. Recarga la pagina e intentalo de nuevo.');
           }
+          setProcessing(false);
+          localStorage.removeItem('paddle_pending_order_id');
         }
         return;
       }
 
       // Culqi (fisicos): redirigir a resultado con order_id para tokenizacion
       if (data.checkout_type === 'culqi_token') {
-        // TODO: Implementar Culqi tokenizacion en frontend
-        // Por ahora, mostrar mensaje
         setError('Culqi checkout pendiente de implementacion en frontend');
         return;
       }
 
-      setError('Error al crear el pago');
+      setError('Error al crear el pago. Intenta de nuevo.');
     } catch (err) {
       const detail = err.response?.data?.detail || '';
       if (detail.includes('no está configurado') || detail.includes('no configurado') || err.response?.status === 503) {
