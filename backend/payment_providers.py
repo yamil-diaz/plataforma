@@ -231,9 +231,6 @@ class PaddleProvider(PaymentProvider):
 
         amount_int = format_amount_for_provider(amount, currency)
 
-        # URL de retorno despues del pago
-        frontend_url = os.getenv("FRONTEND_URL", "https://aeternumlibrary.com")
-
         payload = {
             "items": [{
                 "quantity": 1,
@@ -253,9 +250,6 @@ class PaddleProvider(PaymentProvider):
             }],
             "currency_code": currency,
             "collection_mode": "automatic",
-            "checkout": {
-                "url": f"{frontend_url}/checkout/result",
-            },
             "custom_data": {
                 "order_number": order_number,
                 **(metadata or {}),
