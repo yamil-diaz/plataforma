@@ -147,17 +147,11 @@ export default function CheckoutPage() {
 
       const { data } = await axios.post(`${API}/checkout`, payload);
 
-      // Paddle (digitales): redirigir al checkout URL de Paddle
-      if (data.payment_url) {
-        localStorage.setItem('paddle_pending_order_id', String(data.order_id));
-        window.location.href = data.payment_url;
-        return;
-      }
-
-      // Fallback: si hay transaction_id pero no payment_url, intentar overlay
+      // Paddle (digitales): SIEMPRE usar overlay (el redirect URL de Paddle sandbox
+      // apunta a nuestro dominio en vez de a la checkout page de Paddle)
       if (data.transaction_id) {
         if (!isPaddleReady()) {
-          setError('El sistema de pago no está disponible. El administrador debe configurar VITE_PADDLE_CLIENT_TOKEN en Render. Mientras tanto, intenta más tarde.');
+          setError('El sistema de pago no está disponible. Recarga la pagina e intentalo de nuevo.');
           setProcessing(false);
           return;
         }
@@ -182,8 +176,11 @@ export default function CheckoutPage() {
 
         const result = openPaddleCheckout(data.transaction_id);
         if (!result.success) {
-          if (result.error === 'paddle_no_token') {
-            setError('El sistema de pago no está configurado correctamente. Contacta al administrador.');
+          // Si el overlay falla, intentar redirect como ultimo recurso
+          if (data.payment_url) {
+            window.location.href = data.payment_url;
+          } else if (result.error === 'paddle_no_token') {
+            setError('El sistema de pago no está configurado. Contacta al administrador.');
           } else {
             setError('No se pudo abrir el checkout. Recarga la pagina e intentalo de nuevo.');
           }
