@@ -37,6 +37,7 @@ import PaymentResultPage from './pages/PaymentResultPage';
 import MyBooksPage from './pages/MyBooksPage';
 import MyPurchasesPage from './pages/MyPurchasesPage';
 import MyPhysicalOrdersPage from './pages/MyPhysicalOrdersPage';
+import TestCheckoutPage from './pages/TestCheckoutPage';
 
 // Componente para proteger rutas (Debe estar autenticado)
 const ProtectedRoute = ({ children, adminOnly = false }) => {
@@ -112,6 +113,7 @@ function AppRoutes() {
         }
       />
       <Route path="/checkout/result" element={<PaymentResultPage />} />
+      <Route path="/test-checkout" element={<TestCheckoutPage />} />
       <Route
         path="/mis-libros"
         element={
