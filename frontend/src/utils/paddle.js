@@ -1,78 +1,66 @@
 /**
  * paddle.js — Inicialización y utilidades de Paddle.js v2.
- *
- * CRÍTICO: Este archivo está diseñado para evitar que Vite/esbuild
- * elimine Paddle.Initialize() y Paddle.Checkout.open() como dead code.
- *
- * Cuando VITE_PADDLE_CLIENT_TOKEN no existe, import.meta.env lo reemplaza
- * por undefined. Si el token se usa en un if() directo, esbuild elimina
- * todo el bloque como dead code.
- *
- * Solución: llamar Paddle.Initialize() SIEMPRE que window.Paddle exista,
- * sin condicionar al token. El token se pasa como string (puede ser ''),
- * y Paddle.js maneja internamente si es válido.
+ * Usa @paddle/paddle-js (npm) en vez del CDN para evitar bloqueadores de ads.
  */
 
-var _initialized = false;
-var _paddleAvailable = false;
-var _hasValidToken = false;
+import { initializePaddle as initPaddle } from '@paddle/paddle-js';
+
+var _paddleInstance = null;
 var _checkoutCompletedCallback = null;
 var _checkoutClosedCallback = null;
 
+const CLIENT_TOKEN = import.meta.env.VITE_PADDLE_CLIENT_TOKEN || '';
+const ENV = import.meta.env.VITE_PADDLE_ENVIRONMENT || 'sandbox';
+
 export function isPaddleLoaded() {
-  return typeof window !== 'undefined' && typeof window.Paddle !== 'undefined';
+  return true;
 }
 
 export function isPaddleReady() {
-  return _paddleAvailable && _hasValidToken;
+  return _paddleInstance !== null;
 }
 
-export function initializePaddle() {
-  if (_initialized) return;
-  _initialized = true;
+export async function initializePaddle() {
+  if (_paddleInstance) return;
 
-  if (!isPaddleLoaded()) {
-    console.error('[PADDLE] Paddle.js no cargado desde CDN');
+  if (!CLIENT_TOKEN) {
+    console.warn('[PADDLE] VITE_PADDLE_CLIENT_TOKEN no configurado');
     return;
   }
 
-  var token = '';
   try {
-    token = import.meta.env.VITE_PADDLE_CLIENT_TOKEN || '';
-  } catch (e) {
-    token = '';
-  }
+    _paddleInstance = await initPaddle({
+      token: CLIENT_TOKEN,
+      environment: ENV,
+      checkout: {
+        settings: {
+          displayMode: 'overlay',
+          theme: 'dark',
+          locale: 'es',
+          variant: 'one-page',
+        },
+      },
+      eventCallback: function (event) {
+        if (!event || !event.name) return;
 
-  if (!token) {
-    console.warn('[PADDLE] VITE_PADDLE_CLIENT_TOKEN no está configurado. El checkout overlay no funcionará. Configure la variable en Render.');
-    _paddleAvailable = true;
-    _hasValidToken = false;
-    return;
-  }
+        console.log('[PADDLE EVENT]', event.name, event);
 
-  window.Paddle.Initialize({
-    token: token,
-    eventCallback: function (event) {
-      if (!event || !event.name) return;
-
-      console.log('[PADDLE EVENT]', event.name, event);
-
-      if (event.name === 'checkout.completed') {
-        var pendingOrderId = localStorage.getItem('paddle_pending_order_id');
-        if (pendingOrderId && _checkoutCompletedCallback) {
-          _checkoutCompletedCallback(pendingOrderId);
+        if (event.name === 'checkout.completed') {
+          var pendingOrderId = localStorage.getItem('paddle_pending_order_id');
+          if (pendingOrderId && _checkoutCompletedCallback) {
+            _checkoutCompletedCallback(pendingOrderId);
+          }
+        } else if (event.name === 'checkout.closed') {
+          if (_checkoutClosedCallback) {
+            _checkoutClosedCallback();
+          }
         }
-      } else if (event.name === 'checkout.closed') {
-        if (_checkoutClosedCallback) {
-          _checkoutClosedCallback();
-        }
-      }
-    },
-  });
-
-  _paddleAvailable = true;
-  _hasValidToken = true;
-  console.log('[PADDLE] SDK inicializado correctamente');
+      },
+    });
+    console.log('[PADDLE] SDK inicializado correctamente via @paddle/paddle-js');
+  } catch (err) {
+    console.error('[PADDLE] Error initializing:', err);
+  }
 }
 
 export function onCheckoutCompleted(callback) {
@@ -84,25 +72,23 @@ export function onCheckoutClosed(callback) {
 }
 
 export function openPaddleCheckout(transactionId) {
-  if (_paddleAvailable && _hasValidToken && isPaddleLoaded()) {
-    window.Paddle.Checkout.open({
+  if (!_paddleInstance) {
+    return { success: false, error: 'paddle_not_initialized' };
+  }
+
+  try {
+    _paddleInstance.Checkout.open({
       transactionId: transactionId,
       settings: {
         displayMode: 'overlay',
         theme: 'dark',
         locale: 'es',
+        variant: 'one-page',
       },
     });
     return { success: true };
+  } catch (err) {
+    console.error('[PADDLE] Checkout.open error:', err);
+    return { success: false, error: err.message };
   }
-
-  if (!isPaddleLoaded()) {
-    return { success: false, error: 'paddle_not_loaded' };
-  }
-
-  if (!_hasValidToken) {
-    return { success: false, error: 'paddle_no_token' };
-  }
-
-  return { success: false, error: 'paddle_not_initialized' };
 }

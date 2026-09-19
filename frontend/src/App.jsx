@@ -66,9 +66,7 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 
 function PaddleInit() {
   useEffect(() => {
-    if (isPaddleLoaded()) {
-      initializePaddle();
-    }
+    initializePaddle();
   }, []);
 
   return null;
