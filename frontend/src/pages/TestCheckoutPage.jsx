@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Zap, Check, Loader2 } from 'lucide-react';
+import { initializePaddle } from '@paddle/paddle-js';
 
 const TIERS = [
   {
@@ -34,54 +35,56 @@ export default function TestCheckoutPage() {
   const [prices, setPrices] = useState({});
   const [loading, setLoading] = useState(true);
   const [paddleReady, setPaddleReady] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   const paddleRef = useRef(null);
   const completedRef = useRef(false);
 
   useEffect(() => {
     if (!CLIENT_TOKEN) {
-      console.error('[PADDLE] VITE_PADDLE_CLIENT_TOKEN no configurado');
+      setErrorMsg('VITE_PADDLE_CLIENT_TOKEN no esta configurado');
       setLoading(false);
       return;
     }
 
-    import('@paddle/paddle-js').then(({ initializePaddle }) => {
-      initializePaddle(CLIENT_TOKEN, {
-        environment: ENV,
-        checkout: {
-          settings: {
-            displayMode: 'overlay',
-            theme: 'dark',
-            locale: 'es',
-            variant: 'one-page',
-          },
+    initializePaddle({
+      token: CLIENT_TOKEN,
+      environment: ENV,
+      checkout: {
+        settings: {
+          displayMode: 'overlay',
+          theme: 'dark',
+          locale: 'es',
+          variant: 'one-page',
         },
-        eventCallback: (event) => {
-          if (event.name === 'checkout.completed') {
-            if (!completedRef.current) {
-              completedRef.current = true;
-              navigate('/welcome');
-            }
+      },
+      eventCallback: (event) => {
+        console.log('[PADDLE EVENT]', event.name, event);
+        if (event.name === 'checkout.completed') {
+          if (!completedRef.current) {
+            completedRef.current = true;
+            navigate('/welcome');
           }
-        },
-      }).then((paddle) => {
-        paddleRef.current = paddle;
-        setPaddleReady(true);
-        fetchPrices(paddle);
-      }).catch((err) => {
-        console.error('[PADDLE] Error initializing:', err);
-        setLoading(false);
-      });
+        }
+      },
+    }).then((paddle) => {
+      paddleRef.current = paddle;
+      setPaddleReady(true);
+      fetchPrices(paddle);
+    }).catch((err) => {
+      console.error('[PADDLE] Error initializing:', err);
+      setErrorMsg('Error initializing Paddle: ' + err.message);
+      setLoading(false);
     });
   }, [navigate]);
 
-  const fetchPrices = useCallback(async (paddle) => {
+  const fetchPrices = async (paddle) => {
     try {
-      const priceIds = TIERS.flatMap((tier) => [
-        { priceId: tier.priceId.month, quantity: 1 },
-        { priceId: tier.priceId.year, quantity: 1 },
-      ]);
+      const priceIds = TIERS.map((tier) => ({
+        priceId: tier.priceId.month,
+        quantity: 1,
+      }));
 
-      const result = await paddle.PricePreview.getPricePreview({
+      const result = await paddle.PricePreview({
         items: priceIds,
       });
 
@@ -100,15 +103,15 @@ export default function TestCheckoutPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
   const handleSubscribe = (tier) => {
     if (!paddleRef.current) {
-      alert('Paddle no esta listo. Verifica VITE_PADDLE_CLIENT_TOKEN en Render.');
+      alert('Paddle no esta listo.');
       return;
     }
 
-    paddleRef.current.Checkout.openItems({
+    paddleRef.current.Checkout.open({
       items: [{
         priceId: tier.priceId[billing],
         quantity: 1,
@@ -125,12 +128,13 @@ export default function TestCheckoutPage() {
     });
   };
 
-  if (!CLIENT_TOKEN) {
+  if (errorMsg) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-400 text-lg mb-2">VITE_PADDLE_CLIENT_TOKEN no esta configurado</p>
-          <p className="text-[#A0A0A0] text-sm">Agrega la variable de entorno en Render</p>
+        <div className="text-center max-w-md">
+          <p className="text-red-400 text-lg mb-2">{errorMsg}</p>
+          <p className="text-[#A0A0A0] text-sm">VITE_PADDLE_CLIENT_TOKEN: {CLIENT_TOKEN ? 'configurado' : 'FALTA'}</p>
+          <p className="text-[#A0A0A0] text-sm">VITE_PADDLE_ENVIRONMENT: {ENV}</p>
         </div>
       </div>
     );
@@ -165,7 +169,7 @@ export default function TestCheckoutPage() {
       <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
         {TIERS.map((tier) => {
           const priceData = prices[tier.priceId[billing]];
-          const displayPrice = priceData?.formattedTotal || '...';
+          const displayPrice = priceData?.formattedTotal || (loading ? '...' : '$10.00');
 
           return (
             <div key={tier.name} className="bg-[#121212] border border-white/10 rounded-2xl p-8 flex flex-col">
@@ -177,9 +181,7 @@ export default function TestCheckoutPage() {
                 ) : (
                   <span className="text-4xl font-bold text-[#D4AF37]">{displayPrice}</span>
                 )}
-                {!loading && displayPrice !== '...' && (
-                  <span className="text-[#A0A0A0] text-sm">/{billing === 'month' ? 'mes' : 'anio'}</span>
-                )}
+                <span className="text-[#A0A0A0] text-sm">/{billing === 'month' ? 'mes' : 'anio'}</span>
               </div>
               <ul className="space-y-3 mb-8 flex-1">
                 {tier.features.map((f) => (
@@ -190,7 +192,7 @@ export default function TestCheckoutPage() {
               </ul>
               <button
                 onClick={() => handleSubscribe(tier)}
-                disabled={!paddleReady || loading}
+                disabled={!paddleReady}
                 className="w-full bg-[#D92B2B] hover:bg-[#F03C3C] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
               >
                 {!paddleReady ? (
@@ -198,7 +200,7 @@ export default function TestCheckoutPage() {
                 ) : (
                   <Zap className="w-4 h-4" />
                 )}
-                {paddleReady ? 'Subscribe' : 'Cargando...'}
+                {paddleReady ? 'Subscribe' : 'Cargando Paddle...'}
               </button>
             </div>
           );
@@ -207,7 +209,7 @@ export default function TestCheckoutPage() {
 
       <div className="max-w-5xl mx-auto mt-12 text-center">
         <p className="text-[#A0A0A0] text-xs">
-          Entorno: <span className="text-[#D4AF37]">{ENV}</span> | Token: <span className="text-[#D4AF37]">{CLIENT_TOKEN ? 'configurado' : 'FALTA'}</span>
+          Entorno: <span className="text-[#D4AF37]">{ENV}</span> | Token: <span className="text-[#D4AF37]">{CLIENT_TOKEN ? 'configurado (' + CLIENT_TOKEN.substring(0, 8) + '...)' : 'FALTA'}</span> | Paddle: <span className="text-[#D4AF37]">{paddleReady ? 'listo' : 'cargando...'}</span>
         </p>
       </div>
     </div>
