@@ -113,21 +113,22 @@ export default function TestCheckoutPage() {
     }
 
     try {
-      paddleRef.current.Checkout.open({
+      const checkoutOptions = {
         items: [{
           priceId: tier.priceId[billing],
           quantity: 1,
         }],
-        customer: {
-          email: user?.email || '',
-        },
         settings: {
           displayMode: 'overlay',
           theme: 'dark',
           locale: 'es',
           variant: 'one-page',
         },
-      });
+      };
+      if (user?.email) {
+        checkoutOptions.customer = { email: user.email };
+      }
+      paddleRef.current.Checkout.open(checkoutOptions);
     } catch (err) {
       console.error('[PADDLE] Checkout.open error:', err);
       alert('Error al abrir checkout: ' + err.message);
