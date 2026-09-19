@@ -7,19 +7,19 @@ const TIERS = [
   {
     name: 'Starter',
     description: 'Para lectores casuales',
-    priceId: { month: 'pri_starter_month', year: 'pri_starter_year' },
+    priceId: { month: 'pri_01m2e24vee4z439gft1wyw52fr', year: 'pri_01m2e24vee4z439gft1wyw52fr' },
     features: ['5 libros al mes', 'Lectura basica', 'Soporte por email'],
   },
   {
     name: 'Pro',
     description: 'Para lectores avidos',
-    priceId: { month: 'pri_pro_month', year: 'pri_pro_year' },
+    priceId: { month: 'pri_01m2e24vee4z439gft1wyw52fr', year: 'pri_01m2e24vee4z439gft1wyw52fr' },
     features: ['Libros ilimitados', 'Lectura premium', 'Soporte prioritario', 'Rayos bonus'],
   },
   {
     name: 'Advanced',
     description: 'Para bibliotecas completas',
-    priceId: { month: 'pri_advanced_month', year: 'pri_advanced_year' },
+    priceId: { month: 'pri_01m2e24vee4z439gft1wyw52fr', year: 'pri_01m2e24vee4z439gft1wyw52fr' },
     features: ['Todo de Pro', 'Acceso anticipado', 'API acceso', 'Soporte dedicado'],
   },
 ];
