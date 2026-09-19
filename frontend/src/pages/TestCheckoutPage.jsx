@@ -106,26 +106,32 @@ export default function TestCheckoutPage() {
   };
 
   const handleSubscribe = (tier) => {
+    console.log('[PADDLE] Subscribe clicked for', tier.name, 'paddleRef:', !!paddleRef.current);
     if (!paddleRef.current) {
-      alert('Paddle no esta listo.');
+      alert('Paddle no esta listo. Refresca la pagina.');
       return;
     }
 
-    paddleRef.current.Checkout.open({
-      items: [{
-        priceId: tier.priceId[billing],
-        quantity: 1,
-      }],
-      customer: {
-        email: user?.email || '',
-      },
-      settings: {
-        displayMode: 'overlay',
-        theme: 'dark',
-        locale: 'es',
-        variant: 'one-page',
-      },
-    });
+    try {
+      paddleRef.current.Checkout.open({
+        items: [{
+          priceId: tier.priceId[billing],
+          quantity: 1,
+        }],
+        customer: {
+          email: user?.email || '',
+        },
+        settings: {
+          displayMode: 'overlay',
+          theme: 'dark',
+          locale: 'es',
+          variant: 'one-page',
+        },
+      });
+    } catch (err) {
+      console.error('[PADDLE] Checkout.open error:', err);
+      alert('Error al abrir checkout: ' + err.message);
+    }
   };
 
   if (errorMsg) {
@@ -192,8 +198,8 @@ export default function TestCheckoutPage() {
               </ul>
               <button
                 onClick={() => handleSubscribe(tier)}
-                disabled={!paddleReady}
-                className="w-full bg-[#D92B2B] hover:bg-[#F03C3C] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+                className="w-full bg-[#D92B2B] hover:bg-[#F03C3C] text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer relative z-10"
+                style={{ opacity: paddleReady ? 1 : 0.5, cursor: paddleReady ? 'pointer' : 'not-allowed' }}
               >
                 {!paddleReady ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
