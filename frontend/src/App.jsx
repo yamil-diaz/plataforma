@@ -28,6 +28,7 @@ import AdminFeaturedBooksPage from './pages/AdminFeaturedBooksPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import RefundPolicyPage from './pages/RefundPolicyPage';
+import PricingPage from './pages/PricingPage';
 import IAPage from './pages/IAPage';
 import ForumPage from './pages/ForumPage';
 import ForumPostPage from './pages/ForumPostPage';
@@ -88,6 +89,7 @@ function AppRoutes() {
       <Route path="/terminos" element={<TermsPage />} />
       <Route path="/privacidad" element={<PrivacyPolicyPage />} />
       <Route path="/reembolsos" element={<RefundPolicyPage />} />
+      <Route path="/precios" element={<PricingPage />} />
       <Route path="/courses" element={<CoursesPage />} />
       <Route path="/courses/:id" element={<CoursePlayerPage />} />
       <Route path="/profile/:id" element={<ProfilePage />} />
