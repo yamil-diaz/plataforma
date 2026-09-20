@@ -6077,10 +6077,14 @@ async def paddle_webhook(request: Request):
     """
     body = await request.body()
     headers = dict(request.headers)
+    print(f"[WEBHOOK DEBUG] Paddle webhook received! Content-Length: {len(body)}", flush=True)
+    print(f"[WEBHOOK DEBUG] Headers: {json.dumps({k: v[:50] if isinstance(v, str) else v for k, v in headers.items() if k.startswith('paddle') or k == 'content-type'})}", flush=True)
+    print(f"[WEBHOOK DEBUG] Body preview: {body[:500].decode('utf-8', errors='replace')}", flush=True)
 
     db = get_db()
     try:
         result = webhook_handler.handle_webhook("paddle", headers, body, db)
+        print(f"[WEBHOOK DEBUG] Result: {result}", flush=True)
         return result
     finally:
         db.close()

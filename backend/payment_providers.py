@@ -414,11 +414,15 @@ class PaddleProvider(PaymentProvider):
         - Formato: ts=timestamp;h1=hex_digest
         - Input: timestamp:body
         """
+        print(f"[WEBHOOK DEBUG] verify_webhook: secret configured={bool(self.webhook_secret)}", flush=True)
+
         if not self.webhook_secret:
+            print(f"[WEBHOOK DEBUG] verify_webhook: REJECTED - no webhook_secret configured", flush=True)
             return False
 
         signature_header = headers.get("paddle-signature", "")
         if not signature_header:
+            print(f"[WEBHOOK DEBUG] verify_webhook: REJECTED - no paddle-signature header", flush=True)
             return False
 
         parts = {}
