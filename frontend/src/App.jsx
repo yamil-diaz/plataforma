@@ -26,6 +26,8 @@ import AdminCompetitionPage from './pages/AdminCompetitionPage';
 import AdminQRCodesPage from './pages/AdminQRCodesPage';
 import AdminFeaturedBooksPage from './pages/AdminFeaturedBooksPage';
 import TermsPage from './pages/TermsPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import RefundPolicyPage from './pages/RefundPolicyPage';
 import IAPage from './pages/IAPage';
 import ForumPage from './pages/ForumPage';
 import ForumPostPage from './pages/ForumPostPage';
@@ -84,6 +86,8 @@ function AppRoutes() {
       <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/terminos" element={<TermsPage />} />
+      <Route path="/privacidad" element={<PrivacyPolicyPage />} />
+      <Route path="/reembolsos" element={<RefundPolicyPage />} />
       <Route path="/courses" element={<CoursesPage />} />
       <Route path="/courses/:id" element={<CoursePlayerPage />} />
       <Route path="/profile/:id" element={<ProfilePage />} />

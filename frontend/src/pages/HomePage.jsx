@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { Navbar } from '../components/Navbar';
+import { Footer } from '../components/Footer';
 import { useAuth } from '../contexts/AuthContext';
 import { Star, Eye, Heart, BookOpen, Search, Trash2, CreditCard, Clock, Truck } from 'lucide-react';
 import { API } from '../config/api';
@@ -428,6 +429,7 @@ export default function HomePage() {
           </div>
         )}
       </main>
+      <Footer />
     </div>
   );
 }
