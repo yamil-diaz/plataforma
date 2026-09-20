@@ -105,9 +105,7 @@ export const Navbar = () => {
             Foro
           </Link>
 
-          <Link to="/terminos" className="text-sm font-medium text-[#A0A0A0] hover:text-[#F5F5F5] transition-colors flex items-center gap-1.5 ml-2">
-            Términos
-          </Link>
+
         </div>
 
         {/* Autenticación / Perfil */}
