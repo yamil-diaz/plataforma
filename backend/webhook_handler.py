@@ -90,14 +90,14 @@ def handle_webhook(provider_name: str, headers: dict, body: bytes, db) -> dict:
                 """UPDATE payment_events
                    SET event_type = %s, payload = %s, provider_payment_id = %s,
                        provider_order_id = %s, amount = %s, currency = %s,
-                       status = %s, updated_at = %s
+                       status = %s
                    WHERE id = %s""",
                 (event["event_type"], json.dumps(event.get("raw", {})),
                  event.get("provider_payment_id", ""),
                  event.get("provider_order_id", ""),
                  float(event.get("amount", 0)) if event.get("amount") else None,
                  event.get("currency", ""),
-                 event.get("status", ""), now, event_id),
+                 event.get("status", ""), event_id),
             )
         else:
             cursor.execute(
