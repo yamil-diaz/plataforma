@@ -4,7 +4,7 @@ import axios from 'axios';
 import { Navbar } from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
 import { API } from '../config/api';
-import { ShoppingBag, CreditCard, Clock, Truck, Package, Eye } from 'lucide-react';
+import { ShoppingBag, CreditCard, Clock, Truck, Package, Eye, FileText } from 'lucide-react';
 
 export default function MyPurchasesPage() {
   const { user } = useAuth();
@@ -159,11 +159,16 @@ export default function MyPurchasesPage() {
                       day: '2-digit', month: 'short', year: 'numeric'
                     })}
                   </span>
-                  {p.payment_status === 'approved' && p.order_type === 'digital_purchase' && (
-                    <Link to={`/books/${p.book_id}`} className="text-xs text-[#D92B2B] hover:underline flex items-center gap-1">
-                      <Eye className="w-3 h-3" /> Leer libro
+                  <div className="flex items-center gap-3">
+                    <Link to={`/order/${p.id}`} className="text-xs text-[#D4AF37] hover:underline flex items-center gap-1">
+                      <FileText className="w-3 h-3" /> Ver detalle
                     </Link>
-                  )}
+                    {p.payment_status === 'approved' && p.order_type === 'digital_purchase' && (
+                      <Link to={`/books/${p.book_id}`} className="text-xs text-[#D92B2B] hover:underline flex items-center gap-1">
+                        <Eye className="w-3 h-3" /> Leer libro
+                      </Link>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

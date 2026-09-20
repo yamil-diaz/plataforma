@@ -41,6 +41,12 @@ export default function CheckoutPage() {
     loadCurrencies();
   }, [bookId]);
 
+  useEffect(() => {
+    if (bookId && itemType === 'digital_rental') {
+      loadBookPrices(bookId, rentalDays);
+    }
+  }, [rentalDays, itemType, bookId]);
+
   // Cleanup: si el usuario navega fuera, limpiar el pending order
   useEffect(() => {
     return () => {
@@ -64,9 +70,10 @@ export default function CheckoutPage() {
     }
   };
 
-  const loadBookPrices = async (id) => {
+  const loadBookPrices = async (id, days) => {
     try {
-      const { data } = await axios.get(`${API}/books/${id}/prices`, { withCredentials: true });
+      const params = days ? `?rental_days=${days}` : '';
+      const { data } = await axios.get(`${API}/books/${id}/prices${params}`, { withCredentials: true });
       setBookPrices(data.prices || {});
     } catch (err) {
       console.error('Error loading book prices:', err);
@@ -337,7 +344,7 @@ export default function CheckoutPage() {
                   <p className="text-white font-semibold">Alquiler digital</p>
                   <p className="text-[#A0A0A0] text-sm">Acceso temporal</p>
                 </div>
-                <span className="text-[#D4AF37] font-bold">{displaySymbol} {currentPriceData.rental_price.toFixed(2)}</span>
+                <span className="text-[#D4AF37] font-bold">{displaySymbol} {calculatePrice().toFixed(2)}</span>
               </label>
             )}
 
@@ -365,19 +372,29 @@ export default function CheckoutPage() {
           <div className="bg-[#121212] border border-white/10 rounded-2xl p-6 mb-6">
             <h3 className="text-lg font-bold text-white mb-4">Duración del alquiler</h3>
             <div className="flex gap-3">
-              {[7, 14, 30].map(days => (
-                <button
-                  key={days}
-                  onClick={() => setRentalDays(days)}
-                  className={`flex-1 py-3 rounded-xl font-semibold transition-all ${
-                    rentalDays === days
-                      ? 'bg-[#D92B2B] text-white'
-                      : 'bg-white/5 text-[#A0A0A0] hover:bg-white/10'
-                  }`}
-                >
-                  {days} días
-                </button>
-              ))}
+              {[7, 14, 30].map(days => {
+                const durationFactors = { 7: 0.6, 14: 1.0, 30: 1.5 };
+                const baseRental = currentPriceData?.rental_price || 0;
+                const durationPrice = (baseRental * (durationFactors[days] || 1.0)).toFixed(2);
+                return (
+                  <button
+                    key={days}
+                    onClick={() => setRentalDays(days)}
+                    className={`flex-1 py-3 rounded-xl font-semibold transition-all ${
+                      rentalDays === days
+                        ? 'bg-[#D92B2B] text-white'
+                        : 'bg-white/5 text-[#A0A0A0] hover:bg-white/10'
+                    }`}
+                  >
+                    <span className="block">{days} días</span>
+                    {currentPriceData && (
+                      <span className="block text-xs mt-1 opacity-80">
+                        {displaySymbol} {durationPrice}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}

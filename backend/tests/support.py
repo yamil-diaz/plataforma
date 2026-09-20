@@ -719,6 +719,9 @@ class FakeCursor:
             cat_id = int(params[-1])
             for c in self.state["forum_categories"]:
                 if c["id"] == cat_id:
+                    # Handle set is_active = false (deactivate)
+                    if "is_active" in q.lower():
+                        c["is_active"] = False
                     self.rowcount = 1
                     break
 
@@ -730,7 +733,14 @@ class FakeCursor:
 
         # --- POSTS (list count with fp alias) ---
         elif q.startswith("select count(*) as total from forum_posts fp"):
-            active_posts = [p for p in self.state["forum_posts"] if p.get("status") == "active"]
+            is_public_count = "'active'" in q
+            if not is_public_count:
+                # Admin: no default status filter
+                base_posts = list(self.state["forum_posts"])
+            else:
+                # Public: only active posts
+                base_posts = [p for p in self.state["forum_posts"] if p.get("status") == "active"]
+            status_filter = None
             cat_filter = None
             book_filter = None
             user_filter = None
@@ -747,9 +757,14 @@ class FakeCursor:
                 elif "user_id = %s" in part:
                     user_filter = int(params[param_idx])
                     param_idx += 1
+                elif "fp.status = %s" in part:
+                    status_filter = params[param_idx]
+                    param_idx += 1
                 else:
                     param_idx += 1
-            filtered = active_posts
+            filtered = base_posts
+            if status_filter is not None:
+                filtered = [p for p in filtered if p.get("status") == status_filter]
             if cat_filter is not None:
                 filtered = [p for p in filtered if p.get("category_id") == cat_filter]
             if book_filter is not None:
@@ -758,8 +773,8 @@ class FakeCursor:
                 filtered = [p for p in filtered if p.get("user_id") == user_filter]
             self._last_result = {"total": len(filtered)}
 
-        # --- POSTS (list with JOIN) ---
-        elif q.startswith("select fp.id, fp.user_id, u.username as author_username, u.name as author_name, fp.category_id, fc.name as category_name, fc.icon as category_icon, fc.color as category_color, fp.title, fp.slug, fp.status, fp.views, fp.reply_count, fp.like_count, fp.is_pinned, fp.is_resolved, fp.book_id, fp.created_at, fp.updated_at from forum_posts fp"):
+        # --- POSTS (list with JOIN) - standard forum listing ---
+        elif q.startswith("select fp.id, fp.user_id, u.username as author_username, u.name as author_name, fp.category_id, fc.name as category_name, fc.icon as category_icon, fc.color as category_color, fp.title, fp.slug, fp.status, fp.views, fp.reply_count, fp.like_count, fp.is_pinned, fp.is_resolved, fp.book_id, fp.created_at, fp.updated_at, left(substring(fp.content, 1, 200), 200) as content_excerpt from forum_posts fp"):
             status_filter = None
             cat_filter = None
             book_filter = None
@@ -807,8 +822,45 @@ class FakeCursor:
                     "is_resolved": p.get("is_resolved", False),
                     "book_id": p.get("book_id"),
                     "created_at": p["created_at"], "updated_at": p.get("updated_at", ""),
+                    "content_excerpt": (p.get("content") or "")[:200],
                 })
-            posts.sort(key=lambda p: (not p["is_pinned"], p["created_at"]), reverse=True)
+            posts.sort(key=lambda p: (p["is_pinned"], p["created_at"]), reverse=True)
+            self._last_result = posts
+
+        # --- POSTS (admin list - no author_name in select) ---
+        elif q.startswith("select fp.id, fp.user_id, u.username as author_username, fp.category_id, fc.name as category_name, fc.icon as category_icon, fc.color as category_color, fp.title, fp.slug, fp.status, fp.views, fp.reply_count, fp.like_count, fp.is_pinned, fp.is_resolved, fp.book_id, fp.created_at, fp.updated_at, left(substring(fp.content, 1, 200), 200) as content_excerpt from forum_posts fp"):
+            status_filter = None
+            params_used = 0
+            for clause in ("fp.status = %s",):
+                if clause in q:
+                    idx = q.index(clause)
+                    before = q[:idx].count("%s")
+                    if before < len(params):
+                        status_filter = params[before]
+            posts = []
+            for p in self.state["forum_posts"]:
+                if status_filter and p.get("status") != status_filter:
+                    continue
+                cat = next((c for c in self.state["forum_categories"] if c["id"] == p.get("category_id")), None)
+                user = self.state["users"].get(p.get("user_id"))
+                posts.append({
+                    "id": p["id"], "user_id": p.get("user_id"),
+                    "author_username": user["username"] if user else None,
+                    "category_id": p.get("category_id"),
+                    "category_name": cat["name"] if cat else None,
+                    "category_icon": cat.get("icon") if cat else None,
+                    "category_color": cat.get("color") if cat else None,
+                    "title": p["title"], "slug": p.get("slug", ""),
+                    "status": p.get("status", "active"),
+                    "views": p.get("views", 0), "reply_count": p.get("reply_count", 0),
+                    "like_count": p.get("like_count", 0),
+                    "is_pinned": p.get("is_pinned", False),
+                    "is_resolved": p.get("is_resolved", False),
+                    "book_id": p.get("book_id"),
+                    "created_at": p["created_at"], "updated_at": p.get("updated_at", ""),
+                    "content_excerpt": (p.get("content") or "")[:200],
+                })
+            posts.sort(key=lambda p: p["created_at"], reverse=True)
             self._last_result = posts
 
         # --- POSTS (get single with JOINs) ---
@@ -977,6 +1029,11 @@ class FakeCursor:
                 self._last_result = {
                     "total": len([p for p in self.state["forum_posts"]
                                   if p.get("book_id") == bid and p.get("status") == "active"])
+                }
+            elif "fp.status = %s" in q:
+                sf = params[0]
+                self._last_result = {
+                    "total": len([p for p in self.state["forum_posts"] if p.get("status") == sf])
                 }
             elif "status != 'deleted'" in q:
                 self._last_result = {
@@ -1420,6 +1477,32 @@ class FakeCursor:
 
         # ── FIN FORO ────────────────────────────────────────────────────
 
+        # ── COMERCIO: checkout book lookup ──────────────────────────────
+        elif q.startswith("select id, title, price, published, is_physical, physical_price, stock from books where id"):
+            book = self.state["books"].get(int(params[0]))
+            self._last_result = dict(book) if book else None
+
+        # ── COMERCIO: book_prices lookup ────────────────────────────────
+        elif q.startswith("select price, rental_price from book_prices where book_id"):
+            book_id = int(params[0])
+            currency = params[1]
+            key = (book_id, currency)
+            bp = self.state.get("book_prices", {}).get(key)
+            self._last_result = bp
+
+        # ── COMERCIO: books.price fallback for currency conversion ──────
+        elif q.startswith("select price from books where id"):
+            book = self.state["books"].get(int(params[0]))
+            self._last_result = {"price": book["price"]} if book else None
+
+        # ── COMERCIO: book_prices for all currencies ────────────────────
+        elif q.startswith("select price, rental_price from book_prices where book_id = %s and currency = %s"):
+            book_id = int(params[0])
+            currency = params[1]
+            key = (book_id, currency)
+            bp = self.state.get("book_prices", {}).get(key)
+            self._last_result = bp
+
         else:
             raise RuntimeError(
                 f"FakeCursor no implementado para la query: {query!r} con params {params!r}"
@@ -1466,6 +1549,7 @@ class FakeDb:
             "forum_follows": [],
             "forum_reports": [],
             "forum_audit_log": [],
+            "book_prices": {},
             "log": [],
         }
         for uid, name, email, role in [
@@ -1504,6 +1588,38 @@ class FakeDb:
             "page_count": 1,
         }
         self.state["book_pages"].append((10, 1, "página del libro publicado"))
+
+        # Libro con campos de comercio (para tests de checkout)
+        self.state["books"][99] = {
+            "id": 99,
+            "title": "Libro Comercio",
+            "author_name": "Autor Comercio",
+            "content": "contenido comercio",
+            "category": "Ficción",
+            "price": 25.90,
+            "cover_image_url": "http://cover",
+            "pdf_path": None,
+            "views": 0,
+            "likes": 0,
+            "dislikes": 0,
+            "average_rating": 0.0,
+            "total_reviews": 0,
+            "published": 1,
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "uploader_id": 2,
+            "page_count": 1,
+            "is_physical": True,
+            "physical_price": 49.90,
+            "stock": 10,
+            "isbn": "978-0000000001",
+        }
+        # book_prices para libro de comercio
+        from decimal import Decimal as _D
+        self.state["book_prices"] = {
+            (99, "PEN"): {"price": _D("25.90"), "rental_price": _D("7.77")},
+            (99, "CLP"): {"price": _D("50000"), "rental_price": _D("15000")},
+            (99, "MXN"): {"price": _D("150.50"), "rental_price": _D("45.15")},
+        }
 
         self.state["books"][20] = {
             "id": 20,

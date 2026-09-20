@@ -1,0 +1,126 @@
+{
+  "mode": "dry-run",
+  "generated_at": "2026-09-05T23:55:21.697063+00:00",
+  "total_time_seconds": 46.7,
+  "summary": {
+    "total": 10,
+    "imported": 8,
+    "rejected": 2,
+    "errors": 0,
+    "skipped": 0,
+    "duration_seconds": 46.6,
+    "completed_at": "2026-09-05T23:55:21.693389+00:00"
+  },
+  "files": [
+    {
+      "file": "a_christmas_carol.pdf",
+      "sha256": "8581bfa6fb74d0c468c4c92ca79350cf5eff1d2072e835cd33e2b534b918ab79",
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 40,
+      "status": "imported",
+      "book_id": -1,
+      "error": null,
+      "duration_seconds": 2.48
+    },
+    {
+      "file": "alice_in_wonderland.pdf",
+      "sha256": "fc5e16a8fb4b5c7889dfcb67480afd4e30188a78055d8ce4d27e4f1d264adea5",
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 38,
+      "status": "imported",
+      "book_id": -1,
+      "error": null,
+      "duration_seconds": 2.04
+    },
+    {
+      "file": "art_of_war.pdf",
+      "sha256": "e0a46d8afaf07f0e9e50fc6e9c0bbf1dc05a14abc331669595abc41ff6590856",
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 74,
+      "status": "imported",
+      "book_id": -1,
+      "error": null,
+      "duration_seconds": 3.01
+    },
+    {
+      "file": "dracula.pdf",
+      "sha256": "b59769bae649e40bc8e6dc6472dc3458e4120352a22c8aa369c86d8ba08dfb5a",
+      "title": null,
+      "author": null,
+      "page_count": null,
+      "status": "rejected",
+      "book_id": null,
+      "error": "Contenido degradado o basura de extracción",
+      "duration_seconds": 4.88
+    },
+    {
+      "file": "frankenstein.pdf",
+      "sha256": "4fca36d0044be8c5baa6919ca58b30923914ecf2cd71710e09130f6bc2c67a43",
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 90,
+      "status": "imported",
+      "book_id": -1,
+      "error": null,
+      "duration_seconds": 4.11
+    },
+    {
+      "file": "heart_of_darkness.pdf",
+      "sha256": "a3e5dfae747242dbbdd842b9d4f82d4171d716e616afb3b263359bf07fc23dca",
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 41,
+      "status": "imported",
+      "book_id": -1,
+      "error": null,
+      "duration_seconds": 2.95
+    },
+    {
+      "file": "metamorphosis.pdf",
+      "sha256": "7ec15daa112f0aa3574bd0ff6358f343740e3711340cf1429cc2084e7c29b6b4",
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 24,
+      "status": "imported",
+      "book_id": -1,
+      "error": null,
+      "duration_seconds": 1.89
+    },
+    {
+      "file": "moby_dick.pdf",
+      "sha256": "685921fc08441183bd9b758ac789160c6dc47596bc0651a2f9f938a7488e94a0",
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 265,
+      "status": "imported",
+      "book_id": -1,
+      "error": null,
+      "duration_seconds": 12.48
+    },
+    {
+      "file": "pride_and_prejudice.pdf",
+      "sha256": "c08ca400c00045d0e1d1e55dcdbe2580993fb9d0401972db304c257b616979e8",
+      "title": null,
+      "author": null,
+      "page_count": null,
+      "status": "rejected",
+      "book_id": null,
+      "error": "Contenido degradado o basura de extracción",
+      "duration_seconds": 4.76
+    },
+    {
+      "file": "sherlock_holmes.pdf",
+      "sha256": "5737570c4ed3c92ea908f903c09c8315096826f42c9a07986fe82975018f51a6",
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 140,
+      "status": "imported",
+      "book_id": -1,
+      "error": null,
+      "duration_seconds": 6.0
+    }
+  ]
+}

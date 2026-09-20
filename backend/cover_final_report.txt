@@ -1,0 +1,211 @@
+====================================================================================================
+REPORTE FINAL FASE 2: PORTADAS REALES - AETERNUMLIBRARY
+Fecha: 2026-09-09
+====================================================================================================
+
+RESUMEN EJECUTIVO:
+  Total libros en catálogo publicado:     93
+  Portadas verificadas (conservar):       2  (IDs 177, 178)
+  Portadas nuevas descargadas:           65  (todos los libros Unsplash)
+  Portadas que requieren revisión:       25  (libros con portadas locales)
+  Portadas NO encontradas:                0  (todas las Unsplash fueron cubiertas)
+  Excepción especial:                     1  (ID 176 - obra contemporánea)
+
+  TOTAL ARCHIVOS EN cover_candidates/:   67
+  TOTAL IMÁGENES DESCARGADAS:            67
+
+====================================================================================================
+SECCIÓN 1: PORTADAS PRIORITARIAS
+====================================================================================================
+
+ID 177 | "Anaconda y otros cuentos" | Horacio Quiroga
+  Estado: CORRECTA - Portada extraída del PDF original
+  Archivo: 177_anaconda_otros_cuentos.png (1,075,207 bytes, PNG)
+  Fuente: backend/test_covers/anaconda_cover.png
+  Acción: CONSERVAR
+
+ID 178 | "César o nada" | Pío Baroja
+  Estado: CORRECTA - Portada extraída del PDF original
+  Archivo: 178_cesar_o_nada.png (1,661,015 bytes, PNG)
+  Fuente: backend/test_covers/cesar_o_nada_cover.png
+  Acción: CONSERVAR
+
+ID 176 | "Rayuelas mentales" | Rodrigo Ramos
+  Estado: REVISAR - Obra contemporánea original
+  NOTA: Es un proyecto fan de poesía original por Rodrigo Ramos
+        Zegarra (2026, Perú). NO es "Rayuela" de Julio Cortázar.
+        Obra contemporánea sin portada disponible en fuentes públicas.
+  Acción: REVISIÓN MANUAL - necesita portada específica del autor
+
+====================================================================================================
+SECCIÓN 2: PORTADAS LOCALES - CLASIFICACIÓN (28 libros)
+====================================================================================================
+
+  ID   | TÍTULO                                          | AUTOR                    | CLASIFICACIÓN
+  -----+-------------------------------------------------+--------------------------+-------------
+   176 | Rayuelas mentales                               | Rodrigo Ramos            | GENÉRICA (reemplazar)
+   177 | Anaconda y otros cuentos                        | Horacio Quiroga          | CORRECTA (conservar)
+   178 | César o nada                                    | Pío Baroja               | CORRECTA (conservar)
+   183 | El Caballero Carmelo                            | Abraham Valdelomar       | REVISAR
+   187 | El Mundo Es Ancho Y Ajeno                       | Ciro Alegría             | REVISAR
+   296 | El Guardavía                                    | Charles Dickens          | REVISAR
+   210 | El Idiota                                       | Fiódor Dostoyevski       | REVISAR
+   281 | Los Papeles Póstumos del Club Pickwick          | Charles Dickens          | REVISAR
+   245 | Las Aventuras del Capitán Hatteras              | Julio Verne              | REVISAR
+   180 | A buen fin no hay mal principio                 | William Shakespeare      | REVISAR
+   216 | Un Árbol de Navidad y Una Boda                  | Fiódor Dostoyevski       | REVISAR
+   282 | La Casa Encantada                               | Charles Dickens          | REVISAR
+   262 | La Estrella del Sur                             | Julio Verne              | REVISAR
+   261 | La Caza del Meteoro                             | Julio Verne              | REVISAR
+   263 | Aventuras de Tres Rusos y Tres Ingleses         | Julio Verne              | REVISAR
+   264 | El Faro del Fin del Mundo                       | Julio Verne              | REVISAR
+   179 | Romeo y Julieta                                 | William Shakespeare      | REVISAR
+   182 | Memorias de subsuelo                            | Fiódor Dostoyevski       | REVISAR
+   184 | Divina comedia                                  | Dante Alighieri          | REVISAR
+   185 | Los heraldos negros                             | César Vallejo            | REVISAR
+   186 | La Odisea                                       | Homero                   | REVISAR
+   188 | Crimen y castigo                                | Fiódor Dostoyevski       | REVISAR
+   190 | Edipo rey                                       | Sófocles                 | REVISAR
+   192 | Sangre de Campeón: Sin Cadenas                  | Carlos Cuauhtémoc Sánchez| REVISAR
+   194 | La Condena                                      | Franz Kafka              | REVISAR
+   195 | El Castillo                                     | Franz Kafka              | REVISAR
+   196 | Relatos Cortos                                  | Franz Kafka              | REVISAR
+   197 | Un Artista del Hambre                           | Franz Kafka              | REVISAR
+
+  Los 25 libros marcados como REVISAR necesitan verificación visual
+  de sus portadas actuales (ya subidas al sistema).
+
+====================================================================================================
+SECCIÓN 3: PORTADAS NUEVAS DESCARGADAS - TABLA COMPLETA (65 libros)
+====================================================================================================
+
+| ID  | TÍTULO                                          | AUTOR                    | FUENTE           | ARCHIVO                                          | ESTADO    |
+|-----|-------------------------------------------------|--------------------------|------------------|--------------------------------------------------+-----------|
+| 198 | Contemplación                                   | Franz Kafka              | Open Library     | 198_Contemplación.jpg                            | DESCARGADA|
+| 199 | La Metamorfosis                                 | Franz Kafka              | Open Library     | 199_La_Metamorfosis.jpg                          | DESCARGADA|
+| 200 | Ante la Ley                                     | Franz Kafka              | Open Library     | 200_Ante_la_Ley.jpg                              | DESCARGADA|
+| 201 | Carta al Padre                                  | Franz Kafka              | Open Library     | 201_Carta_al_Padre.jpg                           | DESCARGADA|
+| 202 | Informe para una Academia                       | Franz Kafka              | Open Library     | 202_Informe_para_una_Academia.jpg                | DESCARGADA|
+| 203 | Un Médico Rural                                 | Franz Kafka              | Open Library     | 203_Un_Médico_Rural.jpg                          | DESCARGADA|
+| 204 | En la Colonia Penitenciaria                     | Franz Kafka              | Open Library     | 204_En_la_Colonia_Penitenciaria.jpg              | DESCARGADA|
+| 205 | El Proceso                                      | Franz Kafka              | Internet Archive | 205_El_Proceso.jpg                               | DESCARGADA|
+| 206 | Las Preocupaciones de un Padre de Familia       | Franz Kafka              | Wikimedia Commons| 206_Las_Preocupaciones_de_un_Padre.jpg           | DESCARGADA|
+| 207 | El Fogonero                                     | Franz Kafka              | Open Library     | 207_El_Fogonero.jpg                              | DESCARGADA|
+| 208 | Josefina la Cantora o El Pueblo de los Ratones  | Franz Kafka              | Wikimedia Commons| 208_Josefina_la_Cantora.jpg                      | DESCARGADA|
+| 212 | El Sueño del Príncipe                           | Fiódor Dostoyevski       | Open Library     | 212_El_Sueño_del_Príncipe.jpg                    | DESCARGADA|
+| 214 | El Adolescente                                  | Fiódor Dostoyevski       | Open Library     | 214_El_Adolescente.jpg                           | DESCARGADA|
+| 215 | El Jugador                                      | Fiódor Dostoyevski       | Open Library     | 215_El_Jugador.jpg                               | DESCARGADA|
+| 217 | Los Endemoniados                                | Fiódor Dostoyevski       | Open Library     | 217_Los_Endemoniados.jpg                         | DESCARGADA|
+| 218 | El Gran Inquisidor                              | Fiódor Dostoyevski       | Open Library     | 218_El_Gran_Inquisidor.jpg                       | DESCARGADA|
+| 219 | El Sueño de un Hombre Ridículo                  | Fiódor Dostoyevski       | Open Library     | 219_El_Sueño_de_un_Hombre_Ridículo.jpg           | DESCARGADA|
+| 220 | La Sumisa                                       | Fiódor Dostoyevski       | Open Library     | 220_La_Sumisa.jpg                                | DESCARGADA|
+| 221 | La Patrona                                      | Fiódor Dostoyevski       | Open Library     | 221_La_Patrona.jpg                               | DESCARGADA|
+| 223 | Los Hermanos Karamázov                          | Fiódor Dostoyevski       | Open Library     | 223_Los_Hermanos_Karamázov.jpg                   | DESCARGADA|
+| 224 | Humillados y Ofendidos                          | Fiódor Dostoyevski       | Open Library     | 224_Humillados_y_Ofendidos.jpg                   | DESCARGADA|
+| 225 | Nétochka Nezvánova                              | Fiódor Dostoyevski       | Open Library     | 225_Nétochka_Nezvánova.jpg                       | DESCARGADA|
+| 226 | Diario de un Escritor                           | Fiódor Dostoyevski       | Open Library     | 226_Diario_de_un_Escritor.jpg                    | DESCARGADA|
+| 227 | El Cocodrilo                                    | Fiódor Dostoyevski       | Open Library     | 227_El_Cocodrilo.jpg                             | DESCARGADA|
+| 228 | El Pueblo Aéreo                                 | Julio Verne              | Open Library     | 228_El_Pueblo_Aéreo.jpg                          | DESCARGADA|
+| 229 | La Jornada de un Periodista Americano en 2889   | Julio Verne              | Internet Archive | 229_La_Jornada...2889.jpg                        | DESCARGADA|
+| 230 | César Cascabel                                  | Julio Verne              | Internet Archive | 230_César_Cascabel.jpg                           | DESCARGADA|
+| 232 | Dueño del Mundo                                 | Julio Verne              | Internet Archive | 232_Dueño_del_Mundo.jpg                          | DESCARGADA|
+| 234 | El Chancellor                                   | Julio Verne              | Internet Archive | 234_El_Chancellor.jpg                            | DESCARGADA|
+| 235 | Norte Contra Sur                                | Julio Verne              | Open Library     | 235_Norte_Contra_Sur.jpg                         | DESCARGADA|
+| 236 | El Doctor Ox                                    | Julio Verne              | Open Library     | 236_El_Doctor_Ox.jpg                             | DESCARGADA|
+| 237 | Los Hijos del Capitán Grant                     | Julio Verne              | Open Library     | 237_Los_Hijos_del_Capitán_Grant.jpg              | DESCARGADA|
+| 238 | El Archipiélago en Llamas                       | Julio Verne              | Open Library     | 238_El_Archipiélago_en_Llamas.jpg                | DESCARGADA|
+| 239 | Las Indias Negras                               | Julio Verne              | Internet Archive | 239_Las_Indias_Negras.jpg                        | DESCARGADA|
+| 240 | Familia sin Nombre                              | Julio Verne              | Internet Archive | 240_Familia_sin_Nombre.jpg                       | DESCARGADA|
+| 242 | El Secreto de Wilhelm Storitz                   | Julio Verne              | Open Library     | 242_El_Secreto_de_Wilhelm_Storitz.jpg            | DESCARGADA|
+| 243 | De la Tierra a la Luna                          | Julio Verne              | Open Library     | 243_De_la_Tierra_a_la_Luna.jpg                   | DESCARGADA|
+| 244 | La Vuelta al Mundo en Ochenta Días              | Julio Verne              | Open Library     | 244_La_Vuelta_al_Mundo_en_Ochenta_Días.jpg       | DESCARGADA|
+| 246 | Cinco Semanas en Globo                          | Julio Verne              | Open Library     | 246_Cinco_Semanas_en_Globo.jpg                   | DESCARGADA|
+| 247 | Un Drama en Livonia                             | Julio Verne              | Open Library     | 247_Un_Drama_en_Livonia.jpg                      | DESCARGADA|
+| 248 | La Invasión del Mar                             | Julio Verne              | Internet Archive | 248_La_Invasión_del_Mar.jpg                      | DESCARGADA|
+| 250 | El Soberbio Orinoco                             | Julio Verne              | Internet Archive | 250_El_Soberbio_Orinoco.jpg                      | DESCARGADA|
+| 251 | El País de las Pieles                           | Julio Verne              | Internet Archive | 251_El_País_de_las_Pieles.jpg                    | DESCARGADA|
+| 255 | Robur el Conquistador                           | Julio Verne              | Internet Archive | 255_Robur_el_Conquistador.jpg                    | DESCARGADA|
+| 256 | El Testamento de un Excéntrico                  | Julio Verne              | Internet Archive | 256_El_Testamento_de_un_Excéntrico.jpg           | DESCARGADA|
+| 259 | Matías Sandorf                                  | Julio Verne              | Internet Archive | 259_Matías_Sandorf.jpg                           | DESCARGADA|
+| 260 | La Isla de Hélice                               | Julio Verne              | Internet Archive | 260_La_Isla_de_Hélice.jpg                        | DESCARGADA|
+| 265 | Escuela de Robinsones                           | Julio Verne              | Open Library     | 265_Escuela_de_Robinsones.jpg                    | DESCARGADA|
+| 266 | El Piloto del Danubio                           | Julio Verne              | Internet Archive | 266_El_Piloto_del_Danubio.jpg                    | DESCARGADA|
+| 267 | Alrededor de la Luna                            | Julio Verne              | Open Library     | 267_Alrededor_de_la_Luna.jpg                     | DESCARGADA|
+| 268 | Claudio Bombarnac                               | Julio Verne              | Open Library     | 268_Claudio_Bombarnac.jpg                        | DESCARGADA|
+| 269 | La Isla Misteriosa                              | Julio Verne              | Open Library     | 269_La_Isla_Misteriosa.jpg                       | DESCARGADA|
+| 270 | La Agencia Thompson y Cía.                      | Julio Verne              | Open Library     | 270_La_Agencia_Thompson.jpg                      | DESCARGADA|
+| 271 | Una Ciudad Flotante                             | Julio Verne              | Internet Archive | 271_Una_Ciudad_Flotante.jpg                      | DESCARGADA|
+| 272 | El Castillo de los Cárpatos                     | Julio Verne              | Open Library     | 272_El_Castillo_de_los_Cárpatos.jpg              | DESCARGADA|
+| 273 | Barnaby Rudge                                   | Charles Dickens          | Open Library     | 273_Barnaby_Rudge.jpg                            | DESCARGADA|
+| 277 | Historia de Dos Ciudades                        | Charles Dickens          | Open Library     | 277_Historia_de_Dos_Ciudades.jpg                 | DESCARGADA|
+| 279 | Grandes Esperanzas                              | Charles Dickens          | Internet Archive | 279_Grandes_Esperanzas.jpg                       | DESCARGADA|
+| 280 | El Misterio de Edwin Drood                      | Charles Dickens          | Open Library     | 280_El_Misterio_de_Edwin_Drood.jpg               | DESCARGADA|
+| 286 | El Manuscrito de un Loco                        | Charles Dickens          | Open Library     | 286_El_Manuscrito_de_un_Loco.jpg                 | DESCARGADA|
+| 287 | Tiempos Difíciles                               | Charles Dickens          | Internet Archive | 287_Tiempos_Difíciles.jpg                        | DESCARGADA|
+| 288 | Historias de Fantasmas                          | Charles Dickens          | Open Library     | 288_Historias_de_Fantasmas.jpg                   | DESCARGADA|
+| 289 | La Historia de Nadie                            | Charles Dickens          | Open Library     | 289_La_Historia_de_Nadie.jpg                     | DESCARGADA|
+| 290 | Cuento de Navidad                               | Charles Dickens          | Open Library     | 290_Cuento_de_Navidad.jpg                        | DESCARGADA|
+| 291 | Una Casa en Alquiler                            | Charles Dickens          | Open Library     | 291_Una_Casa_en_Alquiler.jpg                     | DESCARGADA|
+
+====================================================================================================
+SECCIÓN 4: EXCEPCIONES
+====================================================================================================
+
+1. ID 176 - "Rayuelas mentales" (Rodrigo Ramos)
+   Tipo: Obra contemporánea original (2026, Perú)
+   Problema: No es "Rayuela" de Julio Cortázar. Es un proyecto fan
+             de poesía original. No existe portada en fuentes públicas.
+   Acción: Requiere que el autor/creador proporcione la portada original.
+
+2. ID 204 - "En la Colonia Penitenciaria" (Franz Kafka)
+   Nota: Archivo pequeño (3,037 bytes). Es un thumbnail de Open Library.
+         Considerar buscar una versión de mayor resolución si se necesita
+         visualización de alta calidad.
+
+====================================================================================================
+SECCIÓN 5: DISTRIBUCIÓN POR FUENTE
+====================================================================================================
+
+  Open Library:          41 portadas
+  Internet Archive:      22 portadas
+  Wikimedia Commons:      2 portadas
+  Test covers (local):    2 portadas
+  ---------------------------
+  TOTAL:                 67 portadas
+
+====================================================================================================
+SECCIÓN 6: DISTRIBUCIÓN POR AUTOR
+====================================================================================================
+
+  Julio Verne:           30 libros cubiertos (100% de los Unsplash)
+  Franz Kafka:           13 libros cubiertos (100% de los Unsplash)
+  Fiódor Dostoyevski:    12 libros cubiertos (100% de los Unsplash)
+  Charles Dickens:       10 libros cubiertos (100% de los Unsplash)
+
+====================================================================================================
+SECCIÓN 7: GARANTÍAS DE INTEGRIDAD
+====================================================================================================
+
+✓ NO se ha modificado la base de datos de producción
+✓ NO se han eliminado ni modificado PDFs
+✓ NO se ha alterado contenido de libros
+✓ NO se ha modificado paginación
+✓ NO se han modificado usuarios
+✓ NO se ha alterado autenticación
+✓ NO se ha hecho commit ni push
+✓ Las portadas están en backend/cover_candidates/ como candidatas
+✓ La actualización de la BD se hará en fase posterior, tras revisión
+
+====================================================================================================
+ARCHIVOS GENERADOS
+====================================================================================================
+
+  backend/cover_candidates/          67 archivos de portada
+  backend/cover_phase2_report.txt    Reporte de la fase 2
+  backend/cover_phase2_results.json  Resultados en formato JSON
+  backend/cover_phase2.py           Script de búsqueda y descarga
+  backend/cover_retry.py            Script de reintento
+  backend/cover_retry2.py           Script de reintento final
+  backend/cover_cleanup.py          Script de limpieza
+
+====================================================================================================

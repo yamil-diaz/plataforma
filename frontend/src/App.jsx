@@ -37,6 +37,7 @@ import PaymentResultPage from './pages/PaymentResultPage';
 import MyBooksPage from './pages/MyBooksPage';
 import MyPurchasesPage from './pages/MyPurchasesPage';
 import MyPhysicalOrdersPage from './pages/MyPhysicalOrdersPage';
+import OrderDetailPage from './pages/OrderDetailPage';
 import TestCheckoutPage from './pages/TestCheckoutPage';
 import WelcomePage from './pages/WelcomePage';
 
@@ -135,6 +136,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <MyPhysicalOrdersPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/order/:orderId"
+        element={
+          <ProtectedRoute>
+            <OrderDetailPage />
           </ProtectedRoute>
         }
       />

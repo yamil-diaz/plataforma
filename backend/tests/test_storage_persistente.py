@@ -12,6 +12,7 @@ if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
 import server  # noqa: E402
+import storage_config  # noqa: E402
 
 
 @pytest.fixture()
@@ -65,24 +66,30 @@ class TestMigracionLegacy:
         (origen / "books" / "b.pdf").write_bytes(b"%PDF-1.7 b")
         (origen / "covers" / "c.jpg").write_bytes(b"jpg")
         (origen / "videos" / "v.mp4").write_bytes(b"mp4")
-        monkeypatch.setattr(server, "DEFAULT_STORAGE_DIR", str(origen))
-        monkeypatch.setattr(server, "STORAGE_DIR", str(destino))
-        monkeypatch.setattr(server, "STORAGE_BOOKS", str(destino / "books"))
-        server._migrar_storage_legacy()
+        # Usar la función con parámetros explícitos
+        storage_config.migrate_legacy_storage(
+            storage_dir=str(destino),
+            default_storage_dir=str(origen)
+        )
         assert (destino / "books" / "a.pdf").read_bytes() == b"%PDF-1.7 a"
         assert (destino / "books" / "b.pdf").read_bytes() == b"%PDF-1.7 b"
         assert (destino / "covers" / "c.jpg").read_bytes() == b"jpg"
         assert (destino / "videos" / "v.mp4").read_bytes() == b"mp4"
-        server._migrar_storage_legacy()
+        # Segunda llamada no duplica
+        storage_config.migrate_legacy_storage(
+            storage_dir=str(destino),
+            default_storage_dir=str(origen)
+        )
         assert len(list((destino / "books").iterdir())) == 2
 
     def test_no_copia_si_es_el_mismo_directorio(self, tmp_path, monkeypatch):
         mismo = tmp_path / "mismo"
         (mismo / "books").mkdir(parents=True)
         (mismo / "books" / "x.pdf").write_bytes(b"x")
-        monkeypatch.setattr(server, "DEFAULT_STORAGE_DIR", str(mismo))
-        monkeypatch.setattr(server, "STORAGE_DIR", str(mismo))
-        server._migrar_storage_legacy()
+        storage_config.migrate_legacy_storage(
+            storage_dir=str(mismo),
+            default_storage_dir=str(mismo)
+        )
         assert (mismo / "books" / "x.pdf").read_bytes() == b"x"
 
     def test_nunca_borra_archivos_de_origen(self, tmp_path, monkeypatch):
@@ -90,10 +97,10 @@ class TestMigracionLegacy:
         destino = tmp_path / "destino"
         (origen / "books").mkdir(parents=True)
         (origen / "books" / "a.pdf").write_bytes(b"%PDF-1.7 a")
-        monkeypatch.setattr(server, "DEFAULT_STORAGE_DIR", str(origen))
-        monkeypatch.setattr(server, "STORAGE_DIR", str(destino))
-        monkeypatch.setattr(server, "STORAGE_BOOKS", str(destino / "books"))
-        server._migrar_storage_legacy()
+        storage_config.migrate_legacy_storage(
+            storage_dir=str(destino),
+            default_storage_dir=str(origen)
+        )
         assert (origen / "books" / "a.pdf").exists()
 
 

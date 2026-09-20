@@ -86,7 +86,11 @@ def test_pdf_con_texto_largo_se_pagina_sin_perder_contenido(tmp_path):
         assert pagina.strip()
 
 
-def test_paginar_desde_contenido_placeholder_genera_una_pagina():
+def test_paginar_desde_contenido_placeholder_rechazado():
+    """Placeholder content debe ser rechazado y NO generar páginas."""
     paginas = lectura.paginar_desde_contenido(lectura.CONTENIDO_NO_DISPONIBLE)
-    assert len(paginas) == 1
-    assert paginas[0] == lectura.CONTENIDO_NO_DISPONIBLE
+    assert paginas == [], "Placeholder content no debe generar páginas"
+    
+    paginas_cap, capitulos = lectura.paginar_desde_contenido_con_capitulos(lectura.CONTENIDO_NO_DISPONIBLE)
+    assert paginas_cap == [], "Placeholder content no debe generar páginas con capítulos"
+    assert capitulos == [], "Placeholder content no debe generar capítulos"

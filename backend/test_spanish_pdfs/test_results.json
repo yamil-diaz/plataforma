@@ -1,0 +1,93 @@
+[
+  {
+    "candidate": {
+      "title": "La vida de Lazarillo de Tormes",
+      "author": "Anónimo",
+      "year": 1554,
+      "identifier": "lavidadelazaril00delgoog",
+      "pdf_filename": "lavidadelazaril00delgoog.pdf",
+      "source_url": "https://archive.org/download/lavidadelazaril00delgoog/lavidadelazaril00delgoog.pdf",
+      "description": "Novela picaresca española, anónima, siglo XVI."
+    },
+    "result": {
+      "success": true,
+      "file_size": 2661771,
+      "sha256": "3f09cfc30873d41e75c908d800d5758d900da17ee1690013610ac3149e21e06f",
+      "pages": 88,
+      "text_length": 6809,
+      "has_text": true
+    }
+  },
+  {
+    "candidate": {
+      "title": "Marianela",
+      "author": "Benito Pérez Galdós",
+      "year": 1878,
+      "identifier": "marianela03galdgoog",
+      "pdf_filename": "marianela03galdgoog.pdf",
+      "source_url": "https://archive.org/download/marianela03galdgoog/marianela03galdgoog.pdf",
+      "description": "Novela de Benito Pérez Galdós."
+    },
+    "result": {
+      "success": true,
+      "file_size": 4217401,
+      "sha256": "aac2ebe96547be3c1cf8a387f1e6062a8aea66a740ed145579ac269ba51a8d14",
+      "pages": 280,
+      "text_length": 7001,
+      "has_text": true
+    }
+  },
+  {
+    "candidate": {
+      "title": "Doña Perfecta",
+      "author": "Benito Pérez Galdós",
+      "year": 1876,
+      "identifier": "doaperfectanove01galdgoog",
+      "pdf_filename": "doaperfectanove01galdgoog.pdf",
+      "source_url": "https://archive.org/download/doaperfectanove01galdgoog/doaperfectanove01galdgoog.pdf",
+      "description": "Novela de Benito Pérez Galdós."
+    },
+    "result": {
+      "success": true,
+      "file_size": 3157213,
+      "sha256": "454384f0fecd11d9e5a2f2dff30e4df900135c98289b61973753826991380cf6",
+      "pages": 296,
+      "text_length": 7017,
+      "has_text": true
+    }
+  },
+  {
+    "candidate": {
+      "title": "La vida es sueño",
+      "author": "Pedro Calderón de la Barca",
+      "year": 1635,
+      "identifier": "lavidaessueo01goog",
+      "pdf_filename": "lavidaessueo01goog.pdf",
+      "source_url": "https://archive.org/download/lavidaessueo01goog/lavidaessueo01goog.pdf",
+      "description": "Drama filosófico de Calderón de la Barca."
+    },
+    "result": {
+      "success": true,
+      "file_size": 2587150,
+      "sha256": "860d424851aeb4f45e5acc19da2365bf75730fe69e5c13fcde23549088a87a15",
+      "pages": 202,
+      "text_length": 6923,
+      "has_text": true
+    }
+  },
+  {
+    "candidate": {
+      "title": "Cuentos de amor, locura y muerte",
+      "author": "Horacio Quiroga",
+      "year": 1917,
+      "identifier": "cuentos-de-amor-locura-y-muerte-horacio-quiroga",
+      "pdf_filename": "cuentos-de-amor-locura-y-muerte-horacio-quiroga.pdf",
+      "source_url": "https://archive.org/download/cuentos-de-amor-locura-y-muerte-horacio-quiroga/cuentos-de-amor-locura-y-muerte-horacio-quiroga.pdf",
+      "description": "Colección de cuentos de Horacio Quiroga."
+    },
+    "result": {
+      "success": false,
+      "error": "HTTP Error 404: Not Found"
+    }
+  }
+]

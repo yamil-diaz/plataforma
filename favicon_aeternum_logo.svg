@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Left Leg of A -->
+  <polygon points="55,10 15,90 35,90 63,35" fill="#D92B2B" />
+  
+  <!-- Crossbar bridging the gap -->
+  <polygon points="35,75 55,75 60,60 40,60" fill="#D92B2B" />
+  
+  <!-- Lightning Bolt (Right Leg) -->
+  <polygon points="75,10 40,50 60,50 45,95 95,40 70,40 85,10" fill="#D92B2B" />
+</svg>

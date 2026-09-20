@@ -1,0 +1,114 @@
+{
+  "resumen": {
+    "total_libros": 4,
+    "danados": 0,
+    "sospechosos": 0,
+    "sin_fuente": 4,
+    "integros": 0,
+    "errores": 0
+  },
+  "ids_danados": [],
+  "ids_sospechosos": [],
+  "ids_sin_fuente": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "ids_integros": [],
+  "ids_error": [],
+  "grupos_contenido_identico": [],
+  "analisis_id_18": {},
+  "confirmacion_select_only": true,
+  "confirmacion_bd_no_modificada": true,
+  "libros_detalle": {
+    "1": {
+      "id": 1,
+      "title": "El Principito",
+      "author_name": "Antoine de Saint-Exupéry",
+      "content_length": 378,
+      "page_count": 1,
+      "published": 1,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "n_book_pages": 1,
+      "page_hashes": [
+        {
+          "page_number": 1,
+          "hash": "11716c0d610f1c564ec5a027a5ebbad6b827af13c9cdf2295c02fc1c8e503989",
+          "content_length": 378
+        }
+      ],
+      "short_pages": [],
+      "is_placeholder": false,
+      "is_empty": false,
+      "is_short": false,
+      "pathological": false,
+      "repetition_ratio": 0.0,
+      "estado": "SIN_FUENTE"
+    },
+    "2": {
+      "id": 2,
+      "title": "Cien Años de Soledad",
+      "author_name": "Gabriel García Márquez",
+      "content_length": 386,
+      "page_count": 1,
+      "published": 1,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "n_book_pages": 1,
+      "page_hashes": [
+        {
+          "page_number": 1,
+          "hash": "2d9c0b39ccfabd39008c34fb82b0443ac5f29442089913c964521fb2c811a5f2",
+          "content_length": 386
+        }
+      ],
+      "short_pages": [],
+      "is_placeholder": false,
+      "is_empty": false,
+      "is_short": false,
+      "pathological": false,
+      "repetition_ratio": 0.0,
+      "estado": "SIN_FUENTE"
+    },
+    "3": {
+      "id": 3,
+      "title": "Don Quijote de la Mancha",
+      "author_name": "Miguel de Cervantes",
+      "content_length": 177,
+      "page_count": 0,
+      "published": 1,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "n_book_pages": 0,
+      "page_hashes": [],
+      "short_pages": [],
+      "is_placeholder": false,
+      "is_empty": false,
+      "is_short": true,
+      "pathological": false,
+      "repetition_ratio": 0.0,
+      "estado": "SIN_FUENTE"
+    },
+    "4": {
+      "id": 4,
+      "title": "1984",
+      "author_name": "George Orwell",
+      "content_length": 243,
+      "page_count": 0,
+      "published": 1,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "n_book_pages": 0,
+      "page_hashes": [],
+      "short_pages": [],
+      "is_placeholder": false,
+      "is_empty": false,
+      "is_short": true,
+      "pathological": false,
+      "repetition_ratio": 0.0,
+      "estado": "SIN_FUENTE"
+    }
+  }
+}

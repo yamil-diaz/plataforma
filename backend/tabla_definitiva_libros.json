@@ -1,0 +1,3575 @@
+{
+  "audit_status": "READ_ONLY",
+  "production_modified": false,
+  "total_books": 164,
+  "generated_from": "diag_result.json + produccion audit",
+  "decisions": [
+    {
+      "id": 1,
+      "title": "Sin datos en snapshot",
+      "author": "Desconocido",
+      "content_chars": null,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REVISAR_MANUALMENTE",
+      "reason": [
+        "Sin datos suficientes en snapshot; requiere verificacion manual"
+      ],
+      "future_action": "Verificar existencia y contenido en produccion"
+    },
+    {
+      "id": 2,
+      "title": "Sin datos en snapshot",
+      "author": "Desconocido",
+      "content_chars": null,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REVISAR_MANUALMENTE",
+      "reason": [
+        "Sin datos suficientes en snapshot; requiere verificacion manual"
+      ],
+      "future_action": "Verificar existencia y contenido en produccion"
+    },
+    {
+      "id": 3,
+      "title": "Sin datos en snapshot",
+      "author": "Desconocido",
+      "content_chars": null,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REVISAR_MANUALMENTE",
+      "reason": [
+        "Sin datos suficientes en snapshot; requiere verificacion manual"
+      ],
+      "future_action": "Verificar existencia y contenido en produccion"
+    },
+    {
+      "id": 4,
+      "title": "Sin datos en snapshot",
+      "author": "Desconocido",
+      "content_chars": null,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REVISAR_MANUALMENTE",
+      "reason": [
+        "Sin datos suficientes en snapshot; requiere verificacion manual"
+      ],
+      "future_action": "Verificar existencia y contenido en produccion"
+    },
+    {
+      "id": 5,
+      "title": "Cien Anos de Soledad",
+      "author": "Gabriel Garcia Marquez",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "CONSERVAR",
+      "reason": [
+        "Contenido original verificable en seed_books.py; protegido por auditoria"
+      ],
+      "future_action": "NO_TOCAR"
+    },
+    {
+      "id": 6,
+      "title": "Rayuela",
+      "author": "Julio Cortazar",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "CONSERVAR",
+      "reason": [
+        "Contenido original verificable en seed_books.py; protegido por auditoria"
+      ],
+      "future_action": "NO_TOCAR"
+    },
+    {
+      "id": 7,
+      "title": "Pedro Paramo",
+      "author": "Juan Rulfo",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "CONSERVAR",
+      "reason": [
+        "Contenido original verificable en seed_books.py; protegido por auditoria"
+      ],
+      "future_action": "NO_TOCAR"
+    },
+    {
+      "id": 8,
+      "title": "La Casa de los Espiritus",
+      "author": "Isabel Allende",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "CONSERVAR",
+      "reason": [
+        "Contenido original verificable en seed_books.py; protegido por auditoria"
+      ],
+      "future_action": "NO_TOCAR"
+    },
+    {
+      "id": 9,
+      "title": "El Tunel",
+      "author": "Ernesto Sabato",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 10,
+      "title": "Ficciones",
+      "author": "Jorge Luis Borges",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "CONSERVAR",
+      "reason": [
+        "Contenido original verificable en seed_books.py; protegido por auditoria"
+      ],
+      "future_action": "NO_TOCAR"
+    },
+    {
+      "id": 11,
+      "title": "Como Agua para Chocolate",
+      "author": "Laura Esquivel",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "CONSERVAR",
+      "reason": [
+        "Contenido original verificable en seed_books.py; protegido por auditoria"
+      ],
+      "future_action": "NO_TOCAR"
+    },
+    {
+      "id": 12,
+      "title": "El Amor en los Tiempos del Colera",
+      "author": "Gabriel Garcia Marquez",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "CONSERVAR",
+      "reason": [
+        "Contenido original verificable en seed_books.py; protegido por auditoria"
+      ],
+      "future_action": "NO_TOCAR"
+    },
+    {
+      "id": 13,
+      "title": "La Sombra del Viento",
+      "author": "Carlos Ruiz Zafon",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "CONSERVAR",
+      "reason": [
+        "Contenido original verificable en seed_books.py; protegido por auditoria"
+      ],
+      "future_action": "NO_TOCAR"
+    },
+    {
+      "id": 14,
+      "title": "Aura",
+      "author": "Carlos Fuentes",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 15,
+      "title": "Los Detectives Salvajes",
+      "author": "Roberto Bolano",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 16,
+      "title": "Cronica de una Muerte Anunciada",
+      "author": "Gabriel Garcia Marquez",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 17,
+      "title": "Don Quijote de la Mancha",
+      "author": "Miguel de Cervantes",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 18,
+      "title": "El Principito",
+      "author": "Antoine de Saint-Exupery",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": true,
+      "grupo_duplicado": [
+        18,
+        128
+      ],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 19,
+      "title": "Orgullo y Prejuicio",
+      "author": "Jane Austen",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "CONSERVAR",
+      "reason": [
+        "Contenido original verificable en seed_books.py; protegido por auditoria"
+      ],
+      "future_action": "NO_TOCAR"
+    },
+    {
+      "id": 20,
+      "title": "Crimen y Castigo",
+      "author": "Fiodor Dostoievski",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 21,
+      "title": "Los Miserables",
+      "author": "Victor Hugo",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "CONSERVAR",
+      "reason": [
+        "Contenido original verificable en seed_books.py; protegido por auditoria"
+      ],
+      "future_action": "NO_TOCAR"
+    },
+    {
+      "id": 22,
+      "title": "La Odisea",
+      "author": "Homero",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": true,
+      "grupo_duplicado": [
+        22,
+        144,
+        157,
+        170
+      ],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 23,
+      "title": "Anna Karenina",
+      "author": "Leon Tolstoi",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 24,
+      "title": "Hamlet",
+      "author": "William Shakespeare",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 25,
+      "title": "La Divina Comedia",
+      "author": "Dante Alighieri",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 26,
+      "title": "Madame Bovary",
+      "author": "Gustave Flaubert",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 27,
+      "title": "El Conde de Montecristo",
+      "author": "Alejandro Dumas",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 28,
+      "title": "Las Mil y Una Noches",
+      "author": "Anonimo",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 29,
+      "title": "1984",
+      "author": "George Orwell",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "CONSERVAR",
+      "reason": [
+        "Contenido original verificable en seed_books.py; protegido por auditoria"
+      ],
+      "future_action": "NO_TOCAR"
+    },
+    {
+      "id": 30,
+      "title": "Un Mundo Feliz",
+      "author": "Aldous Huxley",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 31,
+      "title": "Fahrenheit 451",
+      "author": "Ray Bradbury",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 32,
+      "title": "Dune",
+      "author": "Frank Herbert",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 33,
+      "title": "Fundacion",
+      "author": "Isaac Asimov",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 34,
+      "title": "Cronicas Marcianas",
+      "author": "Ray Bradbury",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "CONSERVAR",
+      "reason": [
+        "Contenido original verificable en seed_books.py; protegido por auditoria"
+      ],
+      "future_action": "NO_TOCAR"
+    },
+    {
+      "id": 35,
+      "title": "Neuromante",
+      "author": "William Gibson",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 36,
+      "title": "El Juego de Ender",
+      "author": "Orson Scott Card",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 37,
+      "title": "2001: Una Odisea del Espacio",
+      "author": "Arthur C. Clarke",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 38,
+      "title": "Solaris",
+      "author": "Stanislaw Lem",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 39,
+      "title": "La Guerra de los Mundos",
+      "author": "H. G. Wells",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 40,
+      "title": "El Marciano",
+      "author": "Andy Weir",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 41,
+      "title": "It",
+      "author": "Stephen King",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "CONSERVAR",
+      "reason": [
+        "Contenido original verificable en seed_books.py; protegido por auditoria"
+      ],
+      "future_action": "NO_TOCAR"
+    },
+    {
+      "id": 42,
+      "title": "Dracula",
+      "author": "Bram Stoker",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 43,
+      "title": "Frankenstein",
+      "author": "Mary Shelley",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 44,
+      "title": "El Resplandor",
+      "author": "Stephen King",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 45,
+      "title": "La Llamada de Cthulhu",
+      "author": "H. P. Lovecraft",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 46,
+      "title": "El Exorcista",
+      "author": "William Peter Blatty",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 47,
+      "title": "Cementerio de Animales",
+      "author": "Stephen King",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 48,
+      "title": "El Fantasma de la Opera",
+      "author": "Gaston Leroux",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 49,
+      "title": "La Maldicion de Hill House",
+      "author": "Shirley Jackson",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 50,
+      "title": "Misery",
+      "author": "Stephen King",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 51,
+      "title": "Veinte Poemas de Amor y una Cancion Desesperada",
+      "author": "Pablo Neruda",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 52,
+      "title": "Canto General",
+      "author": "Pablo Neruda",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 53,
+      "title": "Poeta en Nueva York",
+      "author": "Federico Garcia Lorca",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 54,
+      "title": "Romancero Gitano",
+      "author": "Federico Garcia Lorca",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 55,
+      "title": "Altazor",
+      "author": "Vicente Huidobro",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 56,
+      "title": "Trilce",
+      "author": "Cesar Vallejo",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 57,
+      "title": "Los Heraldos Negros",
+      "author": "Cesar Vallejo",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 58,
+      "title": "Piedra de Sol",
+      "author": "Octavio Paz",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 59,
+      "title": "Hojas de Hierba",
+      "author": "Walt Whitman",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 60,
+      "title": "Cien Sonetos de Amor",
+      "author": "Pablo Neruda",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 61,
+      "title": "Sapiens: De Animales a Dioses",
+      "author": "Yuval Noah Harari",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 62,
+      "title": "El Arte de la Guerra",
+      "author": "Sun Tzu",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 63,
+      "title": "Breve Historia del Mundo",
+      "author": "Ernst H. Gombrich",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 64,
+      "title": "Los Conquistadores",
+      "author": "John Hemming",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 65,
+      "title": "El Diario de Ana Frank",
+      "author": "Ana Frank",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 66,
+      "title": "Memorias de Adriano",
+      "author": "Marguerite Yourcenar",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 67,
+      "title": "Historia de Dos Ciudades",
+      "author": "Charles Dickens",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 68,
+      "title": "21 Lecciones para el Siglo XXI",
+      "author": "Yuval Noah Harari",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 69,
+      "title": "Las Venas Abiertas de America Latina",
+      "author": "Eduardo Galeano",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 70,
+      "title": "El Laberinto de la Soledad",
+      "author": "Octavio Paz",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 71,
+      "title": "El Mundo de Sofia",
+      "author": "Jostein Gaarder",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 72,
+      "title": "Asi Hablo Zaratustra",
+      "author": "Friedrich Nietzsche",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 73,
+      "title": "La Republica",
+      "author": "Platon",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 74,
+      "title": "Meditaciones",
+      "author": "Marco Aurelio",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 75,
+      "title": "El Banquete",
+      "author": "Platon",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 76,
+      "title": "El Ser y la Nada",
+      "author": "Jean-Paul Sartre",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 77,
+      "title": "El Arte de Amar",
+      "author": "Erich Fromm",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 78,
+      "title": "Etica para Amador",
+      "author": "Fernando Savater",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 79,
+      "title": "Elogio de la Locura",
+      "author": "Erasmo de Rotterdam",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 80,
+      "title": "El Principe",
+      "author": "Maquiavelo",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 81,
+      "title": "El Alquimista",
+      "author": "Paulo Coelho",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 82,
+      "title": "Los 7 Habitos de la Gente Altamente Efectiva",
+      "author": "Stephen Covey",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 83,
+      "title": "El Poder del Ahora",
+      "author": "Eckhart Tolle",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 84,
+      "title": "Padre Rico, Padre Pobre",
+      "author": "Robert Kiyosaki",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 85,
+      "title": "Habitos Atomicos",
+      "author": "James Clear",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 86,
+      "title": "El Monje que Vendio su Ferrari",
+      "author": "Robin Sharma",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 87,
+      "title": "Piense y Hagase Rico",
+      "author": "Napoleon Hill",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 88,
+      "title": "El Sutil Arte de que No te Importe Nada",
+      "author": "Mark Manson",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 89,
+      "title": "Los Cuatro Acuerdos",
+      "author": "Don Miguel Ruiz",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 90,
+      "title": "Inteligencia Emocional",
+      "author": "Daniel Goleman",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 91,
+      "title": "Romeo y Julieta",
+      "author": "William Shakespeare",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 92,
+      "title": "Cumbres Borrascosas",
+      "author": "Emily Bronte",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 93,
+      "title": "Jane Eyre",
+      "author": "Charlotte Bronte",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 94,
+      "title": "El Fantasma de Canterville",
+      "author": "Oscar Wilde",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 95,
+      "title": "Persuasion",
+      "author": "Jane Austen",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 96,
+      "title": "Las Batallas en el Desierto",
+      "author": "Jose Emilio Pacheco",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 97,
+      "title": "Doctor Zhivago",
+      "author": "Boris Pasternak",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 98,
+      "title": "La Dama de las Camelias",
+      "author": "Alexandre Dumas",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 99,
+      "title": "El Amor en los Tiempos de la Peste",
+      "author": "Gabriel Garcia Marquez",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 100,
+      "title": "Corazon",
+      "author": "Edmondo De Amicis",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 101,
+      "title": "La Isla del Tesoro",
+      "author": "Robert Louis Stevenson",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 102,
+      "title": "Veinte Mil Leguas de Viaje Submarino",
+      "author": "Julio Verne",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 103,
+      "title": "El Senor de los Anillos",
+      "author": "J. R. R. Tolkien",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 104,
+      "title": "El Hobbit",
+      "author": "J. R. R. Tolkien",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 105,
+      "title": "Las Aventuras de Tom Sawyer",
+      "author": "Mark Twain",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 106,
+      "title": "Robinson Crusoe",
+      "author": "Daniel Defoe",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 107,
+      "title": "La Vuelta al Mundo en 80 Dias",
+      "author": "Julio Verne",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 108,
+      "title": "Moby Dick",
+      "author": "Herman Melville",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 109,
+      "title": "Los Tres Mosqueteros",
+      "author": "Alexandre Dumas",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 110,
+      "title": "Viaje al Centro de la Tierra",
+      "author": "Julio Verne",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 111,
+      "title": "Cosmos",
+      "author": "Carl Sagan",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 112,
+      "title": "Breve Historia del Tiempo",
+      "author": "Stephen Hawking",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 113,
+      "title": "El Gen Egoista",
+      "author": "Richard Dawkins",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 114,
+      "title": "El Universo en una Cascara de Nuez",
+      "author": "Stephen Hawking",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 115,
+      "title": "Astrofisica para Gente con Prisa",
+      "author": "Neil deGrasse Tyson",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 116,
+      "title": "El Origen de las Especies",
+      "author": "Charles Darwin",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 117,
+      "title": "La Estructura de las Revoluciones Cientificas",
+      "author": "Thomas Kuhn",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "CONSERVAR",
+      "reason": [
+        "Contenido original verificable en seed_books.py; protegido por auditoria"
+      ],
+      "future_action": "NO_TOCAR"
+    },
+    {
+      "id": 118,
+      "title": "La Doble Helice",
+      "author": "James Watson",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 119,
+      "title": "Seis Piezas Faciles",
+      "author": "Richard Feynman",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 120,
+      "title": "Un Punto Azul Palido",
+      "author": "Carl Sagan",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 121,
+      "title": "Charlie y la Fabrica de Chocolate",
+      "author": "Roald Dahl",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 122,
+      "title": "Matilda",
+      "author": "Roald Dahl",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 123,
+      "title": "Las Cronicas de Narnia: El Leon, la Bruja y el Ropero",
+      "author": "C. S. Lewis",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 124,
+      "title": "Harry Potter y la Piedra Filosofal",
+      "author": "J. K. Rowling",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 125,
+      "title": "El Diario de Greg",
+      "author": "Jeff Kinney",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 126,
+      "title": "James y el Melocoton Gigante",
+      "author": "Roald Dahl",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 127,
+      "title": "Donde Viven los Monstruos",
+      "author": "Maurice Sendak",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 128,
+      "title": "El Principito",
+      "author": "Antoine de Saint-Exupery",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": true,
+      "grupo_duplicado": [
+        18,
+        128
+      ],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 129,
+      "title": "Alicia en el Pais de las Maravillas",
+      "author": "Lewis Carroll",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 130,
+      "title": "Cuentos de la Selva",
+      "author": "Horacio Quiroga",
+      "content_chars": 200,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": true,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_CONTENIDO",
+      "reason": [
+        "Seed con contenido multiplicado 200x; fuente original en seed_books.py"
+      ],
+      "future_action": "Reemplazar content con texto de seed_books.py y repaginar"
+    },
+    {
+      "id": 131,
+      "title": "Sin datos en snapshot",
+      "author": "Desconocido",
+      "content_chars": null,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REVISAR_MANUALMENTE",
+      "reason": [
+        "Sin datos suficientes en snapshot; requiere verificacion manual"
+      ],
+      "future_action": "Verificar existencia y contenido en produccion"
+    },
+    {
+      "id": 132,
+      "title": "Sin datos en snapshot",
+      "author": "Desconocido",
+      "content_chars": null,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REVISAR_MANUALMENTE",
+      "reason": [
+        "Sin datos suficientes en snapshot; requiere verificacion manual"
+      ],
+      "future_action": "Verificar existencia y contenido en produccion"
+    },
+    {
+      "id": 133,
+      "title": "Crimen y castigo",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        133,
+        159
+      ],
+      "candidato_superior": 133,
+      "decision": "REVISAR_MANUALMENTE",
+      "reason": [
+        "Placeholder pero es copia superior del grupo; verificar si existe fuente alternativa"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 134,
+      "title": "Los heraldos negros",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        134,
+        147,
+        160
+      ],
+      "candidato_superior": 134,
+      "decision": "REVISAR_MANUALMENTE",
+      "reason": [
+        "Placeholder pero es copia superior del grupo; verificar si existe fuente alternativa"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 135,
+      "title": "Sangre de Campe¾n: Sin Cadenas",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        135,
+        148,
+        161
+      ],
+      "candidato_superior": 135,
+      "decision": "REVISAR_MANUALMENTE",
+      "reason": [
+        "Placeholder pero es copia superior del grupo; verificar si existe fuente alternativa"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 136,
+      "title": "Ciro Alegria   El Mundo Es Ancho Y Ajeno",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        136,
+        149,
+        162
+      ],
+      "candidato_superior": 136,
+      "decision": "REVISAR_MANUALMENTE",
+      "reason": [
+        "Placeholder pero es copia superior del grupo; verificar si existe fuente alternativa"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 137,
+      "title": "CrimenCastigo.PDF",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        137,
+        150,
+        163
+      ],
+      "candidato_superior": 137,
+      "decision": "REVISAR_MANUALMENTE",
+      "reason": [
+        "Placeholder pero es copia superior del grupo; verificar si existe fuente alternativa"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 138,
+      "title": "Microsoft Word - Dante Alighieri - Divina comedia.doc",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        138,
+        151,
+        164
+      ],
+      "candidato_superior": 138,
+      "decision": "REVISAR_MANUALMENTE",
+      "reason": [
+        "Placeholder pero es copia superior del grupo; verificar si existe fuente alternativa"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 139,
+      "title": "El Caballero Carmelo",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        139,
+        152,
+        165
+      ],
+      "candidato_superior": 139,
+      "decision": "REVISAR_MANUALMENTE",
+      "reason": [
+        "Placeholder pero es copia superior del grupo; verificar si existe fuente alternativa"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 140,
+      "title": "EL MUNDO ES ANCHO Y AJENO",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        140,
+        153,
+        166
+      ],
+      "candidato_superior": 140,
+      "decision": "REVISAR_MANUALMENTE",
+      "reason": [
+        "Placeholder pero es copia superior del grupo; verificar si existe fuente alternativa"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 141,
+      "title": "edipo.PDF",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        141,
+        154,
+        167
+      ],
+      "candidato_superior": 141,
+      "decision": "REVISAR_MANUALMENTE",
+      "reason": [
+        "Placeholder pero es copia superior del grupo; verificar si existe fuente alternativa"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 142,
+      "title": "Romeo y Julieta",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        142,
+        155,
+        168
+      ],
+      "candidato_superior": 142,
+      "decision": "REVISAR_MANUALMENTE",
+      "reason": [
+        "Placeholder pero es copia superior del grupo; verificar si existe fuente alternativa"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 143,
+      "title": "ÐA CATITA",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        143,
+        156,
+        169
+      ],
+      "candidato_superior": 143,
+      "decision": "REVISAR_MANUALMENTE",
+      "reason": [
+        "Placeholder pero es copia superior del grupo; verificar si existe fuente alternativa"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 144,
+      "title": "La Odisea",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        22,
+        144,
+        157,
+        170
+      ],
+      "candidato_superior": 22,
+      "decision": "ELIMINAR_DUPLICADO",
+      "reason": [
+        "Placeholder y duplicado inferior; copia superior: ID 22"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 145,
+      "title": "Memorias de subsuelo ",
+      "author": null,
+      "content_chars": 534,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": false,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "CONSERVAR",
+      "reason": [
+        "Contenido completo y confiable; protegido por auditoria"
+      ],
+      "future_action": "NO_TOCAR"
+    },
+    {
+      "id": 146,
+      "title": "Sin datos en snapshot",
+      "author": "Desconocido",
+      "content_chars": null,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REVISAR_MANUALMENTE",
+      "reason": [
+        "Sin datos suficientes en snapshot; requiere verificacion manual"
+      ],
+      "future_action": "Verificar existencia y contenido en produccion"
+    },
+    {
+      "id": 147,
+      "title": "Los heraldos negros",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        134,
+        147,
+        160
+      ],
+      "candidato_superior": 134,
+      "decision": "ELIMINAR_DUPLICADO",
+      "reason": [
+        "Placeholder y duplicado inferior; copia superior: ID 134"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 148,
+      "title": "Sangre de Campe¾n: Sin Cadenas",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        135,
+        148,
+        161
+      ],
+      "candidato_superior": 135,
+      "decision": "ELIMINAR_DUPLICADO",
+      "reason": [
+        "Placeholder y duplicado inferior; copia superior: ID 135"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 149,
+      "title": "Ciro Alegria   El Mundo Es Ancho Y Ajeno",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        136,
+        149,
+        162
+      ],
+      "candidato_superior": 136,
+      "decision": "ELIMINAR_DUPLICADO",
+      "reason": [
+        "Placeholder y duplicado inferior; copia superior: ID 136"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 150,
+      "title": "CrimenCastigo.PDF",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        137,
+        150,
+        163
+      ],
+      "candidato_superior": 137,
+      "decision": "ELIMINAR_DUPLICADO",
+      "reason": [
+        "Placeholder y duplicado inferior; copia superior: ID 137"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 151,
+      "title": "Microsoft Word - Dante Alighieri - Divina comedia.doc",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        138,
+        151,
+        164
+      ],
+      "candidato_superior": 138,
+      "decision": "ELIMINAR_DUPLICADO",
+      "reason": [
+        "Placeholder y duplicado inferior; copia superior: ID 138"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 152,
+      "title": "El Caballero Carmelo",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        139,
+        152,
+        165
+      ],
+      "candidato_superior": 139,
+      "decision": "ELIMINAR_DUPLICADO",
+      "reason": [
+        "Placeholder y duplicado inferior; copia superior: ID 139"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 153,
+      "title": "EL MUNDO ES ANCHO Y AJENO",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        140,
+        153,
+        166
+      ],
+      "candidato_superior": 140,
+      "decision": "ELIMINAR_DUPLICADO",
+      "reason": [
+        "Placeholder y duplicado inferior; copia superior: ID 140"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 154,
+      "title": "edipo.PDF",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        141,
+        154,
+        167
+      ],
+      "candidato_superior": 141,
+      "decision": "ELIMINAR_DUPLICADO",
+      "reason": [
+        "Placeholder y duplicado inferior; copia superior: ID 141"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 155,
+      "title": "Romeo y Julieta",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        142,
+        155,
+        168
+      ],
+      "candidato_superior": 142,
+      "decision": "ELIMINAR_DUPLICADO",
+      "reason": [
+        "Placeholder y duplicado inferior; copia superior: ID 142"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 156,
+      "title": "ÐA CATITA",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        143,
+        156,
+        169
+      ],
+      "candidato_superior": 143,
+      "decision": "ELIMINAR_DUPLICADO",
+      "reason": [
+        "Placeholder y duplicado inferior; copia superior: ID 143"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 157,
+      "title": "La Odisea",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        22,
+        144,
+        157,
+        170
+      ],
+      "candidato_superior": 22,
+      "decision": "ELIMINAR_DUPLICADO",
+      "reason": [
+        "Placeholder y duplicado inferior; copia superior: ID 22"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 158,
+      "title": "Noches blancas ",
+      "author": null,
+      "content_chars": 379,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": false,
+      "fabricado": true,
+      "es_seed": false,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "CONSERVAR",
+      "reason": [
+        "Contenido completo y confiable; protegido por auditoria"
+      ],
+      "future_action": "NO_TOCAR"
+    },
+    {
+      "id": 159,
+      "title": "Crimen y castigo",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        133,
+        159
+      ],
+      "candidato_superior": 133,
+      "decision": "ELIMINAR_DUPLICADO",
+      "reason": [
+        "Placeholder y duplicado inferior; copia superior: ID 133"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 160,
+      "title": "Los heraldos negros",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        134,
+        147,
+        160
+      ],
+      "candidato_superior": 134,
+      "decision": "ELIMINAR_DUPLICADO",
+      "reason": [
+        "Placeholder y duplicado inferior; copia superior: ID 134"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 161,
+      "title": "Sangre de Campe¾n: Sin Cadenas",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        135,
+        148,
+        161
+      ],
+      "candidato_superior": 135,
+      "decision": "ELIMINAR_DUPLICADO",
+      "reason": [
+        "Placeholder y duplicado inferior; copia superior: ID 135"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 162,
+      "title": "Ciro Alegria   El Mundo Es Ancho Y Ajeno",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        136,
+        149,
+        162
+      ],
+      "candidato_superior": 136,
+      "decision": "ELIMINAR_DUPLICADO",
+      "reason": [
+        "Placeholder y duplicado inferior; copia superior: ID 136"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 163,
+      "title": "CrimenCastigo.PDF",
+      "author": null,
+      "content_chars": 33,
+      "book_pages_count": null,
+      "pdf_path": null,
+      "pdf_existe": false,
+      "pdf_size": null,
+      "placeholder": true,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": true,
+      "grupo_duplicado": [
+        137,
+        150,
+        163
+      ],
+      "candidato_superior": 137,
+      "decision": "ELIMINAR_DUPLICADO",
+      "reason": [
+        "Placeholder y duplicado inferior; copia superior: ID 137"
+      ],
+      "future_action": "Pendiente de decision manual"
+    },
+    {
+      "id": 175,
+      "title": "Rayuelas mentales",
+      "author": "Autor desconocido",
+      "content_chars": null,
+      "book_pages_count": null,
+      "pdf_path": "/var/data/aeternum/books/94959e31-ce67-4054-8494-659cb843fec4_rayuelas mentales.pdf",
+      "pdf_existe": true,
+      "pdf_size": 1364423,
+      "placeholder": false,
+      "fabricado": false,
+      "es_seed": false,
+      "duplicado": false,
+      "grupo_duplicado": [],
+      "candidato_superior": null,
+      "decision": "REPROCESAR_DESDE_PDF",
+      "reason": [
+        "Existe fuente PDF fisica valida (1,364,423 bytes); reconstruir contenido y paginacion desde PDF"
+      ],
+      "future_action": "Ejecutar procesamiento del PDF para extraer texto y generar book_pages"
+    }
+  ]
+}

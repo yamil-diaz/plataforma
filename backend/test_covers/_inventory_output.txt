@@ -1,0 +1,137 @@
+﻿========================================================================================================================
+INVENTARIO COMPLETO DE PORTADAS - AETERNUMLIBRARY
+========================================================================================================================
+
+RESUMEN:
+  Total publicados: 93
+  Portada local (subida): 28
+  Portada generica (Unsplash): 65
+
+========================================================================================================================
+SECCION A: PORTADAS LOCALES (28 libros) - Requieren verificacion de calidad
+========================================================================================================================
+
+  ID   | TITULO                                                  | AUTOR                          | PDF?     | ESTADO
+  -----+---------------------------------------------------------+--------------------------------+----------+---------------------
+  176  | Rayuelas mentales                                       | Rayuela (fan project)          |          | Portada PDF (upload)
+  177  | Anaconda y otros cuentos                                | Horacio Quiroga                | SI       | Portada PDF (upload)
+  178  | C├®sar o nada                                            | P├¡o Baroja                     | SI       | Portada PDF (upload)
+  179  | Romeo y Julieta                                         | William Shakespeare            |          | Portada subida
+  180  | A buen fin no hay mal principio                         | P├¡o Baroja                     |          | Portada subida
+  182  | Memorias de subsuelo                                    | Fi├│dor Dostoievski             |          | Portada subida
+  183  | El Caballero Carmelo                                    | Abraham Valdelomar             |          | Portada subida
+  184  | Divina comedia                                          | Dante Alighieri                |          | Portada subida
+  185  | Los heraldos negros                                     | C├®sar Vallejo                  |          | Portada subida
+  186  | La Odisea                                               | Homero                         |          | Portada subida
+  187  | El Mundo Es Ancho Y Ajeno                               | Ciro Alegr├¡a                   |          | Portada subida
+  188  | Crimen y castigo                                        | Fi├│dor Dostoievski             |          | Portada subida
+  190  | Edipo rey                                               | S├│focles                       |          | Portada subida
+  192  | Sangre de Campe├│n: Sin Cadenas                          | Juan Jos├® Arreola              |          | Portada subida
+  194  | La Condena                                              | Franz Kafka                    |          | Portada subida
+  195  | El Castillo                                             | Franz Kafka                    |          | Portada subida
+  196  | Relatos Cortos                                          | Franz Kafka                    |          | Portada subida
+  197  | Un Artista del Hambre                                   | Franz Kafka                    |          | Portada subida
+  210  | El Idiota                                               | Fi├│dor Dostoievski             |          | Portada subida
+  216  | Un ├ürbol de Navidad y Una Boda                          | Charles Dickens                |          | Portada subida
+  245  | Las Aventuras del Capit├ín Hatteras                      | Julio Verne                    |          | Portada subida
+  261  | La Caza del Meteoro                                     | Julio Verne                    |          | Portada subida
+  262  | La Estrella del Sur                                     | Julio Verne                    |          | Portada subida
+  263  | Aventuras de Tres Rusos y Tres Ingleses en el ├üfrica Au | Julio Verne                    |          | Portada subida
+  264  | El Faro del Fin del Mundo                               | Julio Verne                    |          | Portada subida
+  281  | Los Papeles P├│stumos del Club Pickwick de Charles Dicke | Charles Dickens                |          | Portada subida
+  282  | La Casa Encantada de Charles Dickens en PDF             | Charles Dickens                |          | Portada subida
+  296  | El Guardav├¡a de Charles Dickens en PDF                  | Charles Dickens                |          | Portada subida
+
+========================================================================================================================
+SECCION B: PORTADAS GENERICAS UNSPLASH (65 libros) - TODOS necesitan portada real
+========================================================================================================================
+
+  ID   | TITULO                                                  | AUTOR                          | PDF?     | FUENTE          | OBSERVACIONES
+  -----+---------------------------------------------------------+--------------------------------+----------+-----------------+-------------------------------
+  198  | Contemplaci├│n                                           | Fi├│dor Dostoievski             |          | Internet Archive | Clasico de dominio publico
+  199  | La Metamorfosis                                         | Franz Kafka                    |          | Internet Archive | Clasico de dominio publico
+  200  | Ante la Ley                                             | Franz Kafka                    |          | Internet Archive | Clasico de dominio publico
+  201  | Carta al Padre                                          | Franz Kafka                    |          | Internet Archive | Clasico de dominio publico
+  202  | Informe para una Academia                               | Franz Kafka                    |          | Internet Archive | Clasico de dominio publico
+  203  | Un M├®dico Rural                                         | Franz Kafka                    |          | Internet Archive | Clasico de dominio publico
+  204  | En la Colonia Penitenciaria                             | Franz Kafka                    |          | Internet Archive | Clasico de dominio publico
+  205  | El Proceso                                              | Franz Kafka                    |          | Internet Archive | Clasico de dominio publico
+  206  | Las Preocupaciones de un Padre de Familia               | Franz Kafka                    |          | Internet Archive | Clasico de dominio publico
+  207  | El Fogonero                                             | Franz Kafka                    |          | Internet Archive | Clasico de dominio publico
+  208  | Josefina la Cantora o El Pueblo de los Ratones          | Franz Kafka                    |          | Internet Archive | Clasico de dominio publico
+  212  | El Sue├▒o del Pr├¡ncipe                                   | Franz Kafka                    |          | Internet Archive | Clasico de dominio publico
+  214  | El Adolescente                                          | Fi├│dor Dostoievski             |          | Internet Archive | Clasico de dominio publico
+  215  | El Jugador                                              | Fi├│dor Dostoievski             |          | Internet Archive | Clasico de dominio publico
+  217  | Los Endemoniados                                        | Fi├│dor Dostoievski             |          | Internet Archive | Clasico de dominio publico
+  218  | El Gran Inquisidor                                      | Fi├│dor Dostoievski             |          | Internet Archive | Clasico de dominio publico
+  219  | El Sue├▒o de un Hombre Rid├¡culo                          | Fi├│dor Dostoievski             |          | Internet Archive | Clasico de dominio publico
+  220  | La Sumisa                                               | Franz Kafka                    |          | Internet Archive | Clasico de dominio publico
+  221  | La Patrona                                              | Franz Kafka                    |          | Internet Archive | Clasico de dominio publico
+  223  | Los Hermanos Karam├ízov                                  | Fi├│dor Dostoievski             |          | Internet Archive | Clasico de dominio publico
+  224  | Humillados y Ofendidos                                  | Fi├│dor Dostoievski             |          | Internet Archive | Clasico de dominio publico
+  225  | N├®tochka Nezv├ínova                                      | Fi├│dor Dostoievski             |          | Internet Archive | Clasico de dominio publico
+  226  | Diario de un Escritor                                   | Fi├│dor Dostoievski             |          | Internet Archive | Clasico de dominio publico
+  227  | El Cocodrilo                                            | Fi├│dor Dostoievski             |          | Internet Archive | Clasico de dominio publico
+  228  | El Pueblo A├®reo                                         | Fi├│dor Dostoievski             |          | Internet Archive | Clasico de dominio publico
+  229  | La Jornada de un Periodista Americano en el A├▒o 2889    | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  230  | C├®sar Cascabel                                          | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  232  | Due├▒o del Mundo                                         | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  234  | El Chancellor                                           | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  235  | Norte Contra Sur                                        | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  236  | El Doctor Ox                                            | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  237  | Los Hijos del Capit├ín Grant                             | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  238  | El Archipi├®lago en Llamas                               | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  239  | Las Indias Negras                                       | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  240  | Familia sin Nombre                                      | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  242  | El Secreto de Wilhelm Storitz                           | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  243  | De la Tierra a la Luna                                  | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  244  | La Vuelta al Mundo en Ochenta D├¡as                      | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  246  | Cinco Semanas en Globo                                  | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  247  | Un Drama en Livonia                                     | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  248  | La Invasi├│n del Mar                                     | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  250  | El Soberbio Orinoco                                     | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  251  | El Pa├¡s de las Pieles                                   | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  255  | Robur el Conquistador                                   | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  256  | El Testamento de un Exc├®ntrico                          | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  259  | Mat├¡as Sandorf                                          | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  260  | La Isla de H├®lice                                       | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  265  | Escuela de Robinsones                                   | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  266  | El Piloto del Danubio                                   | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  267  | Alrededor de la Luna                                    | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  268  | Claudio Bombarnac                                       | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  269  | La Isla Misteriosa                                      | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  270  | La Agencia Thompson y C├¡a.                              | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  271  | Una Ciudad Flotante                                     | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  272  | El Castillo de los C├írpatos                             | Julio Verne                    |          | Internet Archive | Clasico de dominio publico
+  273  | Barnaby Rudge de Charles Dickens en PDF                 | Charles Dickens                |          | Internet Archive | Clasico de dominio publico
+  277  | Historia de Dos Ciudades de Charles Dickens en PDF      | Charles Dickens                |          | Internet Archive | Clasico de dominio publico
+  279  | Grandes Esperanzas de Charles Dickens en PDF            | Charles Dickens                |          | Internet Archive | Clasico de dominio publico
+  280  | El Misterio de Edwin Drood de Charles Dickens en PDF    | Charles Dickens                |          | Internet Archive | Clasico de dominio publico
+  286  | El Manuscrito de un Loco de Charles Dickens en PDF      | Charles Dickens                |          | Internet Archive | Clasico de dominio publico
+  287  | Tiempos Dif├¡ciles de Charles Dickens en PDF             | Charles Dickens                |          | Internet Archive | Clasico de dominio publico
+  288  | Historias de Fantasmas de Charles Dickens en PDF        | Charles Dickens                |          | Internet Archive | Clasico de dominio publico
+  289  | La Historia de Nadie de Charles Dickens en PDF          | Charles Dickens                |          | Internet Archive | Clasico de dominio publico
+  290  | Cuento de Navidad de Charles Dickens en PDF             | Charles Dickens                |          | Internet Archive | Clasico de dominio publico
+  291  | Una Casa en Alquiler de Charles Dickens en PDF          | Charles Dickens                |          | Internet Archive | Clasico de dominio publico
+
+========================================================================================================================
+SECCION C: LIBROS CON PDF LOCAL DISPONIBLE
+========================================================================================================================
+
+  Anaconda y otros cuentos -> Anaconda y otros cuentos - Horacio Quiroga.pdf
+  C├®sar o nada -> cesaronadanovela00baro.pdf
+  El Hijo -> El Hijo - Horacio Quiroga.pdf
+  El Mayorazgo de Labra -> elmayorazgodela00barogoog.pdf
+
+NOTA: 'El Hijo' (Horacio Quiroga) y 'El Mayorazgo de Labra' (Pio Baroja)
+tienen PDF local pero NO aparecen en los 93 libros publicados actuales.
+Solo 'Anaconda' y 'Cesar o nada' estan publicados.
+
+========================================================================================================================
+SECCION D: RESUMEN POR AUTOR (libros con portada generica)
+========================================================================================================================
+
+  Julio Verne                        : 30 libros
+  Franz Kafka                        : 13 libros
+  Fi├│dor Dostoievski                 : 12 libros
+  Charles Dickens                    : 10 libros

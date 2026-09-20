@@ -1,4 +1,5 @@
 import os
+import time
 import uuid
 import zipfile
 import shutil
@@ -5598,14 +5599,14 @@ async def get_available_currencies():
 
 
 @api_router.get("/books/{book_id}/prices")
-async def get_book_prices(book_id: int):
+async def get_book_prices(book_id: int, rental_days: int = None):
     """Retorna precios de un libro en todas las monedas habilitadas. Público."""
     db = get_db()
     cursor = db.cursor()
     try:
         prices = {}
         for currency in payment_providers.ENABLED_DIGITAL_CURRENCIES:
-            info = commerce_service.get_book_price(db, book_id, currency)
+            info = commerce_service.get_book_price(db, book_id, currency, rental_days)
             if info["found"]:
                 prices[currency] = {
                     "price": float(info["price"]),
@@ -5643,10 +5644,26 @@ class CheckoutRequest(BaseModel):
         return v
 
 
+_checkout_rate_limit = {}  # {user_id: [timestamp, ...]}
+
+
+def _check_rate_limit(user_id: int, max_requests: int = 5, window: int = 60) -> bool:
+    now = time.time()
+    if user_id not in _checkout_rate_limit:
+        _checkout_rate_limit[user_id] = []
+    _checkout_rate_limit[user_id] = [t for t in _checkout_rate_limit[user_id] if now - t < window]
+    if len(_checkout_rate_limit[user_id]) >= max_requests:
+        return False
+    _checkout_rate_limit[user_id].append(now)
+    return True
+
+
 @api_router.post("/checkout")
 async def create_checkout(req: CheckoutRequest, request: Request):
     """Crea una orden de pago. Paddle para digitales, Culqi para físicos."""
     user = await get_current_user(request)
+    if not _check_rate_limit(user["id"]):
+        raise HTTPException(status_code=429, detail="Demasiados intentos. Espera un minuto.")
     from decimal import Decimal
 
     db = get_db()
@@ -5675,8 +5692,8 @@ async def create_checkout(req: CheckoutRequest, request: Request):
             if currency not in payment_providers.ENABLED_DIGITAL_CURRENCIES:
                 raise HTTPException(status_code=400, detail=f"Moneda {currency} no habilitada para productos digitales.")
 
-        # Obtener precio desde book_prices o books.price
-        price_info = commerce_service.get_book_price(db, req.book_id, currency)
+        # Obtener precio desde book_prices o books.price (con conversión automática)
+        price_info = commerce_service.get_book_price(db, req.book_id, currency, req.rental_days)
 
         if req.item_type == "digital_purchase":
             if not price_info["found"] or price_info["price"] <= 0:

@@ -17,7 +17,7 @@ import server
 from test_create_book import TEXTO_VALIDO, _pdf_bytes_con_texto, _pdf_bytes_sin_texto, _subir_pdf
 from support import _contenido_patologico, _contenido_variado
 
-IDS_SEMBRADOS = (10, 20, 30, 40, 50, 51, 52, 53, 54)
+IDS_SEMBRADOS = (10, 20, 30, 40, 50, 51, 52, 53, 54, 99)
 
 
 @pytest.fixture()

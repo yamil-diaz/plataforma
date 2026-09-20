@@ -48,6 +48,16 @@ export default function DashboardPage() {
       } else if (activeTab === 'settings' && user?.role === 'admin') {
         const { data } = await axios.get(`${API}/settings`, { withCredentials: true });
         setSettings(data);
+      } else if (activeTab === 'commerce' && user?.role === 'admin') {
+        try {
+          const { data } = await axios.get(`${API}/admin/commerce/stats`, { withCredentials: true });
+          document.getElementById('commerce-total-sales').textContent = data.total_sales || 0;
+          document.getElementById('commerce-revenue').textContent = `S/ ${(data.total_revenue || 0).toFixed(2)}`;
+          document.getElementById('commerce-pending').textContent = data.pending_orders || 0;
+          document.getElementById('commerce-rejected').textContent = data.rejected_orders || 0;
+        } catch (err) {
+          console.error('Error loading commerce stats:', err);
+        }
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -263,6 +273,12 @@ export default function DashboardPage() {
             >
               Gestión de Usuarios
             </button>
+            <button 
+              onClick={() => setActiveTab('commerce')}
+              className={`pb-3 px-2 text-sm font-semibold transition-colors border-b-2 ${activeTab === 'commerce' ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-transparent text-[#A0A0A0] hover:text-[#F5F5F5]'}`}
+            >
+              Comercio
+            </button>
           </div>
         )}
 
@@ -406,7 +422,35 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-          )
+           )
+        ) : activeTab === 'commerce' && user?.role === 'admin' ? (
+          /* PESTAÑA COMERCIO */
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-[#121212] border border-white/10 p-5 rounded-xl shadow-lg">
+                <p className="text-[#A0A0A0] text-sm font-semibold uppercase tracking-wider mb-2">Ventas Totales</p>
+                <p className="text-3xl font-bold text-white" id="commerce-total-sales">—</p>
+              </div>
+              <div className="bg-[#121212] border border-white/10 p-5 rounded-xl shadow-lg">
+                <p className="text-[#A0A0A0] text-sm font-semibold uppercase tracking-wider mb-2">Ingresos (PEN)</p>
+                <p className="text-3xl font-bold text-[#D4AF37]" id="commerce-revenue">—</p>
+              </div>
+              <div className="bg-[#121212] border border-white/10 p-5 rounded-xl shadow-lg">
+                <p className="text-[#A0A0A0] text-sm font-semibold uppercase tracking-wider mb-2">Pendientes</p>
+                <p className="text-3xl font-bold text-yellow-400" id="commerce-pending">—</p>
+              </div>
+              <div className="bg-[#121212] border border-white/10 p-5 rounded-xl shadow-lg">
+                <p className="text-[#A0A0A0] text-sm font-semibold uppercase tracking-wider mb-2">Rechazados</p>
+                <p className="text-3xl font-bold text-red-400" id="commerce-rejected">—</p>
+              </div>
+            </div>
+            <div className="bg-[#121212] border border-white/10 rounded-xl p-6">
+              <p className="text-white font-bold mb-4">Órdenes Recientes</p>
+              <p className="text-[#A0A0A0] text-sm">
+                Carga de estadísticas de comercio desde <code className="bg-white/5 px-1 rounded">/api/admin/commerce/stats</code>.
+              </p>
+            </div>
+          </div>
         ) : (
           /* PESTAÑA USUARIOS (SOLO ADMIN) */
           <div className="space-y-6">

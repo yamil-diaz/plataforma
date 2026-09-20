@@ -1,0 +1,156 @@
+[
+  {
+    "candidate": {
+      "title": "Episodios nacionales (Tomo V)",
+      "author": "Benito Pérez Galdós",
+      "year": 1905,
+      "identifier": "episodiosnacion05galdgoog",
+      "pdf_filename": "episodiosnacion05galdgoog_text.pdf",
+      "source_url": "https://archive.org/download/episodiosnacion05galdgoog/episodiosnacion05galdgoog_text.pdf"
+    },
+    "result": {
+      "success": true,
+      "file_size": 12852623,
+      "sha256": "ecc9a534dec8e3217edd58c668a82a56c984e41619eae727608c55bb40e4ecfc",
+      "pages": 302,
+      "text_length": 485214,
+      "has_text": true,
+      "is_boilerplate": false,
+      "empty_pages": 9
+    }
+  },
+  {
+    "candidate": {
+      "title": "Folk-lore español (Biblioteca de las tradiciones populares)",
+      "author": "Emilia Pardo Bazán et al.",
+      "year": 1884,
+      "identifier": "folkloreespaolb14bazgoog",
+      "pdf_filename": "folkloreespaolb14bazgoog.pdf",
+      "source_url": "https://archive.org/download/folkloreespaolb14bazgoog/folkloreespaolb14bazgoog.pdf"
+    },
+    "result": {
+      "success": true,
+      "file_size": 8290389,
+      "sha256": "8c6d854e3267115140f7fba1dbef884f97293db8f085103576b06d53d86400b0",
+      "pages": 256,
+      "text_length": 6722,
+      "has_text": false,
+      "is_boilerplate": true,
+      "empty_pages": 254
+    }
+  },
+  {
+    "candidate": {
+      "title": "Sentencias de Don Quijote y Agudezas de Sancho",
+      "author": "Miguel de Cervantes",
+      "year": 1863,
+      "identifier": "sentenciasdedon00saavgoog",
+      "pdf_filename": "sentenciasdedon00saavgoog.pdf",
+      "source_url": "https://archive.org/download/sentenciasdedon00saavgoog/sentenciasdedon00saavgoog.pdf"
+    },
+    "result": {
+      "success": true,
+      "file_size": 1468928,
+      "sha256": "10e401ce5f2fd862e94559dbd7a73e0cc549748b034a8079ca1282f05a57bc45",
+      "pages": 102,
+      "text_length": 6722,
+      "has_text": false,
+      "is_boilerplate": true,
+      "empty_pages": 100
+    }
+  },
+  {
+    "candidate": {
+      "title": "Poemas rústicos",
+      "author": "Manuel José Othón",
+      "year": 1902,
+      "identifier": "poemasrsticos00othgoog",
+      "pdf_filename": "poemasrsticos00othgoog.pdf",
+      "source_url": "https://archive.org/download/poemasrsticos00othgoog/poemasrsticos00othgoog.pdf"
+    },
+    "result": {
+      "success": true,
+      "file_size": 1453198,
+      "sha256": "cde76ae008d7f0be8da0a9a2f682c2beaade98801a0f3af98d9d343c8a86f2ed",
+      "pages": 160,
+      "text_length": 6722,
+      "has_text": false,
+      "is_boilerplate": true,
+      "empty_pages": 158
+    }
+  },
+  {
+    "candidate": {
+      "title": "Morriña: Historia amorosa",
+      "author": "Emilia Pardo Bazán",
+      "year": 1889,
+      "identifier": "morriahistoriaa00bazgoog",
+      "pdf_filename": "morriahistoriaa00bazgoog.pdf",
+      "source_url": "https://archive.org/download/morriahistoriaa00bazgoog/morriahistoriaa00bazgoog.pdf"
+    },
+    "result": {
+      "success": true,
+      "file_size": 6708135,
+      "sha256": "87461b0010909a39f24babfd3f2a726722db4cd85034323f99b7e5dad60acee1",
+      "pages": 308,
+      "text_length": 6722,
+      "has_text": false,
+      "is_boilerplate": true,
+      "empty_pages": 306
+    }
+  },
+  {
+    "candidate": {
+      "title": "El pasado",
+      "author": "Pío Baroja",
+      "year": 1906,
+      "identifier": "elpasado00barogoog",
+      "pdf_filename": "elpasado00barogoog.pdf",
+      "source_url": "https://archive.org/download/elpasado00barogoog/elpasado00barogoog.pdf"
+    },
+    "result": {
+      "success": true,
+      "file_size": 6110652,
+      "sha256": "7e79e39e41bd15d29d704fe142eef3764309bec83a72df735ad3070deaca5817",
+      "pages": 332,
+      "text_length": 6722,
+      "has_text": false,
+      "is_boilerplate": true,
+      "empty_pages": 330
+    }
+  },
+  {
+    "candidate": {
+      "title": "Fisiología de la risa",
+      "author": "Juan Montalvo",
+      "year": 2012,
+      "identifier": "montalvojufisiologiadelar00",
+      "pdf_filename": "montalvojufisiologiadelar00.pdf",
+      "source_url": "https://archive.org/download/montalvojufisiologiadelar00/montalvojufisiologiadelar00.pdf"
+    },
+    "result": {
+      "success": true,
+      "file_size": 874660,
+      "sha256": "f5f99aae580b2a54780beb17a4e15e578aea89ee1461964e31c6339624f0c768",
+      "pages": 50,
+      "text_length": 26261,
+      "has_text": true,
+      "is_boilerplate": false,
+      "empty_pages": 8
+    }
+  },
+  {
+    "candidate": {
+      "title": "Topacios (Cuentos y Fantasías)",
+      "author": "Rafael Ángel Troyo",
+      "year": 1920,
+      "identifier": "topacios-cuentos-y-fantasias-por-rafael-angel-troyo",
+      "pdf_filename": "Topacios ( Cuentos Y Fantasías) Por Rafael Angel Troyo.pdf",
+      "source_url": "https://archive.org/download/topacios-cuentos-y-fantasias-por-rafael-angel-troyo/Topacios%20%28%20Cuentos%20Y%20Fantas%C3%ADas%29%20Por%20Rafael%20Angel%20Troyo.pdf"
+    },
+    "result": {
+      "success": false,
+      "error": "HTTP Error 404: Not Found"
+    }
+  }
+]

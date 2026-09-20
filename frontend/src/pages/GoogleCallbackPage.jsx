@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import { Zap, Loader2, AlertCircle } from 'lucide-react';
 
@@ -8,6 +9,7 @@ const API = import.meta.env.VITE_API_URL || '/api';
 export default function GoogleCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { loginWithGoogle } = useAuth();
   const code = searchParams.get('code');
   const error = searchParams.get('error');
 
@@ -26,7 +28,7 @@ export default function GoogleCallbackPage() {
 
       try {
         const { data } = await axios.post(`${API}/auth/google/callback`, { code });
-        // Login successful - user is already set in cookies
+        loginWithGoogle(data);
         navigate('/');
       } catch (err) {
         console.error('Google callback error:', err);
@@ -35,7 +37,7 @@ export default function GoogleCallbackPage() {
     };
 
     handleCallback();
-  }, [code, error, navigate]);
+  }, [code, error, navigate, loginWithGoogle]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A] px-4 relative overflow-hidden">

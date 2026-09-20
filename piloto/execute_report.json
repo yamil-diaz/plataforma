@@ -1,0 +1,126 @@
+{
+  "mode": "execute",
+  "generated_at": "2026-09-06T00:13:50.069708+00:00",
+  "total_time_seconds": 47.3,
+  "summary": {
+    "total": 10,
+    "imported": 0,
+    "rejected": 0,
+    "errors": 10,
+    "skipped": 0,
+    "duration_seconds": 47.2,
+    "completed_at": "2026-09-06T00:13:50.060695+00:00"
+  },
+  "files": [
+    {
+      "file": "a_christmas_carol.pdf",
+      "sha256": "8581bfa6fb74d0c468c4c92ca79350cf5eff1d2072e835cd33e2b534b918ab79",
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 40,
+      "status": "error",
+      "book_id": null,
+      "error": "OperationalError: connection to server at \"localhost\" (::1), port 5432 failed: fe_sendauth: no password supplied\n",
+      "duration_seconds": 2.55
+    },
+    {
+      "file": "alice_in_wonderland.pdf",
+      "sha256": "b7de282d460dbc786b583a5e3d070b37eadbb640f8fcc7f7aa327a512c29bd2d",
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 38,
+      "status": "error",
+      "book_id": null,
+      "error": "OperationalError: connection to server at \"localhost\" (::1), port 5432 failed: fe_sendauth: no password supplied\n",
+      "duration_seconds": 2.35
+    },
+    {
+      "file": "art_of_war.pdf",
+      "sha256": "e0a46d8afaf07f0e9e50fc6e9c0bbf1dc05a14abc331669595abc41ff6590856",
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 74,
+      "status": "error",
+      "book_id": null,
+      "error": "OperationalError: connection to server at \"localhost\" (::1), port 5432 failed: fe_sendauth: no password supplied\n",
+      "duration_seconds": 2.94
+    },
+    {
+      "file": "dracula.pdf",
+      "sha256": "27253096a1e127f34fb773d1a51cec8471ef0275d36c1871ced4c0200f06e0b6",
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 184,
+      "status": "error",
+      "book_id": null,
+      "error": "OperationalError: connection to server at \"localhost\" (::1), port 5432 failed: fe_sendauth: no password supplied\n",
+      "duration_seconds": 7.77
+    },
+    {
+      "file": "frankenstein.pdf",
+      "sha256": "4fca36d0044be8c5baa6919ca58b30923914ecf2cd71710e09130f6bc2c67a43",
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 90,
+      "status": "error",
+      "book_id": null,
+      "error": "OperationalError: connection to server at \"localhost\" (::1), port 5432 failed: fe_sendauth: no password supplied\n",
+      "duration_seconds": 4.56
+    },
+    {
+      "file": "heart_of_darkness.pdf",
+      "sha256": "a3e5dfae747242dbbdd842b9d4f82d4171d716e616afb3b263359bf07fc23dca",
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 41,
+      "status": "error",
+      "book_id": null,
+      "error": "OperationalError: connection to server at \"localhost\" (::1), port 5432 failed: fe_sendauth: no password supplied\n",
+      "duration_seconds": 2.18
+    },
+    {
+      "file": "metamorphosis.pdf",
+      "sha256": "7ec15daa112f0aa3574bd0ff6358f343740e3711340cf1429cc2084e7c29b6b4",
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 24,
+      "status": "error",
+      "book_id": null,
+      "error": "OperationalError: connection to server at \"localhost\" (::1), port 5432 failed: fe_sendauth: no password supplied\n",
+      "duration_seconds": 1.26
+    },
+    {
+      "file": "moby_dick.pdf",
+      "sha256": "59cf1d9c7c3980665965d4b3c7cdf498f8a23f06290a9ed9bce50c4f590ad61d",
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 265,
+      "status": "error",
+      "book_id": null,
+      "error": "OperationalError: connection to server at \"localhost\" (::1), port 5432 failed: fe_sendauth: no password supplied\n",
+      "duration_seconds": 10.6
+    },
+    {
+      "file": "pride_and_prejudice.pdf",
+      "sha256": "cf4d26f5e33103f6a61bddc9a18caa2ccf20af07b9d55a635d842db2cd58d5db",
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 163,
+      "status": "error",
+      "book_id": null,
+      "error": "OperationalError: connection to server at \"localhost\" (::1), port 5432 failed: fe_sendauth: no password supplied\n",
+      "duration_seconds": 5.99
+    },
+    {
+      "file": "sherlock_holmes.pdf",
+      "sha256": "5737570c4ed3c92ea908f903c09c8315096826f42c9a07986fe82975018f51a6",
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 140,
+      "status": "error",
+      "book_id": null,
+      "error": "OperationalError: connection to server at \"localhost\" (::1), port 5432 failed: fe_sendauth: no password supplied\n",
+      "duration_seconds": 4.99
+    }
+  ]
+}

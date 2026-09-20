@@ -1,0 +1,602 @@
+[
+  {
+    "title": "Moby Dick; or, The Whale",
+    "author": "Herman Melville",
+    "gutenberg_id": 2701,
+    "category": "Aventura"
+  },
+  {
+    "title": "The Odyssey",
+    "author": "Homer",
+    "gutenberg_id": 1727,
+    "category": "Clásicos"
+  },
+  {
+    "title": "The Iliad",
+    "author": "Homer",
+    "gutenberg_id": 2199,
+    "category": "Clásicos"
+  },
+  {
+    "title": "Crime and Punishment",
+    "author": "Fyodor Dostoevsky",
+    "gutenberg_id": 2554,
+    "category": "Clásicos"
+  },
+  {
+    "title": "The Brothers Karamazov",
+    "author": "Fyodor Dostoevsky",
+    "gutenberg_id": 28054,
+    "category": "Clásicos"
+  },
+  {
+    "title": "War and Peace",
+    "author": "Leo Tolstoy",
+    "gutenberg_id": 2600,
+    "category": "Clásicos"
+  },
+  {
+    "title": "Anna Karenina",
+    "author": "Leo Tolstoy",
+    "gutenberg_id": 1399,
+    "category": "Clásicos"
+  },
+  {
+    "title": "The Canterbury Tales",
+    "author": "Geoffrey Chaucer",
+    "gutenberg_id": 2383,
+    "category": "Clásicos"
+  },
+  {
+    "title": "Paradise Lost",
+    "author": "John Milton",
+    "gutenberg_id": 26,
+    "category": "Clásicos"
+  },
+  {
+    "title": "The Divine Comedy",
+    "author": "Dante Alighieri",
+    "gutenberg_id": 972,
+    "category": "Clásicos"
+  },
+  {
+    "title": "A Tale of Two Cities",
+    "author": "Charles Dickens",
+    "gutenberg_id": 98,
+    "category": "Clásicos"
+  },
+  {
+    "title": "Great Expectations",
+    "author": "Charles Dickens",
+    "gutenberg_id": 1400,
+    "category": "Clásicos"
+  },
+  {
+    "title": "Oliver Twist",
+    "author": "Charles Dickens",
+    "gutenberg_id": 730,
+    "category": "Clásicos"
+  },
+  {
+    "title": "David Copperfield",
+    "author": "Charles Dickens",
+    "gutenberg_id": 766,
+    "category": "Clásicos"
+  },
+  {
+    "title": "A Christmas Carol",
+    "author": "Charles Dickens",
+    "gutenberg_id": 46,
+    "category": "Clásicos"
+  },
+  {
+    "title": "Bleak House",
+    "author": "Charles Dickens",
+    "gutenberg_id": 1023,
+    "category": "Clásicos"
+  },
+  {
+    "title": "The Picture of Dorian Gray",
+    "author": "Oscar Wilde",
+    "gutenberg_id": 174,
+    "category": "Ficción"
+  },
+  {
+    "title": "The Importance of Being Earnest",
+    "author": "Oscar Wilde",
+    "gutenberg_id": 844,
+    "category": "Ficción"
+  },
+  {
+    "title": "The Canterville Ghost",
+    "author": "Oscar Wilde",
+    "gutenberg_id": 421,
+    "category": "Ficción"
+  },
+  {
+    "title": "Wuthering Heights",
+    "author": "Emily Brontë",
+    "gutenberg_id": 768,
+    "category": "Romance"
+  },
+  {
+    "title": "Jane Eyre",
+    "author": "Charlotte Brontë",
+    "gutenberg_id": 1260,
+    "category": "Romance"
+  },
+  {
+    "title": "Villette",
+    "author": "Charlotte Brontë",
+    "gutenberg_id": 914,
+    "category": "Romance"
+  },
+  {
+    "title": "Sense and Sensibility",
+    "author": "Jane Austen",
+    "gutenberg_id": 105,
+    "category": "Romance"
+  },
+  {
+    "title": "Mansfield Park",
+    "author": "Jane Austen",
+    "gutenberg_id": 141,
+    "category": "Romance"
+  },
+  {
+    "title": "Northanger Abbey",
+    "author": "Jane Austen",
+    "gutenberg_id": 1211,
+    "category": "Romance"
+  },
+  {
+    "title": "Emma",
+    "author": "Jane Austen",
+    "gutenberg_id": 158,
+    "category": "Romance"
+  },
+  {
+    "title": "The Count of Monte Cristo",
+    "author": "Alexandre Dumas",
+    "gutenberg_id": 1184,
+    "category": "Aventura"
+  },
+  {
+    "title": "The Three Musketeers",
+    "author": "Alexandre Dumas",
+    "gutenberg_id": 1257,
+    "category": "Aventura"
+  },
+  {
+    "title": "Les Misérables",
+    "author": "Victor Hugo",
+    "gutenberg_id": 135,
+    "category": "Clásicos"
+  },
+  {
+    "title": "The Hunchback of Notre-Dame",
+    "author": "Victor Hugo",
+    "gutenberg_id": 2610,
+    "category": "Clásicos"
+  },
+  {
+    "title": "Madame Bovary",
+    "author": "Gustave Flaubert",
+    "gutenberg_id": 2413,
+    "category": "Ficción"
+  },
+  {
+    "title": "The Red and the Black",
+    "author": "Stendhal",
+    "gutenberg_id": 491,
+    "category": "Ficción"
+  },
+  {
+    "title": "The Call of the Wild",
+    "author": "Jack London",
+    "gutenberg_id": 215,
+    "category": "Aventura"
+  },
+  {
+    "title": "White Fang",
+    "author": "Jack London",
+    "gutenberg_id": 90,
+    "category": "Aventura"
+  },
+  {
+    "title": "The Sea-Wolf",
+    "author": "Jack London",
+    "gutenberg_id": 1078,
+    "category": "Aventura"
+  },
+  {
+    "title": "The Iron Heel",
+    "author": "Jack London",
+    "gutenberg_id": 1132,
+    "category": "Ciencia Ficción"
+  },
+  {
+    "title": "The Time Machine",
+    "author": "H. G. Wells",
+    "gutenberg_id": 35,
+    "category": "Ciencia Ficción"
+  },
+  {
+    "title": "The War of the Worlds",
+    "author": "H. G. Wells",
+    "gutenberg_id": 36,
+    "category": "Ciencia Ficción"
+  },
+  {
+    "title": "The Invisible Man",
+    "author": "H. G. Wells",
+    "gutenberg_id": 448,
+    "category": "Ciencia Ficción"
+  },
+  {
+    "title": "The Island of Doctor Moreau",
+    "author": "H. G. Wells",
+    "gutenberg_id": 600,
+    "category": "Ciencia Ficción"
+  },
+  {
+    "title": "The First Men in the Moon",
+    "author": "H. G. Wells",
+    "gutenberg_id": 1013,
+    "category": "Ciencia Ficción"
+  },
+  {
+    "title": "Twenty Thousand Leagues Under the Sea",
+    "author": "Jules Verne",
+    "gutenberg_id": 164,
+    "category": "Aventura"
+  },
+  {
+    "title": "Around the World in Eighty Days",
+    "author": "Jules Verne",
+    "gutenberg_id": 103,
+    "category": "Aventura"
+  },
+  {
+    "title": "The Mysterious Island",
+    "author": "Jules Verne",
+    "gutenberg_id": 83,
+    "category": "Aventura"
+  },
+  {
+    "title": "Dr. Jekyll and Mr. Hyde",
+    "author": "Robert Louis Stevenson",
+    "gutenberg_id": 43,
+    "category": "Terror"
+  },
+  {
+    "title": "The Black Arrow",
+    "author": "Robert Louis Stevenson",
+    "gutenberg_id": 423,
+    "category": "Aventura"
+  },
+  {
+    "title": "The Scarlet Letter",
+    "author": "Nathaniel Hawthorne",
+    "gutenberg_id": 73,
+    "category": "Ficción"
+  },
+  {
+    "title": "The Turn of the Screw",
+    "author": "Henry James",
+    "gutenberg_id": 520,
+    "category": "Terror"
+  },
+  {
+    "title": "Daisy Miller",
+    "author": "Henry James",
+    "gutenberg_id": 496,
+    "category": "Ficción"
+  },
+  {
+    "title": "The Portrait of a Lady",
+    "author": "Henry James",
+    "gutenberg_id": 2833,
+    "category": "Ficción"
+  },
+  {
+    "title": "Daddy-Long-Legs",
+    "author": "Jean Webster",
+    "gutenberg_id": 475,
+    "category": "Ficción"
+  },
+  {
+    "title": "The Jungle",
+    "author": "Upton Sinclair",
+    "gutenberg_id": 140,
+    "category": "Ficción"
+  },
+  {
+    "title": "Main Street",
+    "author": "Sinclair Lewis",
+    "gutenberg_id": 5431,
+    "category": "Ficción"
+  },
+  {
+    "title": "The Metamorphosis",
+    "author": "Franz Kafka",
+    "gutenberg_id": 5200,
+    "category": "Ficción"
+  },
+  {
+    "title": "The Trial",
+    "author": "Franz Kafka",
+    "gutenberg_id": 7849,
+    "category": "Ficción"
+  },
+  {
+    "title": "Siddhartha",
+    "author": "Hermann Hesse",
+    "gutenberg_id": 2516,
+    "category": "Ficción"
+  },
+  {
+    "title": "Steppenwolf",
+    "author": "Hermann Hesse",
+    "gutenberg_id": 23950,
+    "category": "Ficción"
+  },
+  {
+    "title": "Demian",
+    "author": "Hermann Hesse",
+    "gutenberg_id": 4580,
+    "category": "Ficción"
+  },
+  {
+    "title": "Thus Spoke Zarathustra",
+    "author": "Friedrich Nietzsche",
+    "gutenberg_id": 1998,
+    "category": "Filosofía"
+  },
+  {
+    "title": "Beyond Good and Evil",
+    "author": "Friedrich Nietzsche",
+    "gutenberg_id": 43836,
+    "category": "Filosofía"
+  },
+  {
+    "title": "The Art of War",
+    "author": "Sun Tzu",
+    "gutenberg_id": 132,
+    "category": "Historia"
+  },
+  {
+    "title": "The Prince",
+    "author": "Niccolò Machiavelli",
+    "gutenberg_id": 1232,
+    "category": "Filosofía"
+  },
+  {
+    "title": "Meditations",
+    "author": "Marcus Aurelius",
+    "gutenberg_id": 2680,
+    "category": "Filosofía"
+  },
+  {
+    "title": "The Republic",
+    "author": "Plato",
+    "gutenberg_id": 1497,
+    "category": "Filosofía"
+  },
+  {
+    "title": "The Enchiridion",
+    "author": "Epictetus",
+    "gutenberg_id": 5781,
+    "category": "Filosofía"
+  },
+  {
+    "title": "Utopia",
+    "author": "Thomas More",
+    "gutenberg_id": 2130,
+    "category": "Filosofía"
+  },
+  {
+    "title": "Common Sense",
+    "author": "Thomas Paine",
+    "gutenberg_id": 147,
+    "category": "Historia"
+  },
+  {
+    "title": "Rights of Man",
+    "author": "Thomas Paine",
+    "gutenberg_id": 3742,
+    "category": "Historia"
+  },
+  {
+    "title": "On the Origin of Species",
+    "author": "Charles Darwin",
+    "gutenberg_id": 2009,
+    "category": "Ciencia"
+  },
+  {
+    "title": "The Souls of Black Folk",
+    "author": "W. E. B. Du Bois",
+    "gutenberg_id": 408,
+    "category": "Historia"
+  },
+  {
+    "title": "Narrative of the Life of Frederick Douglass",
+    "author": "Frederick Douglass",
+    "gutenberg_id": 205,
+    "category": "Historia"
+  },
+  {
+    "title": "The Story of My Life",
+    "author": "Helen Keller",
+    "gutenberg_id": 2376,
+    "category": "Historia"
+  },
+  {
+    "title": "The Autobiography of Benjamin Franklin",
+    "author": "Benjamin Franklin",
+    "gutenberg_id": 2021,
+    "category": "Historia"
+  },
+  {
+    "title": "Civil Disobedience",
+    "author": "Henry David Thoreau",
+    "gutenberg_id": 24,
+    "category": "Filosofía"
+  },
+  {
+    "title": "Essays",
+    "author": "Ralph Waldo Emerson",
+    "gutenberg_id": 16647,
+    "category": "Filosofía"
+  },
+  {
+    "title": "Leaves of Grass",
+    "author": "Walt Whitman",
+    "gutenberg_id": 1322,
+    "category": "Poesía"
+  },
+  {
+    "title": "The Song of Hiawatha",
+    "author": "Henry Wadsworth Longfellow",
+    "gutenberg_id": 14,
+    "category": "Poesía"
+  },
+  {
+    "title": "The Raven and Other Poems",
+    "author": "Edgar Allan Poe",
+    "gutenberg_id": 2547,
+    "category": "Poesía"
+  },
+  {
+    "title": "Complete Poems",
+    "author": "Emily Dickinson",
+    "gutenberg_id": 12242,
+    "category": "Poesía"
+  },
+  {
+    "title": "Sonnets from the Portuguese",
+    "author": "Elizabeth Barrett Browning",
+    "gutenberg_id": 4067,
+    "category": "Poesía"
+  },
+  {
+    "title": "Gulliver's Travels",
+    "author": "Jonathan Swift",
+    "gutenberg_id": 829,
+    "category": "Aventura"
+  },
+  {
+    "title": "Robinson Crusoe",
+    "author": "Daniel Defoe",
+    "gutenberg_id": 521,
+    "category": "Aventura"
+  },
+  {
+    "title": "Grimm's Fairy Tales",
+    "author": "Jacob Grimm and Wilhelm Grimm",
+    "gutenberg_id": 2591,
+    "category": "Infantil"
+  },
+  {
+    "title": "The Adventures of Tom Sawyer",
+    "author": "Mark Twain",
+    "gutenberg_id": 74,
+    "category": "Aventura"
+  },
+  {
+    "title": "The Adventures of Huckleberry Finn",
+    "author": "Mark Twain",
+    "gutenberg_id": 76,
+    "category": "Aventura"
+  },
+  {
+    "title": "A Connecticut Yankee in King Arthur's Court",
+    "author": "Mark Twain",
+    "gutenberg_id": 86,
+    "category": "Aventura"
+  },
+  {
+    "title": "The Innocents Abroad",
+    "author": "Mark Twain",
+    "gutenberg_id": 3203,
+    "category": "Aventura"
+  },
+  {
+    "title": "Life on the Mississippi",
+    "author": "Mark Twain",
+    "gutenberg_id": 245,
+    "category": "Historia"
+  },
+  {
+    "title": "The Hound of the Baskervilles",
+    "author": "Arthur Conan Doyle",
+    "gutenberg_id": 2852,
+    "category": "Aventura"
+  },
+  {
+    "title": "A Study in Scarlet",
+    "author": "Arthur Conan Doyle",
+    "gutenberg_id": 244,
+    "category": "Aventura"
+  },
+  {
+    "title": "The Lost World",
+    "author": "Arthur Conan Doyle",
+    "gutenberg_id": 139,
+    "category": "Ciencia Ficción"
+  },
+  {
+    "title": "Dracula",
+    "author": "Bram Stoker",
+    "gutenberg_id": 345,
+    "category": "Terror"
+  },
+  {
+    "title": "The Wheels of Chance",
+    "author": "H. G. Wells",
+    "gutenberg_id": 1186,
+    "category": "Ficción"
+  },
+  {
+    "title": "Love and Freindship",
+    "author": "Jane Austen",
+    "gutenberg_id": 1212,
+    "category": "Romance"
+  },
+  {
+    "title": "The Jungle Book",
+    "author": "Rudyard Kipling",
+    "gutenberg_id": 236,
+    "category": "Infantil"
+  },
+  {
+    "title": "Kim",
+    "author": "Rudyard Kipling",
+    "gutenberg_id": 3478,
+    "category": "Aventura"
+  },
+  {
+    "title": "Just So Stories",
+    "author": "Rudyard Kipling",
+    "gutenberg_id": 2771,
+    "category": "Infantil"
+  },
+  {
+    "title": "Captains Courageous",
+    "author": "Rudyard Kipling",
+    "gutenberg_id": 2057,
+    "category": "Aventura"
+  },
+  {
+    "title": "The Man Who Would Be King",
+    "author": "Rudyard Kipling",
+    "gutenberg_id": 357,
+    "category": "Aventura"
+  },
+  {
+    "title": "The Secret Garden",
+    "author": "Frances Hodgson Burnett",
+    "gutenberg_id": 113,
+    "category": "Infantil"
+  }
+]

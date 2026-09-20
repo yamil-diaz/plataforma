@@ -1,0 +1,92 @@
+[
+  {
+    "book": {
+      "title": "Alice's Adventures in Wonderland",
+      "author": "Lewis Carroll",
+      "year": 1865,
+      "gutenberg_id": 11,
+      "url": "https://www.gutenberg.org/cache/epub/11/pg11.txt",
+      "format": "txt",
+      "description": "Obra clásica de literatura infantil, dominio público desde 1941."
+    },
+    "result": {
+      "success": true,
+      "filepath": "C:\\Users\\Z\\Desktop\\plataforma\\backend\\public_domain_books\\11_Alice's_Adventures_in_Wonderland.txt",
+      "sha256": "6b9af8325db3adaf54fc72879bd3586c1869fb65bd018ac4f0fb6008149f3234",
+      "size": 178073,
+      "content_length": 167712
+    }
+  },
+  {
+    "book": {
+      "title": "Frankenstein; or, the modern prometheus",
+      "author": "Mary Wollstonecraft Shelley",
+      "year": 1818,
+      "gutenberg_id": 84,
+      "url": "https://www.gutenberg.org/cache/epub/84/pg84.txt",
+      "format": "txt",
+      "description": "Novela gótica, dominio público desde 1919."
+    },
+    "result": {
+      "success": true,
+      "filepath": "C:\\Users\\Z\\Desktop\\plataforma\\backend\\public_domain_books\\84_Frankenstein;_or,_the_modern_prometheus.txt",
+      "sha256": "d5f201b59928b643ee77ecc4328d1b20acba5baa169c8a470ca13810fca3a751",
+      "size": 456626,
+      "content_length": 446582
+    }
+  },
+  {
+    "book": {
+      "title": "Pride and Prejudice",
+      "author": "Jane Austen",
+      "year": 1813,
+      "gutenberg_id": 1342,
+      "url": "https://www.gutenberg.org/cache/epub/1342/pg1342.txt",
+      "format": "txt",
+      "description": "Novela de romance, dominio público desde 1919."
+    },
+    "result": {
+      "success": true,
+      "filepath": "C:\\Users\\Z\\Desktop\\plataforma\\backend\\public_domain_books\\1342_Pride_and_Prejudice.txt",
+      "sha256": "b6a5503c91ca15de3e70df99baa21e77e27f6aed92aa872abc8e9ae37d9d193e",
+      "size": 787301,
+      "content_length": 763082
+    }
+  },
+  {
+    "book": {
+      "title": "The Adventures of Sherlock Holmes",
+      "author": "Arthur Conan Doyle",
+      "year": 1892,
+      "gutenberg_id": 1661,
+      "url": "https://www.gutenberg.org/cache/epub/1661/pg1661.txt",
+      "format": "txt",
+      "description": "Colección de relatos, dominio público desde 1968."
+    },
+    "result": {
+      "success": true,
+      "filepath": "C:\\Users\\Z\\Desktop\\plataforma\\backend\\public_domain_books\\1661_The_Adventures_of_Sherlock_Holmes.txt",
+      "sha256": "92a451294b188159db12c46f10d576dafa7159e37c64c610abb8a103b2ce3827",
+      "size": 619916,
+      "content_length": 593911
+    }
+  },
+  {
+    "book": {
+      "title": "The Great Gatsby",
+      "author": "F. Scott Fitzgerald",
+      "year": 1925,
+      "gutenberg_id": 64317,
+      "url": "https://www.gutenberg.org/cache/epub/64317/pg64317.txt",
+      "format": "txt",
+      "description": "Novela estadounidense, dominio público desde 2021."
+    },
+    "result": {
+      "success": true,
+      "filepath": "C:\\Users\\Z\\Desktop\\plataforma\\backend\\public_domain_books\\64317_The_Great_Gatsby.txt",
+      "sha256": "e83173d9e285575593f6e122d80745c521c35cc4e44c77f102796c9c834e02d6",
+      "size": 313338,
+      "content_length": 296899
+    }
+  }
+]

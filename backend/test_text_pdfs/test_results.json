@@ -1,0 +1,84 @@
+[
+  {
+    "candidate": {
+      "title": "El Hijo",
+      "author": "Horacio Quiroga",
+      "year": 1921,
+      "identifier": "ElHijoHoracioQuiroga",
+      "pdf_filename": "El Hijo - Horacio Quiroga.pdf",
+      "source_url": "https://archive.org/download/ElHijoHoracioQuiroga/El%20Hijo%20-%20Horacio%20Quiroga.pdf"
+    },
+    "result": {
+      "success": true,
+      "file_size": 2932930,
+      "sha256": "853a80e1b445d61fbc7eec167441722a4dc36e1ab857150094f5a4d95a69476a",
+      "pages": 5,
+      "text_length": 16906,
+      "has_text": true
+    }
+  },
+  {
+    "candidate": {
+      "title": "Los Mensu",
+      "author": "Horacio Quiroga",
+      "year": 1921,
+      "identifier": "LosMensuHoracioQuiroga",
+      "pdf_filename": "Los Mensu Horacio Quiroga.pdf",
+      "source_url": "https://archive.org/download/LosMensuHoracioQuiroga/Los%20Mensu%20Horacio%20Quiroga.pdf"
+    },
+    "result": {
+      "success": false,
+      "error": "HTTP Error 404: Not Found"
+    }
+  },
+  {
+    "candidate": {
+      "title": "Anaconda y otros cuentos",
+      "author": "Horacio Quiroga",
+      "year": 1918,
+      "identifier": "anaconda-y-otros-cuentos-horacio-quiroga",
+      "pdf_filename": "Anaconda y otros cuentos - Horacio Quiroga.pdf",
+      "source_url": "https://archive.org/download/anaconda-y-otros-cuentos-horacio-quiroga/Anaconda%20y%20otros%20cuentos%20-%20Horacio%20Quiroga.pdf"
+    },
+    "result": {
+      "success": true,
+      "file_size": 971105,
+      "sha256": "7db87006cc26f323236e9fd61eb7008593ff4faca02dd63e3954fc598aab89b1",
+      "pages": 137,
+      "text_length": 321870,
+      "has_text": true
+    }
+  },
+  {
+    "candidate": {
+      "title": "César o nada",
+      "author": "Pío Baroja",
+      "year": 1910,
+      "identifier": "cesaronadanovela00baro",
+      "pdf_filename": "cesaronadanovela00baro.pdf",
+      "source_url": "https://archive.org/download/cesaronadanovela00baro/cesaronadanovela00baro.pdf"
+    },
+    "result": {
+      "success": false,
+      "error": "'charmap' codec can't encode character '\\u25a0' in position 111: character maps to <undefined>"
+    }
+  },
+  {
+    "candidate": {
+      "title": "El Mayorazgo de Labraz",
+      "author": "Pío Baroja",
+      "year": 1903,
+      "identifier": "elmayorazgodela00barogoog",
+      "pdf_filename": "elmayorazgodela00barogoog.pdf",
+      "source_url": "https://archive.org/download/elmayorazgodela00barogoog/elmayorazgodela00barogoog.pdf"
+    },
+    "result": {
+      "success": true,
+      "file_size": 3799091,
+      "sha256": "9dd3147f9f33602f1ce1ae13cba14426c931a8fdb9601ab3a6ef761ef4ac2130",
+      "pages": 314,
+      "text_length": 6722,
+      "has_text": true
+    }
+  }
+]

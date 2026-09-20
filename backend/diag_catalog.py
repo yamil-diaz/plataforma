@@ -10,11 +10,11 @@ Clasificación FINAL preliminar (esquema aprobado):
   SALVAR
   REPROCESAR_DESDE_PDF          -> el PDF físico existe y es fuente utilizable.
   REPROCESAR_DESDE_CONTENIDO    -> sin PDF utilizable, pero books.content (o
-                                   seed_books.py en el repo) es obra completa
-                                   y confiable.
+                                    seed_books.py en el repo) es obra completa
+                                    y confiable.
   REVISAR                       -> caso ambiguo o duplicado (no borrar).
   ELIMINAR                      -> irrecuperable: placeholder/fabricado sin
-                                   ninguna fuente verificable.
+                                    ninguna fuente verificable.
 
 En modo BD (producción) verifica FÍSICAMENTE cada pdf_path registrado:
   [ -f ] equivalente (os.path.isfile), tamaño (os.path.getsize), tipo real por
@@ -38,10 +38,10 @@ import argparse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lectura
 
+# Usar configuración centralizada de storage
+from storage_config import STORAGE_BOOKS
+
 DATABASE_URL = os.getenv("DATABASE_URL")
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-STORAGE_DIR = os.path.abspath(os.getenv("STORAGE_DIR") or os.path.join(BASE_DIR, "storage"))
-STORAGE_BOOKS = os.path.join(STORAGE_DIR, "books")
 
 CLASIFICACIONES = ("SALVAR", "SALVAR_REPROCESANDO", "REPROCESAR", "REVISAR", "ELIMINAR")
 

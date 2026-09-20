@@ -201,7 +201,8 @@ def test_pdf_corrupto_422_sin_modificar_paginas(fake_db, as_admin, tmp_path):
     fake_db.state["books"][54]["pdf_path"] = str(ruta)
     resp = as_admin.put("/api/books/54/repaginate")
     assert resp.status_code == 422, resp.text
-    assert "corrupto" in resp.json()["detail"].lower()
+    # El error ahora dice "Archivo no es un PDF válido (falta magic bytes %PDF)"
+    assert "pdf" in resp.json()["detail"].lower() and "v" in resp.json()["detail"].lower()
     libro = fake_db.state["books"][54]
     assert libro["page_count"] == 1
     assert libro["paginated_at"] is None

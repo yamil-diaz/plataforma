@@ -37,9 +37,26 @@ def _generate_order_number() -> str:
     return f"AET-{ts}-{rand}"
 
 
-def get_book_price(db, book_id: int, currency: str) -> dict:
+PEN_EXCHANGE_RATES = {
+    "USD": Decimal("0.27"),
+    "EUR": Decimal("0.25"),
+    "GBP": Decimal("0.21"),
+    "MXN": Decimal("4.6"),
+    "BRL": Decimal("1.35"),
+    "CLP": Decimal("250"),
+    "COP": Decimal("1050"),
+    "ARS": Decimal("110"),
+    "CAD": Decimal("0.37"),
+    "AUD": Decimal("0.41"),
+}
+
+
+def get_book_price(db, book_id: int, currency: str, rental_days: int = None) -> dict:
     """
     Obtiene el precio de un libro para una moneda específica.
+
+    Args:
+        rental_days: 7, 14 o 30 días. Si se omite, retorna precio base de alquiler (14 días).
 
     Returns:
         dict con {price: Decimal, rental_price: Decimal|None, found: bool}
@@ -57,6 +74,7 @@ def get_book_price(db, book_id: int, currency: str) -> dict:
         if rental is None:
             rental = Decimal(str(row["price"])) * RENTAL_PRICE_FACTOR
             rental = rental.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        rental = _apply_rental_duration(rental, rental_days)
         return {
             "price": Decimal(str(row["price"])),
             "rental_price": rental,
@@ -70,9 +88,31 @@ def get_book_price(db, book_id: int, currency: str) -> dict:
         if row and row["price"] is not None:
             price = Decimal(str(row["price"]))
             rental = (price * RENTAL_PRICE_FACTOR).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            rental = _apply_rental_duration(rental, rental_days)
             return {"price": price, "rental_price": rental, "found": True}
 
+    # Auto-conversión: si no hay precio explícito para la moneda, convertir desde PEN
+    if currency != "PEN" and currency in PEN_EXCHANGE_RATES:
+        cursor.execute("SELECT price FROM books WHERE id = %s", (book_id,))
+        row = cursor.fetchone()
+        if row and row["price"] is not None:
+            pen_price = Decimal(str(row["price"]))
+            rate = PEN_EXCHANGE_RATES[currency]
+            converted = (pen_price * rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            rental = (converted * RENTAL_PRICE_FACTOR).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            rental = _apply_rental_duration(rental, rental_days)
+            return {"price": converted, "rental_price": rental, "found": True}
+
     return {"price": Decimal("0"), "rental_price": None, "found": False}
+
+
+def _apply_rental_duration(base_rental: Decimal, rental_days: int = None) -> Decimal:
+    """Aplica factor de duración al precio base de alquiler."""
+    if rental_days is None or rental_days == 14:
+        return base_rental
+    factors = {7: Decimal("0.6"), 30: Decimal("1.5")}
+    factor = factors.get(rental_days, Decimal("1.0"))
+    return (base_rental * factor).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def create_order(db, user_id: int, order_type: str, currency: str,

@@ -1,0 +1,933 @@
+{
+  "priority": [
+    {
+      "id": 176,
+      "title": "Rayuelas mentales",
+      "author": "Rodrigo Ramos",
+      "source": "N/A - Contemporary original work",
+      "url": "",
+      "filename": "",
+      "resolution": "",
+      "format": "",
+      "size": 0,
+      "status": "REVISAR - Obra contemporánea original, sin portada disponible en fuentes públicas"
+    }
+  ],
+  "unsplash_downloaded": [
+    {
+      "id": 201,
+      "title": "Carta al Padre",
+      "author": "Franz Kafka",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/1048757-L.jpg",
+      "filename": "201_Carta_al_Padre.jpg",
+      "resolution": "25907 bytes",
+      "format": "JPEG",
+      "size": 25907,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 202,
+      "title": "Informe para una Academia",
+      "author": "Franz Kafka",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/14085439-L.jpg",
+      "filename": "202_Informe_para_una_Academia.jpg",
+      "resolution": "78445 bytes",
+      "format": "JPEG",
+      "size": 78445,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 203,
+      "title": "Un Médico Rural",
+      "author": "Franz Kafka",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/11849028-L.jpg",
+      "filename": "203_Un_Médico_Rural.jpg",
+      "resolution": "23339 bytes",
+      "format": "JPEG",
+      "size": 23339,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 207,
+      "title": "El Fogonero",
+      "author": "Franz Kafka",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/11341419-L.jpg",
+      "filename": "207_El_Fogonero.jpg",
+      "resolution": "32863 bytes",
+      "format": "JPEG",
+      "size": 32863,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 212,
+      "title": "El Sueño del Príncipe",
+      "author": "Fiódor Dostoyevski",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/8570353-L.jpg",
+      "filename": "212_El_Sueño_del_Príncipe.jpg",
+      "resolution": "36472 bytes",
+      "format": "JPEG",
+      "size": 36472,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 215,
+      "title": "El Jugador",
+      "author": "Fiódor Dostoyevski",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/13455495-L.jpg",
+      "filename": "215_El_Jugador.jpg",
+      "resolution": "43884 bytes",
+      "format": "JPEG",
+      "size": 43884,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 218,
+      "title": "El Gran Inquisidor",
+      "author": "Fiódor Dostoyevski",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/13531547-L.jpg",
+      "filename": "218_El_Gran_Inquisidor.jpg",
+      "resolution": "49409 bytes",
+      "format": "JPEG",
+      "size": 49409,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 223,
+      "title": "Los Hermanos Karamázov",
+      "author": "Fiódor Dostoyevski",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/11609759-L.jpg",
+      "filename": "223_Los_Hermanos_Karamázov.jpg",
+      "resolution": "43619 bytes",
+      "format": "JPEG",
+      "size": 43619,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 224,
+      "title": "Humillados y Ofendidos",
+      "author": "Fiódor Dostoyevski",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/10466364-L.jpg",
+      "filename": "224_Humillados_y_Ofendidos.jpg",
+      "resolution": "15112 bytes",
+      "format": "JPEG",
+      "size": 15112,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 225,
+      "title": "Nétochka Nezvánova",
+      "author": "Fiódor Dostoyevski",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/14776328-L.jpg",
+      "filename": "225_Nétochka_Nezvánova.jpg",
+      "resolution": "21331 bytes",
+      "format": "JPEG",
+      "size": 21331,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 226,
+      "title": "Diario de un Escritor",
+      "author": "Fiódor Dostoyevski",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/13675466-L.jpg",
+      "filename": "226_Diario_de_un_Escritor.jpg",
+      "resolution": "39534 bytes",
+      "format": "JPEG",
+      "size": 39534,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 227,
+      "title": "El Cocodrilo",
+      "author": "Fiódor Dostoyevski",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/13448878-L.jpg",
+      "filename": "227_El_Cocodrilo.jpg",
+      "resolution": "32156 bytes",
+      "format": "JPEG",
+      "size": 32156,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 228,
+      "title": "El Pueblo Aéreo",
+      "author": "Julio Verne",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/13931650-L.jpg",
+      "filename": "228_El_Pueblo_Aéreo.jpg",
+      "resolution": "63179 bytes",
+      "format": "JPEG",
+      "size": 63179,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 235,
+      "title": "Norte Contra Sur",
+      "author": "Julio Verne",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/10654957-L.jpg",
+      "filename": "235_Norte_Contra_Sur.jpg",
+      "resolution": "56985 bytes",
+      "format": "JPEG",
+      "size": 56985,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 237,
+      "title": "Los Hijos del Capitán Grant",
+      "author": "Julio Verne",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/5234479-L.jpg",
+      "filename": "237_Los_Hijos_del_Capitán_Grant.jpg",
+      "resolution": "7195 bytes",
+      "format": "JPEG",
+      "size": 7195,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 238,
+      "title": "El Archipiélago en Llamas",
+      "author": "Julio Verne",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/11986946-L.jpg",
+      "filename": "238_El_Archipiélago_en_Llamas.jpg",
+      "resolution": "65180 bytes",
+      "format": "JPEG",
+      "size": 65180,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 247,
+      "title": "Un Drama en Livonia",
+      "author": "Julio Verne",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/5270197-L.jpg",
+      "filename": "247_Un_Drama_en_Livonia.jpg",
+      "resolution": "7373 bytes",
+      "format": "JPEG",
+      "size": 7373,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 265,
+      "title": "Escuela de Robinsones",
+      "author": "Julio Verne",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/13526764-L.jpg",
+      "filename": "265_Escuela_de_Robinsones.jpg",
+      "resolution": "38603 bytes",
+      "format": "JPEG",
+      "size": 38603,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 267,
+      "title": "Alrededor de la Luna",
+      "author": "Julio Verne",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/2292897-L.jpg",
+      "filename": "267_Alrededor_de_la_Luna.jpg",
+      "resolution": "34719 bytes",
+      "format": "JPEG",
+      "size": 34719,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 268,
+      "title": "Claudio Bombarnac",
+      "author": "Julio Verne",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/11239890-L.jpg",
+      "filename": "268_Claudio_Bombarnac.jpg",
+      "resolution": "61434 bytes",
+      "format": "JPEG",
+      "size": 61434,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 269,
+      "title": "La Isla Misteriosa",
+      "author": "Julio Verne",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/10659051-L.jpg",
+      "filename": "269_La_Isla_Misteriosa.jpg",
+      "resolution": "69529 bytes",
+      "format": "JPEG",
+      "size": 69529,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 272,
+      "title": "El Castillo de los Cárpatos",
+      "author": "Julio Verne",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/13479110-L.jpg",
+      "filename": "272_El_Castillo_de_los_Cárpatos.jpg",
+      "resolution": "78107 bytes",
+      "format": "JPEG",
+      "size": 78107,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 273,
+      "title": "Barnaby Rudge de Charles Dickens en PDF",
+      "author": "Charles Dickens",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/9283961-L.jpg",
+      "filename": "273_Barnaby_Rudge.jpg",
+      "resolution": "62495 bytes",
+      "format": "JPEG",
+      "size": 62495,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 288,
+      "title": "Historias de Fantasmas de Charles Dickens en PDF",
+      "author": "Charles Dickens",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/13527505-L.jpg",
+      "filename": "288_Historias_de_Fantasmas.jpg",
+      "resolution": "30992 bytes",
+      "format": "JPEG",
+      "size": 30992,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 289,
+      "title": "La Historia de Nadie de Charles Dickens en PDF",
+      "author": "Charles Dickens",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/5262190-L.jpg",
+      "filename": "289_La_Historia_de_Nadie.jpg",
+      "resolution": "8904 bytes",
+      "format": "JPEG",
+      "size": 8904,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 291,
+      "title": "Una Casa en Alquiler de Charles Dickens en PDF",
+      "author": "Charles Dickens",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/13675732-L.jpg",
+      "filename": "291_Una_Casa_en_Alquiler.jpg",
+      "resolution": "71028 bytes",
+      "format": "JPEG",
+      "size": 71028,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 198,
+      "title": "Contemplación",
+      "author": "Franz Kafka",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/12001578-L.jpg",
+      "filename": "198_Contemplación.jpg",
+      "resolution": "23063 bytes",
+      "format": "JPEG",
+      "size": 23063,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 199,
+      "title": "La Metamorfosis",
+      "author": "Franz Kafka",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/14073660-L.jpg",
+      "filename": "199_La_Metamorfosis.jpg",
+      "resolution": "46507 bytes",
+      "format": "JPEG",
+      "size": 46507,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 200,
+      "title": "Ante la Ley",
+      "author": "Franz Kafka",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/13223103-L.jpg",
+      "filename": "200_Ante_la_Ley.jpg",
+      "resolution": "23749 bytes",
+      "format": "JPEG",
+      "size": 23749,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 219,
+      "title": "El Sueño de un Hombre Ridículo",
+      "author": "Fiódor Dostoyevski",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/13992095-L.jpg",
+      "filename": "219_El_Sueño_de_un_Hombre_Ridículo.jpg",
+      "resolution": "65991 bytes",
+      "format": "JPEG",
+      "size": 65991,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 220,
+      "title": "La Sumisa",
+      "author": "Fiódor Dostoyevski",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/13542764-L.jpg",
+      "filename": "220_La_Sumisa.jpg",
+      "resolution": "51563 bytes",
+      "format": "JPEG",
+      "size": 51563,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 242,
+      "title": "El Secreto de Wilhelm Storitz",
+      "author": "Julio Verne",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/1046525-L.jpg",
+      "filename": "242_El_Secreto_de_Wilhelm_Storitz.jpg",
+      "resolution": "36834 bytes",
+      "format": "JPEG",
+      "size": 36834,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 243,
+      "title": "De la Tierra a la Luna",
+      "author": "Julio Verne",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/13478412-L.jpg",
+      "filename": "243_De_la_Tierra_a_la_Luna.jpg",
+      "resolution": "43192 bytes",
+      "format": "JPEG",
+      "size": 43192,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 244,
+      "title": "La Vuelta al Mundo en Ochenta Días",
+      "author": "Julio Verne",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/8291461-L.jpg",
+      "filename": "244_La_Vuelta_al_Mundo_en_Ochenta_Días.jpg",
+      "resolution": "43193 bytes",
+      "format": "JPEG",
+      "size": 43193,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 246,
+      "title": "Cinco Semanas en Globo",
+      "author": "Julio Verne",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/13471439-L.jpg",
+      "filename": "246_Cinco_Semanas_en_Globo.jpg",
+      "resolution": "30533 bytes",
+      "format": "JPEG",
+      "size": 30533,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 205,
+      "title": "El Proceso",
+      "author": "Franz Kafka",
+      "source": "Internet Archive",
+      "url": "https://archive.org/download/franz-kafka-el-proceso/__ia_thumb.jpg",
+      "filename": "205_El_Proceso.jpg",
+      "resolution": "13825 bytes",
+      "format": "JPEG",
+      "size": 13825,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 229,
+      "title": "La Jornada de un Periodista Americano en el Año 2889",
+      "author": "Julio Verne",
+      "source": "Internet Archive",
+      "url": "https://archive.org/download/Julio_Verne_-_En_el_siglo_XXIX__La_jornada_de_un_periodista_americano_en_el_ano_2889/__ia_thumb.jpg",
+      "filename": "229_La_Jornada_de_un_Periodista_Americano_en_el_Año_2889.jpg",
+      "resolution": "22888 bytes",
+      "format": "JPEG",
+      "size": 22888,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 230,
+      "title": "César Cascabel",
+      "author": "Julio Verne",
+      "source": "Internet Archive",
+      "url": "https://archive.org/download/cesar-cascabel-spanish/__ia_thumb.jpg",
+      "filename": "230_César_Cascabel.jpg",
+      "resolution": "8854 bytes",
+      "format": "JPEG",
+      "size": 8854,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 232,
+      "title": "Dueño del Mundo",
+      "author": "Julio Verne",
+      "source": "Internet Archive",
+      "url": "https://archive.org/download/Julio_Verne_-_Dueno_del_mundo/__ia_thumb.jpg",
+      "filename": "232_Dueño_del_Mundo.jpg",
+      "resolution": "16883 bytes",
+      "format": "JPEG",
+      "size": 16883,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 234,
+      "title": "El Chancellor",
+      "author": "Julio Verne",
+      "source": "Internet Archive",
+      "url": "https://archive.org/download/Julio_Verne_-_El_Chancellor__ilustrado_/__ia_thumb.jpg",
+      "filename": "234_El_Chancellor.jpg",
+      "resolution": "16004 bytes",
+      "format": "JPEG",
+      "size": 16004,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 239,
+      "title": "Las Indias Negras",
+      "author": "Julio Verne",
+      "source": "Internet Archive",
+      "url": "https://archive.org/download/Julio_Verne_-_Las_Indias_negras/__ia_thumb.jpg",
+      "filename": "239_Las_Indias_Negras.jpg",
+      "resolution": "23950 bytes",
+      "format": "JPEG",
+      "size": 23950,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 248,
+      "title": "La Invasión del Mar",
+      "author": "Julio Verne",
+      "source": "Internet Archive",
+      "url": "https://archive.org/download/Julio_Verne_-_La_invasion_del_mar/__ia_thumb.jpg",
+      "filename": "248_La_Invasión_del_Mar.jpg",
+      "resolution": "17100 bytes",
+      "format": "JPEG",
+      "size": 17100,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 250,
+      "title": "El Soberbio Orinoco",
+      "author": "Julio Verne",
+      "source": "Internet Archive",
+      "url": "https://archive.org/download/Julio_Verne_-_El_soberbio_Orinoco/__ia_thumb.jpg",
+      "filename": "250_El_Soberbio_Orinoco.jpg",
+      "resolution": "17413 bytes",
+      "format": "JPEG",
+      "size": 17413,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 251,
+      "title": "El País de las Pieles",
+      "author": "Julio Verne",
+      "source": "Internet Archive",
+      "url": "https://archive.org/download/Julio_Verne_-_El_pais_de_las_pieles/__ia_thumb.jpg",
+      "filename": "251_El_País_de_las_Pieles.jpg",
+      "resolution": "18189 bytes",
+      "format": "JPEG",
+      "size": 18189,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 255,
+      "title": "Robur el Conquistador",
+      "author": "Julio Verne",
+      "source": "Internet Archive",
+      "url": "https://archive.org/download/Julio_Verne_-_Robur_el_conquistador/__ia_thumb.jpg",
+      "filename": "255_Robur_el_Conquistador.jpg",
+      "resolution": "17263 bytes",
+      "format": "JPEG",
+      "size": 17263,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 256,
+      "title": "El Testamento de un Excéntrico",
+      "author": "Julio Verne",
+      "source": "Internet Archive",
+      "url": "https://archive.org/download/Julio_Verne_-_El_testamento_de_un_excentrico/__ia_thumb.jpg",
+      "filename": "256_El_Testamento_de_un_Excéntrico.jpg",
+      "resolution": "17358 bytes",
+      "format": "JPEG",
+      "size": 17358,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 259,
+      "title": "Matías Sandorf",
+      "author": "Julio Verne",
+      "source": "Internet Archive",
+      "url": "https://archive.org/download/Julio_Verne_-_Matias_Sandorf/__ia_thumb.jpg",
+      "filename": "259_Matías_Sandorf.jpg",
+      "resolution": "18298 bytes",
+      "format": "JPEG",
+      "size": 18298,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 260,
+      "title": "La Isla de Hélice",
+      "author": "Julio Verne",
+      "source": "Internet Archive",
+      "url": "https://archive.org/download/Julio_Verne_-_La_isla_de_helice/__ia_thumb.jpg",
+      "filename": "260_La_Isla_de_Hélice.jpg",
+      "resolution": "15854 bytes",
+      "format": "JPEG",
+      "size": 15854,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 266,
+      "title": "El Piloto del Danubio",
+      "author": "Julio Verne",
+      "source": "Internet Archive",
+      "url": "https://archive.org/download/Julio_Verne_-_El_piloto_del_Danubio/__ia_thumb.jpg",
+      "filename": "266_El_Piloto_del_Danubio.jpg",
+      "resolution": "22565 bytes",
+      "format": "JPEG",
+      "size": 22565,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 271,
+      "title": "Una Ciudad Flotante",
+      "author": "Julio Verne",
+      "source": "Internet Archive",
+      "url": "https://archive.org/download/Julio_Verne_-_Una_ciudad_flotante__Edicion_SHJV_/__ia_thumb.jpg",
+      "filename": "271_Una_Ciudad_Flotante.jpg",
+      "resolution": "16944 bytes",
+      "format": "JPEG",
+      "size": 16944,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 279,
+      "title": "Grandes Esperanzas",
+      "author": "Charles Dickens",
+      "source": "Internet Archive",
+      "url": "https://archive.org/download/charlesdickensgrandesesperanzas/__ia_thumb.jpg",
+      "filename": "279_Grandes_Esperanzas.jpg",
+      "resolution": "11621 bytes",
+      "format": "JPEG",
+      "size": 11621,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 287,
+      "title": "Tiempos Difíciles",
+      "author": "Charles Dickens",
+      "source": "Internet Archive",
+      "url": "https://archive.org/download/SieteLeccionesDeCharlesDickensParaVivirTiemposDificiles/__ia_thumb.jpg",
+      "filename": "287_Tiempos_Difíciles.jpg",
+      "resolution": "11639 bytes",
+      "format": "JPEG",
+      "size": 11639,
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 240,
+      "title": "Familia sin Nombre",
+      "author": "Julio Verne",
+      "source": "Internet Archive",
+      "url": "https://archive.org/download/familia-sin-nombre-verne-julio-a056a8fd/__ia_thumb.jpg",
+      "filename": "240_Familia_sin_Nombre.jpg",
+      "resolution": "7457 bytes",
+      "format": "JPEG",
+      "size": 7457,
+      "status": "DESCARGADA"
+    }
+  ],
+  "local_classifications": [
+    {
+      "id": 176,
+      "title": "Rayuelas mentales",
+      "author": "Rodrigo Ramos",
+      "classification": "GENÉRICA",
+      "reason": "Portada generica, no corresponde al contenido real"
+    },
+    {
+      "id": 177,
+      "title": "Anaconda y otros cuentos",
+      "author": "Horacio Quiroga",
+      "classification": "CORRECTA",
+      "reason": "Portada extraida del PDF,对应 correcta para el libro"
+    },
+    {
+      "id": 178,
+      "title": "César o nada",
+      "author": "Pío Baroja",
+      "classification": "CORRECTA",
+      "reason": "Portada extraida del PDF, correspondiente al libro"
+    },
+    {
+      "id": 183,
+      "title": "El Caballero Carmelo",
+      "author": "Abraham Valdelomar",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    },
+    {
+      "id": 187,
+      "title": "  El Mundo Es Ancho Y Ajeno",
+      "author": "Ciro aAegria",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    },
+    {
+      "id": 296,
+      "title": "El Guardavía de Charles Dickens en PDF",
+      "author": "Charles Dickens",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    },
+    {
+      "id": 210,
+      "title": "El Idiota",
+      "author": "Fiódor Dostoyevski",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    },
+    {
+      "id": 281,
+      "title": "Los Papeles Póstumos del Club Pickwick de Charles Dickens en PDF",
+      "author": "Charles Dickens",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    },
+    {
+      "id": 245,
+      "title": "Las Aventuras del Capitán Hatteras",
+      "author": "Julio Verne",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    },
+    {
+      "id": 180,
+      "title": "A buen fin no hay mal principio ",
+      "author": "William Shakespeare",
+      "classification": "REVISAR",
+      "reason": "Necesita verificacion visual"
+    },
+    {
+      "id": 216,
+      "title": "Un Árbol de Navidad y Una Boda",
+      "author": "Fiódor Dostoyevski",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    },
+    {
+      "id": 282,
+      "title": "La Casa Encantada de Charles Dickens en PDF",
+      "author": "Charles Dickens",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    },
+    {
+      "id": 262,
+      "title": "La Estrella del Sur",
+      "author": "Julio Verne",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    },
+    {
+      "id": 261,
+      "title": "La Caza del Meteoro",
+      "author": "Julio Verne",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    },
+    {
+      "id": 263,
+      "title": "Aventuras de Tres Rusos y Tres Ingleses en el África Austral",
+      "author": "Julio Verne",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    },
+    {
+      "id": 264,
+      "title": "El Faro del Fin del Mundo",
+      "author": "Julio Verne",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    },
+    {
+      "id": 179,
+      "title": "Romeo y Julieta ",
+      "author": "William Shakespeare",
+      "classification": "REVISAR",
+      "reason": "Necesita verificacion visual"
+    },
+    {
+      "id": 182,
+      "title": "Memorias de subsuelo ",
+      "author": "Fiodor Dostoievski",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    },
+    {
+      "id": 184,
+      "title": "Divina comedia",
+      "author": "Dante Alighieri",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    },
+    {
+      "id": 185,
+      "title": "Los heraldos negros",
+      "author": "César Vallejo",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    },
+    {
+      "id": 186,
+      "title": "La Odisea",
+      "author": "Homero",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    },
+    {
+      "id": 188,
+      "title": "Crimen y castigo",
+      "author": "Fiodor Dostoievski",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    },
+    {
+      "id": 190,
+      "title": "Edipo rey",
+      "author": "Sófocles",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    },
+    {
+      "id": 192,
+      "title": "Sangre de Campeón: Sin Cadenas",
+      "author": "Carlos Cuauhtémoc Sánchez",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    },
+    {
+      "id": 194,
+      "title": "La Condena",
+      "author": "Franz Kafka",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    },
+    {
+      "id": 195,
+      "title": "El Castillo",
+      "author": "Franz Kafka",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    },
+    {
+      "id": 196,
+      "title": "Relatos Cortos",
+      "author": "Franz Kafka",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    },
+    {
+      "id": 197,
+      "title": "Un Artista del Hambre",
+      "author": "Franz Kafka",
+      "classification": "REVISAR",
+      "reason": "Portada local subida, necesita verificacion visual de calidad"
+    }
+  ],
+  "failed": [
+    {
+      "id": 204,
+      "title": "En la Colonia Penitenciaria",
+      "author": "Franz Kafka",
+      "reason": "Download failed"
+    },
+    {
+      "id": 206,
+      "title": "Las Preocupaciones de un Padre de Familia",
+      "author": "Franz Kafka",
+      "reason": "No results"
+    },
+    {
+      "id": 208,
+      "title": "Josefina la Cantora o El Pueblo de los Ratones",
+      "author": "Franz Kafka",
+      "reason": "No results"
+    },
+    {
+      "id": 214,
+      "title": "El Adolescente",
+      "author": "Fiódor Dostoyevski",
+      "reason": "<urlopen error timed out>"
+    },
+    {
+      "id": 217,
+      "title": "Los Endemoniados",
+      "author": "Fiódor Dostoyevski",
+      "reason": "Download failed"
+    },
+    {
+      "id": 236,
+      "title": "El Doctor Ox",
+      "author": "Julio Verne",
+      "reason": "No results"
+    },
+    {
+      "id": 270,
+      "title": "La Agencia Thompson y Cía.",
+      "author": "Julio Verne",
+      "reason": "No results"
+    },
+    {
+      "id": 280,
+      "title": "El Misterio de Edwin Drood",
+      "author": "Charles Dickens",
+      "reason": "No results"
+    },
+    {
+      "id": 286,
+      "title": "El Manuscrito de un Loco",
+      "author": "Charles Dickens",
+      "reason": "No results"
+    },
+    {
+      "id": 290,
+      "title": "Cuento de Navidad",
+      "author": "Charles Dickens",
+      "reason": "Download failed"
+    },
+    {
+      "id": 277,
+      "title": "Historia de Dos Ciudades",
+      "author": "Charles Dickens",
+      "reason": "Download failed"
+    },
+    {
+      "id": 221,
+      "title": "La Patrona",
+      "author": "Fiódor Dostoyevski",
+      "reason": "No results"
+    }
+  ],
+  "summary": {
+    "total_books": 93,
+    "verified": 2,
+    "downloaded": 53,
+    "need_review": 25,
+    "not_found": 12
+  }
+}

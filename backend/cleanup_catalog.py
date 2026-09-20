@@ -24,6 +24,9 @@ import psycopg2.extras
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# Usar configuración centralizada de storage
+from storage_config import STORAGE_DIR, STORAGE_BOOKS
+
 # ── Configuracion ────────────────────────────────────────────────────────────
 
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -31,10 +34,6 @@ if not DATABASE_URL:
     raise RuntimeError("Establece DATABASE_URL antes de ejecutar este script.")
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-STORAGE_DIR = os.path.abspath(os.getenv("STORAGE_DIR") or os.path.join(BASE_DIR, "storage"))
-STORAGE_BOOKS = os.path.join(STORAGE_DIR, "books")
 
 # IDs que JAMAS se eliminan — si aparecen en DELETE_IDS, el dry-run aborta.
 PROTECTED_IDS = {

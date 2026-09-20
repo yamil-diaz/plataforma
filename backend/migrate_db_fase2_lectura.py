@@ -3,14 +3,17 @@
 Migración FASE 2 (Lectura por páginas y meta diaria).
 
 1. Crea las tablas de lectura (idempotente, seguro en deploys frescos).
-2. Backfill: libros sin páginas registradas se paginan ahora mismo:
+2. Backfill MANUAL (no automático): libros sin páginas registradas se paginan:
    - Con pdf_path en disco -> re-extracción real con pypdf + detección de capítulos.
-   - Sin PDF (Gutenberg, semillas) -> paginación estimada desde books.content.
+   - Sin PDF (Gutenberg, semillas) -> SOLO si el contenido pasa validación central.
 
 PASO 3 (protección): un libro con contenido inválido (placeholder, patológico,
 basura de extracción o insuficiente) NUNCA se pagina en silencio: se registra
 el problema y se deja sin paginar (paginated_at NULL) para revisión. No se
 destruye nada y no se inventa texto.
+
+NO hay fallback silencioso de PDF fallido a books.content.
+NO se ejecuta automáticamente al arrancar el servidor.
 """
 import os
 import sys
@@ -22,11 +25,10 @@ from dotenv import load_dotenv
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lectura
 
-load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+# Importar configuración centralizada de storage
+from storage_config import STORAGE_DIR, STORAGE_BOOKS
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-STORAGE_DIR = os.path.abspath(os.getenv("STORAGE_DIR") or os.path.join(BASE_DIR, "storage"))
-STORAGE_BOOKS = os.path.join(STORAGE_DIR, "books")
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 
 def _crear_tablas(cursor):
@@ -107,17 +109,16 @@ def _guardar_estructura(cursor, book_id, paginas, capitulos):
     )
 
 
-def _validar_libro_para_migracion(libro):
+def _validar_libro_para_migracion(libro, fuente="content"):
     """Guarda de seguridad (PASO 3): un libro solo se pagina si su contenido
     supera la validación central. Nunca procesa en silencio contenido
     placeholder, patológico, basura o insuficiente. Devuelve la validación."""
     content = libro["content"] or ""
     # Verificar explícitamente placeholder
     if content.strip() == lectura.CONTENIDO_NO_DISPONIBLE:
-        from lectura import PDFSinTextoExtraible
         # Crear una validación fallida para placeholder
         return {"valid": False, "errors": ["Contenido placeholder: no se pudo extraer texto del documento"], "detalle": {"es_placeholder": True}}
-    return lectura.validar_contenido_libro(content, None, fuente="migracion")
+    return lectura.validar_contenido_libro(content, None, fuente=fuente)
 
 
 def migrate():
@@ -131,7 +132,7 @@ def migrate():
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
     cursor = conn.cursor()
 
-    print("Iniciando migración FASE 2 (Lectura por páginas)...")
+    print("Iniciando migración FASE 2 (Lectura por páginas) — MODO MANUAL...")
     _crear_tablas(cursor)
     conn.commit()
 
@@ -151,35 +152,56 @@ def migrate():
     for libro in libros:
         book_id = libro["id"]
         try:
-            contenido_fuente = libro["content"] or ""
-
-            # PASO 3: contenido inválido -> registro + skip (paginated_at NULL).
-            validacion = _validar_libro_para_migracion(libro)
-            if not validacion["valid"]:
-                omitidos += 1
-                print(
-                    f"  ! libro {book_id} ({libro['title']}): CONTENIDO INVÁLIDO — "
-                    + "; ".join(validacion["errors"])
-                    + ". Sin paginar (pendiente de revisión; nunca se procesa en silencio)."
-                )
-                continue
-
-            paginas = []
             pdf_path = libro["pdf_path"]
             if pdf_path and not os.path.isabs(pdf_path):
                 pdf_path = os.path.join(STORAGE_BOOKS, pdf_path)
+
             if pdf_path and os.path.exists(pdf_path):
+                # Libro con PDF: extracción OBLIGATORIA, SIN fallback a books.content
                 try:
                     paginas, capitulos = lectura.extraer_paginas_pdf(pdf_path)
+                    fuente = "pdf"
                 except lectura.PDFSinTextoExtraible as e:
+                    omitidos += 1
                     print(
-                        f"  ~ libro {book_id} ({libro['title']}): PDF sin texto extraíble ({e}) — se pagina desde books.content (válido)."
+                        f"  ! libro {book_id} ({libro['title']}): PDF sin texto extraíble ({e}) — "
+                        "NO se pagina (fallback a books.content ELIMINADO). Sin paginar."
                     )
-                    paginas = []
+                    continue
+                except Exception as e:
+                    omitidos += 1
+                    print(
+                        f"  ! libro {book_id} ({libro['title']}): Error extrayendo PDF ({e}) — "
+                        "NO se pagina. Sin paginar."
+                    )
+                    continue
             else:
-                paginas = []
-            if not paginas:
+                # Libro SIN PDF (Gutenberg, semillas): validar books.content ANTES de paginar
+                validacion = _validar_libro_para_migracion(libro, fuente="content")
+                if not validacion["valid"]:
+                    omitidos += 1
+                    print(
+                        f"  ! libro {book_id} ({libro['title']}): CONTENIDO INVÁLIDO — "
+                        + "; ".join(validacion["errors"])
+                        + ". Sin paginar (pendiente de revisión; nunca se procesa en silencio)."
+                    )
+                    continue
+                contenido_fuente = libro["content"] or ""
                 paginas, capitulos = lectura.paginar_desde_contenido_con_capitulos(contenido_fuente)
+                fuente = "content"
+
+            # Validación central DESPUÉS de extracción/paginación (barrera obligatoria)
+            texto_validar = "\n".join(paginas) if paginas else (libro["content"] or "")
+            validacion = lectura.validar_contenido_libro(texto_validar, paginas, fuente=fuente)
+            if not validacion["valid"]:
+                omitidos += 1
+                print(
+                    f"  ! libro {book_id} ({libro['title']}): CONTENIDO RECHAZADO TRAS EXTRACCIÓN — "
+                    + "; ".join(validacion["errors"])
+                    + ". No se generaron páginas."
+                )
+                continue
+
             now = datetime.now(timezone.utc).isoformat()
             if paginas:
                 _guardar_estructura(cursor, book_id, paginas, capitulos)
@@ -189,7 +211,7 @@ def migrate():
             )
             conn.commit()
             ok += 1
-            print(f"  + libro {book_id} ({libro['title']}): {len(paginas)} páginas, {len(capitulos)} capítulos")
+            print(f"  + libro {book_id} ({libro['title']}): {len(paginas)} páginas, {len(capitulos)} capítulos (fuente: {fuente})")
         except Exception as e:
             conn.rollback()
             print(f"  ! libro {book_id} ({libro['title']}) falló: {e}")

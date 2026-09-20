@@ -1,0 +1,37 @@
+[
+  {
+    "title": "Alice's Adventures in Wonderland",
+    "author": "Lewis Carroll",
+    "gutenberg_id": 11,
+    "category": "Clásicos",
+    "language": "en"
+  },
+  {
+    "title": "Frankenstein; or, the modern prometheus",
+    "author": "Mary Wollstonecraft Shelley",
+    "gutenberg_id": 84,
+    "category": "Terror",
+    "language": "en"
+  },
+  {
+    "title": "Pride and Prejudice",
+    "author": "Jane Austen",
+    "gutenberg_id": 1342,
+    "category": "Romance",
+    "language": "en"
+  },
+  {
+    "title": "The Adventures of Sherlock Holmes",
+    "author": "Arthur Conan Doyle",
+    "gutenberg_id": 1661,
+    "category": "Aventura",
+    "language": "en"
+  },
+  {
+    "title": "The Great Gatsby",
+    "author": "F. Scott Fitzgerald",
+    "gutenberg_id": 64317,
+    "category": "Ficción",
+    "language": "en"
+  }
+]

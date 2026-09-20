@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Zap, LogOut, BookOpen, Layers, Bell, Video, Trophy, Heart, Sparkles, MessageSquare } from 'lucide-react';
+import { Zap, LogOut, BookOpen, Layers, Bell, Video, Trophy, Heart, Sparkles, MessageSquare, ShoppingBag } from 'lucide-react';
 import axios from 'axios';
 
 const API = import.meta.env.VITE_API_URL || '/api';
@@ -76,6 +76,20 @@ export const Navbar = () => {
             <Link to="/dashboard" className="text-sm font-medium text-[#A0A0A0] hover:text-[#F5F5F5] transition-colors flex items-center gap-1.5">
               <Layers className="w-4 h-4" />
               {user.role === 'admin' ? 'Panel Admin' : 'Panel Autor'}
+            </Link>
+          )}
+
+          {user && (
+            <Link to="/mis-libros" className="text-sm font-medium text-[#A0A0A0] hover:text-[#F5F5F5] transition-colors flex items-center gap-1.5">
+              <BookOpen className="w-4 h-4" />
+              Mis Libros
+            </Link>
+          )}
+
+          {user && (
+            <Link to="/mis-compras" className="text-sm font-medium text-[#A0A0A0] hover:text-[#F5F5F5] transition-colors flex items-center gap-1.5">
+              <ShoppingBag className="w-4 h-4" />
+              Mis Compras
             </Link>
           )}
 

@@ -1,0 +1,137 @@
+{
+  "new_results": [
+    {
+      "id": 204,
+      "title": "En la Colonia Penitenciaria",
+      "author": "Franz Kafka",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/4903086-L.jpg",
+      "filename": "204_cover_candidate.jpg",
+      "size": 3037,
+      "format": "JPEG",
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 206,
+      "title": "Las Preocupaciones de un Padre de Familia",
+      "author": "Franz Kafka",
+      "source": "Wikimedia Commons",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/f/fe/CountryDoctor.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "filename": "206_cover_candidate.jpg",
+      "size": 18573,
+      "format": "JPEG",
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 208,
+      "title": "Josefina la Cantora o El Pueblo de los Ratones",
+      "author": "Franz Kafka",
+      "source": "Wikimedia Commons",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/c/ce/Kafka_Ein_Hungerk%C3%BCnstler_1924.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "filename": "208_cover_candidate.jpg",
+      "size": 468572,
+      "format": "JPEG",
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 214,
+      "title": "El Adolescente",
+      "author": "Fiódor Dostoyevski",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/14864110-L.jpg",
+      "filename": "214_cover_candidate.jpg",
+      "size": 35625,
+      "format": "JPEG",
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 217,
+      "title": "Los Endemoniados",
+      "author": "Fiódor Dostoyevski",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/10540151-L.jpg",
+      "filename": "217_cover_candidate.jpg",
+      "size": 39783,
+      "format": "JPEG",
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 221,
+      "title": "La Patrona",
+      "author": "Fiódor Dostoyevski",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/9412633-L.jpg",
+      "filename": "221_cover_candidate.jpg",
+      "size": 41688,
+      "format": "JPEG",
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 236,
+      "title": "El Doctor Ox",
+      "author": "Julio Verne",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/858173-L.jpg",
+      "filename": "236_cover_candidate.jpg",
+      "size": 20534,
+      "format": "JPEG",
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 270,
+      "title": "La Agencia Thompson y Cía",
+      "author": "Julio Verne",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/11525154-L.jpg",
+      "filename": "270_cover_candidate.jpg",
+      "size": 39954,
+      "format": "JPEG",
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 280,
+      "title": "El Misterio de Edwin Drood",
+      "author": "Charles Dickens",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/8243336-L.jpg",
+      "filename": "280_cover_candidate.jpg",
+      "size": 50575,
+      "format": "JPEG",
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 290,
+      "title": "Cuento de Navidad",
+      "author": "Charles Dickens",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/12875748-L.jpg",
+      "filename": "290_cover_candidate.jpg",
+      "size": 32940,
+      "format": "JPEG",
+      "status": "DESCARGADA"
+    },
+    {
+      "id": 277,
+      "title": "Historia de Dos Ciudades",
+      "author": "Charles Dickens",
+      "source": "Open Library",
+      "url": "https://covers.openlibrary.org/b/id/13301713-L.jpg",
+      "filename": "277_cover_candidate.jpg",
+      "size": 67048,
+      "format": "JPEG",
+      "status": "DESCARGADA"
+    }
+  ],
+  "still_failed": [
+    {
+      "id": 286,
+      "title": "El Manuscrito de un Loco",
+      "author": "Charles Dickens",
+      "alt_titles": [
+        "A Madman's Manuscript",
+        "The Madman's Manuscript",
+        "Manuscrito de un loco"
+      ]
+    }
+  ]
+}

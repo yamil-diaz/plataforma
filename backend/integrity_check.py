@@ -26,6 +26,9 @@ import argparse
 import psycopg2
 import psycopg2.extras
 
+# Importar configuración centralizada de storage
+from storage_config import STORAGE_BOOKS
+
 
 CONTENIDO_NO_DISPONIBLE = "Contenido de texto no disponible."
 
@@ -79,7 +82,7 @@ def main():
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-    STORAGE_BOOKS = args.storage or os.path.join(os.path.dirname(__file__), "storage", "books")
+    STORAGE_BOOKS_DIR = args.storage or STORAGE_BOOKS
 
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
     cursor = conn.cursor()
@@ -155,7 +158,7 @@ def main():
         # Agrupar por hash de PDF
         hash_map = {}
         for libro in libros_con_pdf:
-            resolved = _resolver_pdf_path(libro["pdf_path"], STORAGE_BOOKS)
+            resolved = _resolver_pdf_path(libro["pdf_path"], STORAGE_BOOKS_DIR)
             if resolved and os.path.isfile(resolved):
                 pdf_hash = _calcular_hash_pdf(resolved)
                 if pdf_hash:

@@ -1,0 +1,128 @@
+{
+  "import_id": "2026-09-06_081557",
+  "source_dir": "./piloto",
+  "started_at": "2026-09-06T08:15:57.877557+00:00",
+  "total_files": 10,
+  "status": "completed",
+  "files": {
+    "./piloto\\a_christmas_carol.pdf": {
+      "path": "./piloto\\a_christmas_carol.pdf",
+      "sha256": "8581bfa6fb74d0c468c4c92ca79350cf5eff1d2072e835cd33e2b534b918ab79",
+      "status": "imported",
+      "book_id": 5,
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 40,
+      "processed_at": "2026-09-06T08:16:00.129632+00:00",
+      "duration_seconds": 2.03
+    },
+    "./piloto\\alice_in_wonderland.pdf": {
+      "path": "./piloto\\alice_in_wonderland.pdf",
+      "sha256": "b7de282d460dbc786b583a5e3d070b37eadbb640f8fcc7f7aa327a512c29bd2d",
+      "status": "imported",
+      "book_id": 6,
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 38,
+      "processed_at": "2026-09-06T08:16:01.920029+00:00",
+      "duration_seconds": 1.78
+    },
+    "./piloto\\art_of_war.pdf": {
+      "path": "./piloto\\art_of_war.pdf",
+      "sha256": "e0a46d8afaf07f0e9e50fc6e9c0bbf1dc05a14abc331669595abc41ff6590856",
+      "status": "imported",
+      "book_id": 7,
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 74,
+      "processed_at": "2026-09-06T08:16:04.788922+00:00",
+      "duration_seconds": 2.87
+    },
+    "./piloto\\dracula.pdf": {
+      "path": "./piloto\\dracula.pdf",
+      "sha256": "27253096a1e127f34fb773d1a51cec8471ef0275d36c1871ced4c0200f06e0b6",
+      "status": "imported",
+      "book_id": 8,
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 184,
+      "processed_at": "2026-09-06T08:16:10.755914+00:00",
+      "duration_seconds": 5.97
+    },
+    "./piloto\\frankenstein.pdf": {
+      "path": "./piloto\\frankenstein.pdf",
+      "sha256": "4fca36d0044be8c5baa6919ca58b30923914ecf2cd71710e09130f6bc2c67a43",
+      "status": "imported",
+      "book_id": 9,
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 90,
+      "processed_at": "2026-09-06T08:16:14.289873+00:00",
+      "duration_seconds": 3.53
+    },
+    "./piloto\\heart_of_darkness.pdf": {
+      "path": "./piloto\\heart_of_darkness.pdf",
+      "sha256": "a3e5dfae747242dbbdd842b9d4f82d4171d716e616afb3b263359bf07fc23dca",
+      "status": "imported",
+      "book_id": 10,
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 41,
+      "processed_at": "2026-09-06T08:16:18.939044+00:00",
+      "duration_seconds": 2.64
+    },
+    "./piloto\\metamorphosis.pdf": {
+      "path": "./piloto\\metamorphosis.pdf",
+      "sha256": "7ec15daa112f0aa3574bd0ff6358f343740e3711340cf1429cc2084e7c29b6b4",
+      "status": "imported",
+      "book_id": 11,
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 24,
+      "processed_at": "2026-09-06T08:16:20.591452+00:00",
+      "duration_seconds": 1.64
+    },
+    "./piloto\\moby_dick.pdf": {
+      "path": "./piloto\\moby_dick.pdf",
+      "sha256": "59cf1d9c7c3980665965d4b3c7cdf498f8a23f06290a9ed9bce50c4f590ad61d",
+      "status": "imported",
+      "book_id": 12,
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 265,
+      "processed_at": "2026-09-06T08:16:30.160650+00:00",
+      "duration_seconds": 9.57
+    },
+    "./piloto\\pride_and_prejudice.pdf": {
+      "path": "./piloto\\pride_and_prejudice.pdf",
+      "sha256": "cf4d26f5e33103f6a61bddc9a18caa2ccf20af07b9d55a635d842db2cd58d5db",
+      "status": "imported",
+      "book_id": 13,
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 163,
+      "processed_at": "2026-09-06T08:16:35.022995+00:00",
+      "duration_seconds": 4.86
+    },
+    "./piloto\\sherlock_holmes.pdf": {
+      "path": "./piloto\\sherlock_holmes.pdf",
+      "sha256": "5737570c4ed3c92ea908f903c09c8315096826f42c9a07986fe82975018f51a6",
+      "status": "imported",
+      "book_id": 14,
+      "title": "(anonymous)",
+      "author": "(anonymous)",
+      "page_count": 140,
+      "processed_at": "2026-09-06T08:16:38.955767+00:00",
+      "duration_seconds": 3.93
+    }
+  },
+  "summary": {
+    "total": 10,
+    "imported": 10,
+    "rejected": 0,
+    "errors": 0,
+    "skipped": 0,
+    "duration_seconds": 40.9,
+    "completed_at": "2026-09-06T08:16:38.955767+00:00"
+  }
+}

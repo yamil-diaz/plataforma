@@ -1,0 +1,25 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "omniroute": {
+      "name": "OmniRoute",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://localhost:20128/v1"
+      },
+      "models": {
+        "oc/nemotron-3-ultra-free": {
+          "name": "Nemotron 3 Ultra Free",
+          "modelID": "nemotron-3-ultra-free",
+          "reasoning": true
+        },
+        "oc/mimo-v2.5-free": {
+          "name": "MiMo V2.5 Free",
+          "modelID": "mimo-v2.5-free",
+          "reasoning": true
+        }
+      }
+    }
+  },
+  "model": "omniroute/oc/mimo-v2.5-free"
+}
