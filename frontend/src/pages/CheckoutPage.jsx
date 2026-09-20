@@ -23,6 +23,7 @@ export default function CheckoutPage() {
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [showAddressForm, setShowAddressForm] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [newAddress, setNewAddress] = useState({
     recipient_name: '', recipient_phone: '', address_line1: '',
     address_line2: '', district: '', city: '', department: '', postal_code: ''
@@ -50,7 +51,7 @@ export default function CheckoutPage() {
 
   const loadBook = async () => {
     try {
-      const { data } = await axios.get(`${API}/books/${bookId}`);
+      const { data } = await axios.get(`${API}/books/${bookId}`, { withCredentials: true });
       setBook(data);
       if (!data.price || data.price <= 0) {
         setItemType('digital_purchase');
@@ -65,7 +66,7 @@ export default function CheckoutPage() {
 
   const loadBookPrices = async (id) => {
     try {
-      const { data } = await axios.get(`${API}/books/${id}/prices`);
+      const { data } = await axios.get(`${API}/books/${id}/prices`, { withCredentials: true });
       setBookPrices(data.prices || {});
     } catch (err) {
       console.error('Error loading book prices:', err);
@@ -74,7 +75,7 @@ export default function CheckoutPage() {
 
   const loadCurrencies = async () => {
     try {
-      const { data } = await axios.get(`${API}/commerce/currencies`);
+      const { data } = await axios.get(`${API}/commerce/currencies`, { withCredentials: true });
       setAvailableCurrencies(data.currencies || []);
     } catch (err) {
       setAvailableCurrencies([{ code: 'PEN', symbol: 'S/' }]);
@@ -83,7 +84,7 @@ export default function CheckoutPage() {
 
   const loadAddresses = async () => {
     try {
-      const { data } = await axios.get(`${API}/user/addresses`);
+      const { data } = await axios.get(`${API}/user/addresses`, { withCredentials: true });
       setAddresses(data);
       if (data.length > 0) {
         setSelectedAddress(data.find(a => a.is_default)?.id || data[0].id);
@@ -95,7 +96,7 @@ export default function CheckoutPage() {
 
   const handleCreateAddress = async () => {
     try {
-      const { data } = await axios.post(`${API}/user/addresses`, newAddress);
+      const { data } = await axios.post(`${API}/user/addresses`, newAddress, { withCredentials: true });
       setShowAddressForm(false);
       setNewAddress({
         recipient_name: '', recipient_phone: '', address_line1: '',
@@ -145,7 +146,7 @@ export default function CheckoutPage() {
         payload.currency = 'PEN';
       }
 
-      const { data } = await axios.post(`${API}/checkout`, payload);
+      const { data } = await axios.post(`${API}/checkout`, payload, { withCredentials: true });
 
       // Paddle (digitales): SIEMPRE usar overlay (el redirect URL de Paddle sandbox
       // apunta a nuestro dominio en vez de a la checkout page de Paddle)
@@ -250,8 +251,11 @@ export default function CheckoutPage() {
         <h1 className="text-3xl font-bold text-white mb-8 font-['Outfit']">Checkout</h1>
 
         {error && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6 text-red-400 text-sm">
-            {error}
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6 text-red-400 text-sm flex items-start justify-between">
+            <span>{error}</span>
+            <button onClick={() => setError(null)} className="ml-3 text-red-400 hover:text-red-300 flex-shrink-0">
+              ✕
+            </button>
           </div>
         )}
 
@@ -471,23 +475,38 @@ export default function CheckoutPage() {
         </div>
 
         {/* Botón de pago */}
-        <button
-          onClick={handleCheckout}
-          disabled={processing || (!currentPriceData && itemType !== 'physical_purchase')}
-          className="w-full bg-[#D92B2B] hover:bg-[#F03C3C] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2"
-        >
-          {processing ? (
-            <>
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-              Procesando...
-            </>
-          ) : (
-            <>
-              <Zap className="w-5 h-5" />
-              Pagar {displaySymbol} {total.toFixed(2)}
-            </>
-          )}
-        </button>
+        {!showConfirm ? (
+          <button
+            onClick={() => setShowConfirm(true)}
+            disabled={processing || (!currentPriceData && itemType !== 'physical_purchase')}
+            className="w-full bg-[#D92B2B] hover:bg-[#F03C3C] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2"
+          >
+            <Zap className="w-5 h-5" />
+            Pagar {displaySymbol} {total.toFixed(2)}
+          </button>
+        ) : (
+          <div className="bg-[#121212] border border-[#D4AF37]/30 rounded-xl p-4 mb-4">
+            <p className="text-white font-semibold mb-3">Confirmar pago de {displaySymbol} {total.toFixed(2)}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowConfirm(false);
+                  handleCheckout();
+                }}
+                disabled={processing}
+                className="flex-1 bg-[#D92B2B] hover:bg-[#F03C3C] disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all"
+              >
+                {processing ? 'Procesando...' : 'Confirmar'}
+              </button>
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="flex-1 bg-white/5 hover:bg-white/10 text-white font-semibold py-3 rounded-xl transition-all border border-white/10"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
 
         <p className="text-center text-[#A0A0A0] text-xs mt-4">
           {itemType === 'physical_purchase'

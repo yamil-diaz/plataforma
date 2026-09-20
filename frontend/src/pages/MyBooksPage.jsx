@@ -11,6 +11,7 @@ export default function MyBooksPage() {
   const navigate = useNavigate();
   const [entitlements, setEntitlements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadEntitlements();
@@ -18,10 +19,11 @@ export default function MyBooksPage() {
 
   const loadEntitlements = async () => {
     try {
-      const { data } = await axios.get(`${API}/user/entitlements`);
+      const { data } = await axios.get(`${API}/user/entitlements`, { withCredentials: true });
       setEntitlements(data);
     } catch (err) {
       console.error('Error loading entitlements:', err);
+      setError('Error al cargar tu biblioteca. Verifica tu conexión e intenta de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -66,6 +68,15 @@ export default function MyBooksPage() {
       <div className="max-w-5xl mx-auto px-6 py-12">
         <h1 className="text-3xl font-bold text-white mb-2 font-['Outfit']">Mis Libros</h1>
         <p className="text-[#A0A0A0] mb-8">Libros con acceso digital</p>
+
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6 text-red-400 text-sm flex items-start justify-between">
+            <span>{error}</span>
+            <button onClick={() => { setError(null); setLoading(true); loadEntitlements(); }} className="ml-3 text-red-400 hover:text-red-300 flex-shrink-0">
+              ✕
+            </button>
+          </div>
+        )}
 
         {entitlements.length === 0 ? (
           <div className="text-center py-20">

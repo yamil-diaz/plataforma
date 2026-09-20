@@ -16,24 +16,28 @@ export default function PaymentResultPage() {
   const [orderNumber, setOrderNumber] = useState('');
   const pollRef = useRef(null);
   const pollCountRef = useRef(0);
+  const redirectTimerRef = useRef(null);
 
   const token = searchParams.get('token');
   const provider = searchParams.get('provider') || 'paddle';
-  const ptxn = searchParams.get('_ptxn');
   const orderId = searchParams.get('order_id') || localStorage.getItem('paddle_pending_order_id');
 
   useEffect(() => {
-    if (ptxn && orderId) {
-      localStorage.removeItem('paddle_pending_order_id');
-    }
-  }, [ptxn, orderId]);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
+    };
+  }, []);
 
   const fetchOrderStatus = async () => {
     if (!orderId) return null;
     try {
-      const { data } = await axios.get(`${API}/checkout/${orderId}`);
+      console.log('[PAYMENT] Verifying order:', orderId);
+      const { data } = await axios.get(`${API}/checkout/${orderId}`, { withCredentials: true });
+      console.log('[PAYMENT] Order status:', data.payment_status);
       return data;
-    } catch {
+    } catch (err) {
+      console.error('[PAYMENT] Error fetching order:', err);
       return null;
     }
   };
@@ -81,31 +85,33 @@ export default function PaymentResultPage() {
         }
       } else {
         setStatus('error');
-        setMessage('Error al verificar el pago');
+        setMessage('Error al verificar el pago. Verifica tu conexión e intenta de nuevo.');
       }
     };
 
-    if (ptxn) {
-      if (orderId) {
-        verify();
-      } else {
-        setStatus('pending');
-        setMessage('Verificando pago...');
-      }
-    } else if (provider === 'paddle' && token) {
-      verify();
-    } else if (orderId) {
+    if (orderId) {
       verify();
     } else {
       setStatus('error');
-      setMessage('Parámetros de pago no válidos');
+      setMessage('No se pudo identificar la orden de pago.');
     }
 
     return () => {
       cancelled = true;
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [ptxn, token, orderId, provider]);
+  }, [orderId]);
+
+  useEffect(() => {
+    if (status === 'approved') {
+      redirectTimerRef.current = setTimeout(() => {
+        navigate('/mis-libros');
+      }, 5000);
+    }
+    return () => {
+      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
+    };
+  }, [status, navigate]);
 
   const getStatusIcon = () => {
     switch (status) {
@@ -167,6 +173,56 @@ export default function PaymentResultPage() {
             >
               Ir a Mis Libros
             </button>
+          )}
+          {status === 'approved' && (
+            <p className="text-[#A0A0A0] text-sm text-center">
+              Redirigiendo a Mis Libros en 5 segundos...
+            </p>
+          )}
+          {status === 'pending' && (
+            <button
+              onClick={async () => {
+                const data = await fetchOrderStatus();
+                if (data && data.payment_status !== 'pending') {
+                  applyStatus(data);
+                }
+              }}
+              className="w-full bg-white/10 hover:bg-white/15 text-white font-bold py-3 rounded-xl transition-all border border-white/10"
+            >
+              Verificar estado del pago
+            </button>
+          )}
+          {(status === 'error') && (
+            <>
+              <button
+                onClick={() => navigate('/mis-compras')}
+                className="w-full bg-[#D92B2B] hover:bg-[#F03C3C] text-white font-bold py-3 rounded-xl transition-all"
+              >
+                Reintentar
+              </button>
+              <a
+                href="mailto:soporte@aeternumlibrary.com"
+                className="w-full bg-white/5 hover:bg-white/10 text-[#A0A0A0] font-semibold py-3 rounded-xl transition-all border border-white/10 text-center"
+              >
+                Contactar soporte
+              </a>
+            </>
+          )}
+          {(status === 'rejected' || status === 'cancelled' || status === 'expired') && (
+            <>
+              <button
+                onClick={() => navigate('/mis-compras')}
+                className="w-full bg-[#D92B2B] hover:bg-[#F03C3C] text-white font-bold py-3 rounded-xl transition-all"
+              >
+                Ver mis compras
+              </button>
+              <a
+                href="mailto:soporte@aeternumlibrary.com"
+                className="w-full bg-white/5 hover:bg-white/10 text-[#A0A0A0] font-semibold py-3 rounded-xl transition-all border border-white/10 text-center"
+              >
+                Contactar soporte
+              </a>
+            </>
           )}
           <button
             onClick={() => navigate('/')}

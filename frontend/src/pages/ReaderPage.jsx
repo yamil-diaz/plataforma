@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { Navbar } from '../components/Navbar';
 import PDFViewer from '../components/PDFViewer';
@@ -357,28 +357,28 @@ export default function ReaderPage() {
             <div className="bg-gradient-to-r from-[#D4AF37]/10 to-[#D92B2B]/10 border border-[#D4AF37]/30 rounded-xl p-4 sm:p-6 mb-6">
               <p className="text-[#A0A0A0] text-sm mb-3">Este libro tiene un costo</p>
               <div className="flex flex-wrap gap-3">
-                <a
-                  href={`/checkout?book_id=${book.id}`}
+                <Link
+                  to={`/checkout?book_id=${book.id}`}
                   className="inline-flex items-center gap-2 bg-[#D92B2B] hover:bg-[#F03C3C] text-white font-bold px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-[#D92B2B]/20 text-sm"
                 >
                   <CreditCard className="w-4 h-4" />
                   Comprar — ${parseFloat(book.price).toFixed(2)}
-                </a>
-                <a
-                  href={`/checkout?book_id=${book.id}`}
+                </Link>
+                <Link
+                  to={`/checkout?book_id=${book.id}`}
                   className="inline-flex items-center gap-2 bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 text-[#D4AF37] font-bold px-5 py-2.5 rounded-xl border border-[#D4AF37]/30 transition-all text-sm"
                 >
                   <Clock className="w-4 h-4" />
                   Alquilar — ${parseFloat(book.price * 0.3).toFixed(2)}
-                </a>
+                </Link>
                 {book.is_physical && book.physical_price > 0 && (
-                  <a
-                    href={`/checkout?book_id=${book.id}`}
+                  <Link
+                    to={`/checkout?book_id=${book.id}`}
                     className="inline-flex items-center gap-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 font-bold px-5 py-2.5 rounded-xl border border-emerald-500/30 transition-all text-sm"
                   >
                     <Truck className="w-4 h-4" />
                     Comprar libro físico — S/ {parseFloat(book.physical_price).toFixed(2)}
-                  </a>
+                  </Link>
                 )}
               </div>
             </div>

@@ -5857,28 +5857,8 @@ async def get_checkout_status(order_id: int, request: Request):
                     order = cursor.fetchone()
                     print(f"[PAYMENT DEBUG] order payment_status AFTER={order['payment_status']}", flush=True)
 
-                    # Fallback: si confirm_payment no actualizó, forzar UPDATE directo
                     if order["payment_status"] == "pending":
-                        print(f"[PAYMENT DEBUG] confirm_payment failed to update! Forcing direct UPDATE", flush=True)
-                        now = datetime.now(timezone.utc).isoformat()
-                        cursor.execute(
-                            """UPDATE orders
-                               SET payment_status = 'approved', order_status = 'confirmed',
-                                   paid_at = %s, updated_at = %s
-                               WHERE id = %s AND payment_status = 'pending'""",
-                            (now, now, order["id"]),
-                        )
-                        db.commit()
-                        cursor.execute(
-                            """SELECT o.*, oi.book_id, b.title as book_title
-                               FROM orders o
-                               LEFT JOIN order_items oi ON oi.order_id = o.id
-                               LEFT JOIN books b ON b.id = oi.book_id
-                               WHERE o.id = %s AND o.user_id = %s""",
-                            (order_id, user["id"]),
-                        )
-                        order = cursor.fetchone()
-                        print(f"[PAYMENT DEBUG] order payment_status AFTER FORCED={order['payment_status']}", flush=True)
+                        print(f"[PAYMENT WARNING] confirm_payment did not update order {order_id}. Status remains pending.", flush=True)
                 else:
                     print(f"[PAYMENT DEBUG] confirm_payment executed=false", flush=True)
         else:

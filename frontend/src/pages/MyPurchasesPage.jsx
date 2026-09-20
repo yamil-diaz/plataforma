@@ -11,6 +11,7 @@ export default function MyPurchasesPage() {
   const [purchases, setPurchases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadPurchases();
@@ -18,13 +19,19 @@ export default function MyPurchasesPage() {
 
   const loadPurchases = async () => {
     try {
-      const { data } = await axios.get(`${API}/user/purchases`);
+      const { data } = await axios.get(`${API}/user/purchases`, { withCredentials: true });
       setPurchases(data);
     } catch (err) {
       console.error('Error loading purchases:', err);
+      setError('Error al cargar tus compras. Verifica tu conexión e intenta de nuevo.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const getCurrencySymbol = (order) => {
+    const symbols = { PEN: 'S/', USD: '$', CLP: '$' };
+    return symbols[order.currency] || order.currency || 'S/';
   };
 
   const getStatusStyle = (status) => {
@@ -82,6 +89,15 @@ export default function MyPurchasesPage() {
         <h1 className="text-3xl font-bold text-white mb-2 font-['Outfit']">Mis Compras</h1>
         <p className="text-[#A0A0A0] mb-8">Historial de todas tus compras</p>
 
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6 text-red-400 text-sm flex items-start justify-between">
+            <span>{error}</span>
+            <button onClick={() => { setError(null); setLoading(true); loadPurchases(); }} className="ml-3 text-red-400 hover:text-red-300 flex-shrink-0">
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Filtros */}
         <div className="flex gap-2 mb-6 flex-wrap">
           {[
@@ -131,7 +147,7 @@ export default function MyPurchasesPage() {
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="text-[#D4AF37] font-bold">S/ {parseFloat(p.total).toFixed(2)}</p>
+                    <p className="text-[#D4AF37] font-bold">{getCurrencySymbol(p)} {parseFloat(p.total).toFixed(2)}</p>
                     <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs border ${getStatusStyle(p.payment_status)}`}>
                       {getStatusLabel(p.payment_status)}
                     </span>
