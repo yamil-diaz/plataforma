@@ -353,7 +353,7 @@ async def startup_cleanup():
         cursor.execute("""
             DELETE FROM login_attempts
             WHERE lockout_until IS NOT NULL
-              AND lockout_until < NOW() - INTERVAL '1 hour'
+              AND lockout_until::timestamp < NOW() - INTERVAL '1 hour'
         """)
         deleted = cursor.rowcount
         db.commit()
@@ -2622,7 +2622,7 @@ async def cleanup_stale_lockouts(request: Request):
         cursor.execute("""
             DELETE FROM login_attempts
             WHERE lockout_until IS NOT NULL
-              AND lockout_until < NOW() - INTERVAL '1 hour'
+              AND lockout_until::timestamp < NOW() - INTERVAL '1 hour'
         """)
         deleted = cursor.rowcount
         db.commit()

@@ -174,7 +174,7 @@ def limpiar_lockouts_stale(dry_run=True):
     cursor.execute("""
         DELETE FROM login_attempts
         WHERE lockout_until IS NOT NULL
-          AND lockout_until < NOW() - INTERVAL '1 hour'
+          AND lockout_until::timestamp < NOW() - INTERVAL '1 hour'
         RETURNING ip_address, attempts, lockout_until
     """)
     stale = cursor.fetchall()
