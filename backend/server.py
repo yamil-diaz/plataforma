@@ -344,6 +344,26 @@ app.mount("/static/videos", StaticFiles(directory=STORAGE_VIDEOS), name="videos"
 import_tasks: Dict[str, Dict] = {}
 
 
+@app.on_event("startup")
+async def startup_cleanup():
+    """Limpieza automática al arrancar: lockouts stale + importaciones huérfanas."""
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute("""
+            DELETE FROM login_attempts
+            WHERE lockout_until IS NOT NULL
+              AND lockout_until < NOW() - INTERVAL '1 hour'
+        """)
+        deleted = cursor.rowcount
+        db.commit()
+        db.close()
+        if deleted > 0:
+            print(f"[STARTUP] Limpieza: {deleted} lockouts stale eliminados de login_attempts")
+    except Exception as e:
+        print(f"[STARTUP] Aviso: no se pudieron limpiar lockouts stale: {e}")
+
+
 # ── Utilidades de autenticación ──────────────────────────────────────────────
 
 def hash_password(password: str) -> str:
@@ -2340,15 +2360,20 @@ MAX_IMPORT_PDF_COUNT = 20  # Límite de PDFs por solicitud de importación vía 
 
 
 def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default_price: float):
-    import pypdf
-    import psycopg2 as _psycopg2
+    """Procesa un ZIP de importación masiva de libros.
 
-    db = get_db()
-    cursor = db.cursor()
+    IMPORTANTE: Cada libro se procesa con su propia conexión a la DB
+    para no mantener conexiones abiertas durante minutos (causa 502 en
+    Render al agotar el pool de conexiones).
+    """
+    import pypdf
+
+    _active_imports.add(task_id)
     task_status = import_tasks[task_id]
 
-    # Pre-load existing hashes for O(1) duplicate detection
-    existing_hashes = _cargar_hashes_existentes(cursor)
+    # Timeout máximo: 10 minutos para todo el lote
+    _BULK_TIMEOUT_SECONDS = 600
+    _start_time = time.time()
 
     try:
         task_temp_dir = os.path.join(TEMP_DIR, task_id)
@@ -2368,7 +2393,6 @@ def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default
             file for file in all_files if file.lower().endswith((".jpg", ".jpeg", ".png", ".webp"))
         ]
 
-        # Límite de PDFs por solicitud (estabilidad del backend)
         if len(pdf_files) > MAX_IMPORT_PDF_COUNT:
             task_status["status"] = "failed"
             task_status["message"] = (
@@ -2387,9 +2411,19 @@ def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default
             image_map[name_without_ext] = image
 
         for pdf in pdf_files:
+            # Verificar timeout global
+            if time.time() - _start_time > _BULK_TIMEOUT_SECONDS:
+                task_status["errors"].append(
+                    "Timeout: se alcanzó el límite de 10 minutos de procesamiento. "
+                    "Libros restantes no procesados."
+                )
+                break
+
             filename = os.path.basename(pdf)
             name_without_ext = os.path.splitext(filename)[0]
 
+            # Conexión NUEVA por cada PDF (nunca reutilizar entre libros)
+            db = None
             try:
                 # 1. Validación REAL del archivo (magic bytes %PDF), nunca por extensión.
                 with open(pdf, "rb") as f:
@@ -2400,9 +2434,7 @@ def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default
                     )
                     continue
 
-                # 2. Pipeline central: extracción + validación. Extracción
-                #    fallida, placeholder, basura o contenido patológico ->
-                #    el libro NO se publica (nada de autopublicar fallos).
+                # 2. Pipeline central: extracción + validación
                 procesado = lectura.procesar_contenido_para_publicacion(pdf_path=pdf, fuente="pdf")
                 validacion = procesado["validacion"]
                 if not validacion["valid"]:
@@ -2415,7 +2447,7 @@ def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default
                 paginas_libro = procesado["paginas"]
                 capitulos_libro = procesado["capitulos"]
 
-                # 3. Metadatos (título/autor) desde el PDF; fallan sin romper.
+                # 3. Metadatos (título/autor) desde el PDF
                 title = None
                 author = None
                 try:
@@ -2432,8 +2464,15 @@ def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default
                 if not author:
                     author = "Autor Desconocido"
 
-                # Verificar duplicado ANTES de insertar
                 pdf_hash = _calcular_hash_pdf(pdf) if pdf and os.path.isfile(pdf) else None
+
+                # Abrir conexión DB SOLO para este libro
+                db = get_db()
+                cursor = db.cursor()
+
+                # Cargar hashes existentes (rápido, O(1) por query)
+                existing_hashes = _cargar_hashes_existentes(cursor)
+
                 dup_id = _verificar_duplicado(cursor, title, author, content, pdf, pdf_hash, existing_hashes)
                 if dup_id:
                     task_status["errors"].append(
@@ -2475,18 +2514,15 @@ def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default
                     db.commit()
                 except Exception as insert_err:
                     db.rollback()
-                    # UNIQUE violation: el hash ya existe en la DB (concurrencia)
                     if hasattr(insert_err, 'pgcode') and insert_err.pgcode == '23505':
                         task_status["errors"].append(
                             f"Duplicado detectado en {filename}: UNIQUE constraint en source_hash"
                         )
-                        # Limpiar PDF copiado
                         try:
                             os.remove(final_pdf_path)
                         except OSError:
                             pass
                         continue
-                    # Otro error de INSERT: re-lanzar para que el handler general lo capture
                     raise
 
                 task_status["processed"] += 1
@@ -2495,7 +2531,15 @@ def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default
                 )
             except Exception as e:
                 task_status["errors"].append(f"Error procesando {filename}: {str(e)}")
+            finally:
+                # SIEMPRE cerrar la conexión de este libro
+                if db is not None:
+                    try:
+                        db.close()
+                    except Exception:
+                        pass
 
+        # Limpiar archivos temporales
         try:
             shutil.rmtree(task_temp_dir)
             os.remove(zip_path)
@@ -2509,9 +2553,13 @@ def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default
     except Exception as e:
         task_status["status"] = "failed"
         task_status["message"] = f"Error crítico en la importación: {str(e)}"
-        task_status["message"] = f"Error crítico en la importación: {str(e)}"
     finally:
-        db.close()
+        _active_imports.discard(task_id)
+
+
+# Limite de importaciones concurrentes (protege contra agotamiento de conexiones)
+_active_imports = set()
+MAX_CONCURRENT_IMPORTS = 1
 
 
 @api_router.post("/books/import")
@@ -2525,6 +2573,13 @@ async def import_books(
     user = await get_current_user(request)
     if user["role"] != "admin":
         raise HTTPException(status_code=403, detail="No autorizado para importar libros")
+
+    # Protección contra importaciones concurrentes
+    if len(_active_imports) >= MAX_CONCURRENT_IMPORTS:
+        raise HTTPException(
+            status_code=429,
+            detail="Ya hay una importación en curso. Espera a que termine antes de iniciar otra."
+        )
 
     if not file.filename.lower().endswith(".zip"):
         raise HTTPException(status_code=400, detail="El archivo debe ser un .zip")
@@ -2552,6 +2607,28 @@ async def get_import_status(task_id: str, request: Request):
     if task_id not in import_tasks:
         raise HTTPException(status_code=404, detail="Tarea de importación no encontrada")
     return import_tasks[task_id]
+
+
+@api_router.post("/admin/cleanup-stale-lockouts")
+async def cleanup_stale_lockouts(request: Request):
+    """Limpia lockouts expirados en login_attempts que bloquean el login."""
+    user = await get_current_user(request)
+    if not user or user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute("""
+            DELETE FROM login_attempts
+            WHERE lockout_until IS NOT NULL
+              AND lockout_until < NOW() - INTERVAL '1 hour'
+        """)
+        deleted = cursor.rowcount
+        db.commit()
+        return {"deleted": deleted, "message": f"Se limpiaron {deleted} lockouts stale"}
+    finally:
+        db.close()
 
 
 @api_router.post("/books/{book_id}/reviews")
