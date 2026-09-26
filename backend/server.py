@@ -16,10 +16,7 @@ from hash_utils import calcular_hash_archivo, calcular_hash_texto
 
 import jwt
 import bcrypt
-import smtplib
 import traceback
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from fastapi import (
     FastAPI,
     APIRouter,
