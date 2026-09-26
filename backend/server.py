@@ -260,51 +260,8 @@ def generate_verification_code() -> str:
     return ''.join(random.choices(string.digits, k=6))
 
 # ── Inicializar base de datos ────────────────────────────────────────────────
-init_db()
-
-try:
-    import migrate_fix_duplicates
-    migrate_fix_duplicates.migrate()
-except Exception as e:
-    print(f"Error ejecutando migración de duplicados: {e}")
-
-try:
-    import migrate_db_phase4
-    migrate_db_phase4.migrate()
-    import migrate_username
-    migrate_username.migrate()
-    import migrate_db_phase4_2
-    migrate_db_phase4_2.migrate()
-    import migrate_db_phase4_3
-    migrate_db_phase4_3.migrate()
-except Exception as e:
-    print(f"Error ejecutando migración Fase 4: {e}")
-
-# FASE 2: el backfill de páginas NO se ejecuta automáticamente al arrancar.
-# La migración debe ejecutarse MANUALMENTE: python migrate_db_fase2_lectura.py
-# Esto evita procesamiento silencioso de contenido corrupto en producción.
-# def _run_fase2_lectura_migration():
-#     try:
-#         import migrate_db_fase2_lectura
-#         migrate_db_fase2_lectura.migrate()
-#     except Exception as e:
-#         print(f"Error ejecutando migración Fase 2 (Lectura): {e}")
-
-# threading.Thread(target=_run_fase2_lectura_migration, daemon=True).start()
-
-# Foro Estudiantil: migración idempotente
-try:
-    import migrate_db_foro
-    migrate_db_foro.migrate()
-except Exception as e:
-    print(f"Error ejecutando migración del foro: {e}")
-
-# Comercio: migración idempotente
-try:
-    import migrate_db_commerce
-    migrate_db_commerce.migrate()
-except Exception as e:
-    print(f"Error ejecutando migración de comercio: {e}")
+# NOTA: init_db() y las migraciones se ejecutan en startup_events() más abajo.
+# No se ejecutan al importar el módulo para reducir uso de memoria en Render.
 
 # ── Aplicación FastAPI ───────────────────────────────────────────────────────
 app = FastAPI(title="Aeternum API")
@@ -336,6 +293,45 @@ app.mount("/static/books", StaticFiles(directory=STORAGE_BOOKS), name="books")
 app.mount("/static/videos", StaticFiles(directory=STORAGE_VIDEOS), name="videos")
 
 import_tasks: Dict[str, Dict] = {}
+
+
+@app.on_event("startup")
+async def startup_migrations():
+    """Ejecuta init_db() y migraciones al arrancar (no al importar)."""
+    from database import init_db as _init_db
+    _init_db()
+
+    try:
+        import migrate_fix_duplicates
+        migrate_fix_duplicates.migrate()
+    except Exception as e:
+        print(f"[STARTUP] Error migración duplicados: {e}")
+
+    try:
+        import migrate_db_phase4
+        migrate_db_phase4.migrate()
+        import migrate_username
+        migrate_username.migrate()
+        import migrate_db_phase4_2
+        migrate_db_phase4_2.migrate()
+        import migrate_db_phase4_3
+        migrate_db_phase4_3.migrate()
+    except Exception as e:
+        print(f"[STARTUP] Error migración Fase 4: {e}")
+
+    try:
+        import migrate_db_foro
+        migrate_db_foro.migrate()
+    except Exception as e:
+        print(f"[STARTUP] Error migración foro: {e}")
+
+    try:
+        import migrate_db_commerce
+        migrate_db_commerce.migrate()
+    except Exception as e:
+        print(f"[STARTUP] Error migración comercio: {e}")
+
+    print("[STARTUP] Migraciones completadas.")
 
 
 @app.on_event("startup")
@@ -1339,7 +1335,6 @@ async def login(login_data: UserLogin, response: Response, request: Request):
                 else:
                     pwd_check = verify_password(login_data.password, stored_hash)
             except Exception as verify_err:
-                print(f"[LOGIN-DEBUG] Error en verify_password: {verify_err}")
                 pwd_check = False
         else:
             pwd_check = False
