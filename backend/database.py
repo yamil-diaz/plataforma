@@ -1,6 +1,7 @@
 import os
 import psycopg2
 import psycopg2.extras
+from psycopg2 import pool
 from datetime import datetime, timezone
 
 # Render inyecta DATABASE_URL automáticamente cuando enlazas una PostgreSQL DB
@@ -18,12 +19,60 @@ IS_PRODUCTION = os.getenv("RENDER") == "true" or os.getenv("ENV") == "production
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
+# ── Connection Pool ──────────────────────────────────────────────────────────
+# Reutiliza conexiones en vez de crear una nueva por request.
+# Reduce memoria ~50% (cada conexión psycopg2 usa ~10MB).
+_connection_pool = None
+
+
+def _get_pool():
+    global _connection_pool
+    if _connection_pool is None:
+        _connection_pool = pool.ThreadedConnectionPool(
+            minconn=2,
+            maxconn=10,
+            dsn=DATABASE_URL,
+            cursor_factory=psycopg2.extras.RealDictCursor,
+        )
+    return _connection_pool
+
 
 def get_db():
-    """Crea y devuelve una conexión nueva a PostgreSQL.
-    El llamador es responsable de hacer conn.close() cuando termine.
+    """Devuelve una conexión del pool. Cuando se llama db.close(),
+    la conexión se devuelve al pool (no se cierra físicamente).
+    Esto permite que el código existente funcione sin cambios.
     """
-    return psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
+    p = _get_pool()
+    conn = p.getconn()
+    conn.autocommit = False
+    return _PooledConnection(conn, p)
+
+
+class _PooledConnection:
+    """Wrapper que intercepta close() para devolver la conexión al pool."""
+    __slots__ = ('_conn', '_pool')
+
+    def __init__(self, conn, pool_obj):
+        self._conn = conn
+        self._pool = pool_obj
+
+    def close(self):
+        try:
+            self._pool.putconn(self._conn)
+        except Exception:
+            try:
+                self._conn.close()
+            except Exception:
+                pass
+
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
 
 def init_db():

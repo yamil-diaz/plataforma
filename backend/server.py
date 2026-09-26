@@ -5918,13 +5918,6 @@ async def get_checkout_status(order_id: int, request: Request):
         if not order:
             raise HTTPException(status_code=404, detail="Orden no encontrada")
 
-        print(f"[PAYMENT DEBUG] checkout verification", flush=True)
-        print(f"[PAYMENT DEBUG] order_id={order['id']}", flush=True)
-        print(f"[PAYMENT DEBUG] user_id={user['id']}", flush=True)
-        print(f"[PAYMENT DEBUG] order payment_status BEFORE={order['payment_status']}", flush=True)
-        print(f"[PAYMENT DEBUG] provider={order.get('provider', 'flow')}", flush=True)
-        print(f"[PAYMENT DEBUG] provider_token exists={bool(order.get('provider_token'))}", flush=True)
-
         # Si la orden sigue pendiente y tiene provider_token (Paddle transaction),
         # verificar directamente con la API de Paddle (fallback del webhook)
         if order["payment_status"] == "pending" and order.get("provider_token"):
@@ -5934,17 +5927,13 @@ async def get_checkout_status(order_id: int, request: Request):
                 provider = None
             if provider and provider.name == "paddle":
                 paddle_result = provider.get_transaction_status(order["provider_token"])
-                print(f"[PAYMENT DEBUG] provider status={paddle_result.get('paddle_status', 'N/A')}", flush=True)
-                print(f"[PAYMENT DEBUG] mapped status={paddle_result.get('status', 'N/A')}", flush=True)
                 if paddle_result.get("success") and paddle_result["status"] == "approved":
-                    print(f"[PAYMENT DEBUG] calling confirm_payment...", flush=True)
                     result = commerce_service.confirm_payment(
                         db, order["id"],
                         provider_token=order["provider_token"],
                         provider_order_id=paddle_result.get("transaction_id", ""),
                         provider="paddle",
                     )
-                    print(f"[PAYMENT DEBUG] confirm_payment result={result}", flush=True)
 
                     # Re-leer la orden actualizada
                     cursor.execute(
@@ -5956,14 +5945,6 @@ async def get_checkout_status(order_id: int, request: Request):
                         (order_id, user["id"]),
                     )
                     order = cursor.fetchone()
-                    print(f"[PAYMENT DEBUG] order payment_status AFTER={order['payment_status']}", flush=True)
-
-                    if order["payment_status"] == "pending":
-                        print(f"[PAYMENT WARNING] confirm_payment did not update order {order_id}. Status remains pending.", flush=True)
-                else:
-                    print(f"[PAYMENT DEBUG] confirm_payment executed=false", flush=True)
-        else:
-            print(f"[PAYMENT DEBUG] fallback skipped: status={order['payment_status']} token={bool(order.get('provider_token'))}", flush=True)
 
         return {
             "order_id": order["id"],
@@ -6186,15 +6167,11 @@ async def paddle_webhook(request: Request):
     """
     body = await request.body()
     headers = dict(request.headers)
-    print(f"[WEBHOOK DEBUG] Paddle webhook received! Content-Length: {len(body)}", flush=True)
-    print(f"[WEBHOOK DEBUG] Headers: {json.dumps({k: v[:50] if isinstance(v, str) else v for k, v in headers.items() if k.startswith('paddle') or k == 'content-type'})}", flush=True)
-    print(f"[WEBHOOK DEBUG] Body preview: {body[:500].decode('utf-8', errors='replace')}", flush=True)
 
     db = get_db()
     import webhook_handler
     try:
         result = webhook_handler.handle_webhook("paddle", headers, body, db)
-        print(f"[WEBHOOK DEBUG] Result: {result}", flush=True)
         return result
     finally:
         db.close()
