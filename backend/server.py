@@ -36,9 +36,6 @@ from pydantic import BaseModel, Field, EmailStr, field_validator
 
 from database import init_db, get_db
 import psycopg2
-import lectura
-from ai_service import process_chat, AIServiceError
-import ai_conversations
 
 # Importar configuración centralizada de storage
 from storage_config import (
@@ -53,11 +50,11 @@ from storage_config import (
     DEFAULT_STORAGE_DIR,
 )
 
-# Comercio
-import flow_service
-import commerce_service
+# Comercio (lazy loaded - se importan cuando se usa el endpoint)
+flow_service = None
+commerce_service = None
 import payment_providers
-import webhook_handler
+webhook_handler = None
 
 # Alias para compatibilidad con tests
 _migrar_storage_legacy = migrate_legacy_storage
@@ -2238,6 +2235,7 @@ async def create_book(
 
     db = get_db()
     cursor = db.cursor()
+    import lectura
 
     # Pre-load existing hashes for O(1) duplicate detection
     existing_hashes = _cargar_hashes_existentes(cursor)
@@ -2379,6 +2377,7 @@ def process_bulk_zip(task_id: str, zip_path: str, default_category: str, default
     Render al agotar el pool de conexiones).
     """
     import pypdf
+    import lectura
 
     _active_imports.add(task_id)
     task_status = import_tasks[task_id]
@@ -2846,6 +2845,7 @@ async def repaginate_book(book_id: int, request: Request):
 
     db = get_db()
     cursor = db.cursor()
+    import lectura
     try:
         cursor.execute(
             "SELECT id, title, content, pdf_path, page_count FROM books WHERE id = %s",
@@ -3707,6 +3707,7 @@ async def fetch_gutenberg_book(book_id: int = Form(...), request: Request = None
 
     import urllib.request
     import json
+    import lectura
 
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -4332,6 +4333,7 @@ class AIChatRequest(BaseModel):
 @api_router.post("/ai/chat")
 async def ai_chat(payload: AIChatRequest, request: Request):
     user = await get_current_user(request)
+    from ai_service import process_chat, AIServiceError
     db = get_db()
     try:
         result = await process_chat(
@@ -4368,6 +4370,7 @@ async def ai_chat(payload: AIChatRequest, request: Request):
 @api_router.get("/ai/conversations")
 async def ai_conversations_list(request: Request):
     user = await get_current_user(request)
+    import ai_conversations
     db = get_db()
     try:
         conversations = ai_conversations.list_conversations(db, user["id"])
@@ -4387,6 +4390,7 @@ async def ai_conversations_list(request: Request):
 @api_router.get("/ai/conversations/{conversation_id}/messages")
 async def ai_conversation_messages(conversation_id: int, request: Request):
     user = await get_current_user(request)
+    import ai_conversations
     db = get_db()
     try:
         messages = ai_conversations.get_messages(db, conversation_id, user["id"])
@@ -4406,6 +4410,7 @@ async def ai_conversation_messages(conversation_id: int, request: Request):
 @api_router.delete("/ai/conversations/{conversation_id}")
 async def ai_conversation_delete(conversation_id: int, request: Request):
     user = await get_current_user(request)
+    import ai_conversations
     db = get_db()
     try:
         ai_conversations.delete_conversation(db, conversation_id, user["id"])
@@ -5690,6 +5695,7 @@ async def get_available_currencies():
 @api_router.get("/books/{book_id}/prices")
 async def get_book_prices(book_id: int, rental_days: int = None):
     """Retorna precios de un libro en todas las monedas habilitadas. Público."""
+    import commerce_service
     db = get_db()
     cursor = db.cursor()
     try:
@@ -5754,6 +5760,7 @@ async def create_checkout(req: CheckoutRequest, request: Request):
     if not _check_rate_limit(user["id"]):
         raise HTTPException(status_code=429, detail="Demasiados intentos. Espera un minuto.")
     from decimal import Decimal
+    import commerce_service
 
     db = get_db()
     cursor = db.cursor()
@@ -5908,6 +5915,7 @@ async def create_checkout(req: CheckoutRequest, request: Request):
 async def get_checkout_status(order_id: int, request: Request):
     """Consulta el estado de una orden. Verifica con Paddle si sigue pendiente."""
     user = await get_current_user(request)
+    import commerce_service
     db = get_db()
     cursor = db.cursor()
     try:
@@ -6007,6 +6015,8 @@ async def flow_webhook(request: Request):
 
     db = get_db()
     cursor = db.cursor()
+    import flow_service
+    import commerce_service
     now = datetime.now(timezone.utc).isoformat()
 
     try:
@@ -6162,6 +6172,7 @@ async def flow_payment_result(token: str = None, request: Request = None):
     if not token:
         raise HTTPException(status_code=400, detail="Token no proporcionado")
 
+    import flow_service
     verify_result = flow_service.verify_payment(token)
     if verify_result["success"]:
         payment_data = verify_result["data"]
@@ -6193,6 +6204,7 @@ async def paddle_webhook(request: Request):
     print(f"[WEBHOOK DEBUG] Body preview: {body[:500].decode('utf-8', errors='replace')}", flush=True)
 
     db = get_db()
+    import webhook_handler
     try:
         result = webhook_handler.handle_webhook("paddle", headers, body, db)
         print(f"[WEBHOOK DEBUG] Result: {result}", flush=True)
@@ -6215,6 +6227,7 @@ async def culqi_webhook(request: Request):
     headers = dict(request.headers)
 
     db = get_db()
+    import webhook_handler
     try:
         result = webhook_handler.handle_webhook("culqi", headers, body, db)
         return result
@@ -6241,8 +6254,8 @@ async def culqi_charge(req: CulqiChargeRequest, request: Request):
 
     db = get_db()
     cursor = db.cursor()
+    import commerce_service
     try:
-        # Verificar que la orden pertenece al usuario y está pendiente
         cursor.execute(
             """SELECT id, user_id, order_number, total, currency, order_type, payment_status
                FROM orders WHERE id = %s AND user_id = %s FOR UPDATE""",
@@ -6723,6 +6736,8 @@ async def admin_commerce_config(request: Request):
     user = await get_current_user(request)
     if not user or user["role"] != "admin":
         raise HTTPException(status_code=403, detail="No autorizado")
+    import flow_service
+    import commerce_service
     paddle = payment_providers.get_paddle_provider()
     culqi = payment_providers.get_culqi_provider()
     return {
