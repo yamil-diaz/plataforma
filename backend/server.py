@@ -260,8 +260,39 @@ def generate_verification_code() -> str:
     return ''.join(random.choices(string.digits, k=6))
 
 # ── Inicializar base de datos ────────────────────────────────────────────────
-# NOTA: init_db() y las migraciones se ejecutan en startup_events() más abajo.
-# No se ejecutan al importar el módulo para reducir uso de memoria en Render.
+init_db()
+
+try:
+    import migrate_fix_duplicates
+    migrate_fix_duplicates.migrate()
+except Exception as e:
+    print(f"Error ejecutando migración de duplicados: {e}")
+
+try:
+    import migrate_db_phase4
+    migrate_db_phase4.migrate()
+    import migrate_username
+    migrate_username.migrate()
+    import migrate_db_phase4_2
+    migrate_db_phase4_2.migrate()
+    import migrate_db_phase4_3
+    migrate_db_phase4_3.migrate()
+except Exception as e:
+    print(f"Error ejecutando migración Fase 4: {e}")
+
+# Foro Estudiantil: migración idempotente
+try:
+    import migrate_db_foro
+    migrate_db_foro.migrate()
+except Exception as e:
+    print(f"Error ejecutando migración del foro: {e}")
+
+# Comercio: migración idempotente
+try:
+    import migrate_db_commerce
+    migrate_db_commerce.migrate()
+except Exception as e:
+    print(f"Error ejecutando migración de comercio: {e}")
 
 # ── Aplicación FastAPI ───────────────────────────────────────────────────────
 app = FastAPI(title="Aeternum API")
@@ -293,45 +324,6 @@ app.mount("/static/books", StaticFiles(directory=STORAGE_BOOKS), name="books")
 app.mount("/static/videos", StaticFiles(directory=STORAGE_VIDEOS), name="videos")
 
 import_tasks: Dict[str, Dict] = {}
-
-
-@app.on_event("startup")
-async def startup_migrations():
-    """Ejecuta init_db() y migraciones al arrancar (no al importar)."""
-    from database import init_db as _init_db
-    _init_db()
-
-    try:
-        import migrate_fix_duplicates
-        migrate_fix_duplicates.migrate()
-    except Exception as e:
-        print(f"[STARTUP] Error migración duplicados: {e}")
-
-    try:
-        import migrate_db_phase4
-        migrate_db_phase4.migrate()
-        import migrate_username
-        migrate_username.migrate()
-        import migrate_db_phase4_2
-        migrate_db_phase4_2.migrate()
-        import migrate_db_phase4_3
-        migrate_db_phase4_3.migrate()
-    except Exception as e:
-        print(f"[STARTUP] Error migración Fase 4: {e}")
-
-    try:
-        import migrate_db_foro
-        migrate_db_foro.migrate()
-    except Exception as e:
-        print(f"[STARTUP] Error migración foro: {e}")
-
-    try:
-        import migrate_db_commerce
-        migrate_db_commerce.migrate()
-    except Exception as e:
-        print(f"[STARTUP] Error migración comercio: {e}")
-
-    print("[STARTUP] Migraciones completadas.")
 
 
 @app.on_event("startup")
