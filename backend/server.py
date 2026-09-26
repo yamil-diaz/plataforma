@@ -347,6 +347,7 @@ import_tasks: Dict[str, Dict] = {}
 @app.on_event("startup")
 async def startup_cleanup():
     """Limpieza automática al arrancar: lockouts stale + importaciones huérfanas."""
+    db = None
     try:
         db = get_db()
         cursor = db.cursor()
@@ -357,11 +358,16 @@ async def startup_cleanup():
         """)
         deleted = cursor.rowcount
         db.commit()
-        db.close()
         if deleted > 0:
             print(f"[STARTUP] Limpieza: {deleted} lockouts stale eliminados de login_attempts")
     except Exception as e:
         print(f"[STARTUP] Aviso: no se pudieron limpiar lockouts stale: {e}")
+    finally:
+        if db is not None:
+            try:
+                db.close()
+            except Exception:
+                pass
 
 
 # ── Utilidades de autenticación ──────────────────────────────────────────────
@@ -803,15 +809,19 @@ async def register(user_data: UserRegister, response: Response, request: Request
             "Recompensa por crear tu cuenta en AETERNUM",
         )
         
-        # Enviar código de verificación por email
-        send_verification_code_email(user_data.email, verification_code)
-        
         db.commit()
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error al registrar usuario: {str(e)}")
     finally:
         db.close()
+
+    # Enviar código de verificación por email DESPUÉS del commit.
+    # Si el email falla, el usuario ya está registrado y puede solicitar reenvío.
+    try:
+        send_verification_code_email(user_data.email, verification_code)
+    except Exception as email_err:
+        print(f"[REGISTER] Aviso: no se pudo enviar código de verificación a {user_data.email}: {email_err}")
 
     # NO establecemos cookies aún - el usuario debe verificar su email primero
     return {
@@ -1297,81 +1307,86 @@ async def login(login_data: UserLogin, response: Response, request: Request):
     db = get_db()
     cursor = db.cursor()
 
-    # Rate Limiting check
-    identifier = login_data.email
-    cursor.execute("SELECT attempts, lockout_until FROM login_attempts WHERE ip_address = %s", (identifier,))
-    attempt_row = cursor.fetchone()
-    now_dt = datetime.now(timezone.utc)
+    try:
+        # Rate Limiting check
+        identifier = login_data.email
+        cursor.execute("SELECT attempts, lockout_until FROM login_attempts WHERE ip_address = %s", (identifier,))
+        attempt_row = cursor.fetchone()
+        now_dt = datetime.now(timezone.utc)
 
-    if attempt_row and attempt_row["lockout_until"]:
-        lockout_time = datetime.fromisoformat(attempt_row["lockout_until"])
-        if now_dt < lockout_time:
-            remaining = int((lockout_time - now_dt).total_seconds() / 60)
-            raise HTTPException(status_code=429, detail=f"Demasiados intentos. Intenta de nuevo en {remaining} minutos.")
+        if attempt_row and attempt_row["lockout_until"]:
+            try:
+                lockout_time = datetime.fromisoformat(attempt_row["lockout_until"])
+            except (ValueError, TypeError):
+                # Formato corrupto: limpiar el lockout y continuar
+                cursor.execute("UPDATE login_attempts SET attempts = 0, lockout_until = NULL WHERE ip_address = %s", (identifier,))
+                db.commit()
+                lockout_time = None
+
+            if lockout_time and now_dt < lockout_time:
+                remaining = int((lockout_time - now_dt).total_seconds() / 60)
+                raise HTTPException(status_code=429, detail=f"Demasiados intentos. Intenta de nuevo en {remaining} minutos.")
+            elif lockout_time:
+                cursor.execute("UPDATE login_attempts SET attempts = 0, lockout_until = NULL WHERE ip_address = %s", (identifier,))
+                db.commit()
+
+        cursor.execute(
+            "SELECT id, name, email, hashed_password, role, rayos_balance, is_banned, google_id, email_verified FROM users WHERE email = %s",
+            (login_data.email,),
+        )
+        row = cursor.fetchone()
+
+        if row:
+            stored_hash = row["hashed_password"]
+            try:
+                # Si el usuario tiene google_id vinculado, permitir login sin password (o con password si tiene)
+                if row.get("google_id") and not stored_hash:
+                    pwd_check = True  # Usuario de Google, no necesita password
+                else:
+                    pwd_check = verify_password(login_data.password, stored_hash)
+            except Exception as verify_err:
+                print(f"[LOGIN-DEBUG] Error en verify_password: {verify_err}")
+                pwd_check = False
         else:
-            cursor.execute("UPDATE login_attempts SET attempts = 0, lockout_until = NULL WHERE ip_address = %s", (identifier,))
-            db.commit()
-
-    cursor.execute(
-        "SELECT id, name, email, hashed_password, role, rayos_balance, is_banned, google_id, email_verified FROM users WHERE email = %s",
-        (login_data.email,),
-    )
-    row = cursor.fetchone()
-
-    # Debug logging para diagnosticar problema de reset-password
-    if row:
-        stored_hash = row["hashed_password"]
-        try:
-            # Si el usuario tiene google_id vinculado, permitir login sin password (o con password si tiene)
-            if row.get("google_id") and not stored_hash:
-                pwd_check = True  # Usuario de Google, no necesita password
-            else:
-                pwd_check = verify_password(login_data.password, stored_hash)
-        except Exception as verify_err:
-            print(f"[LOGIN-DEBUG] Error en verify_password: {verify_err}")
             pwd_check = False
-        print(f"[LOGIN-DEBUG] Usuario ID={row['id']}, email={row['email']}")
-        print(f"[LOGIN-DEBUG] Hash almacenado empieza con: {stored_hash[:25] if stored_hash else 'empty'}...")
-        print(f"[LOGIN-DEBUG] Verificacion resultado: {pwd_check}")
-    else:
-        pwd_check = False
-        print(f"[LOGIN-DEBUG] No se encontro usuario con email: {login_data.email}")
 
-    if not row or not pwd_check:
-        # Increment attempt
-        if attempt_row:
-            new_attempts = attempt_row["attempts"] + 1
-            lockout_until = None
-            if new_attempts >= 5:
-                lockout_until = (now_dt + timedelta(minutes=15)).isoformat()
-            cursor.execute("UPDATE login_attempts SET attempts = %s, lockout_until = %s WHERE ip_address = %s", (new_attempts, lockout_until, identifier))
-        else:
-            cursor.execute("INSERT INTO login_attempts (ip_address, attempts) VALUES (%s, 1)", (identifier,))
+        if not row or not pwd_check:
+            # Increment attempt
+            if attempt_row:
+                new_attempts = attempt_row["attempts"] + 1
+                lockout_until = None
+                if new_attempts >= 5:
+                    lockout_until = (now_dt + timedelta(minutes=15)).isoformat()
+                cursor.execute("UPDATE login_attempts SET attempts = %s, lockout_until = %s WHERE ip_address = %s", (new_attempts, lockout_until, identifier))
+            else:
+                cursor.execute("INSERT INTO login_attempts (ip_address, attempts) VALUES (%s, 1)", (identifier,))
+            db.commit()
+            raise HTTPException(status_code=400, detail="Credenciales incorrectas")
+
+        # Reset attempts on success
+        cursor.execute("DELETE FROM login_attempts WHERE ip_address = %s", (identifier,))
         db.commit()
-        raise HTTPException(status_code=400, detail="Credenciales incorrectas")
 
-    # Reset attempts on success
-    cursor.execute("DELETE FROM login_attempts WHERE ip_address = %s", (identifier,))
-    db.commit()
+        if row.get("is_banned"):
+            raise HTTPException(status_code=403, detail="Tu cuenta ha sido suspendida")
 
-    if row.get("is_banned"):
-        raise HTTPException(status_code=403, detail="Tu cuenta ha sido suspendida")
+        user_id = row["id"]
+        set_auth_cookies(
+            response,
+            create_access_token(user_id, row["email"]),
+            create_refresh_token(user_id),
+        )
 
-    user_id = row["id"]
-    set_auth_cookies(
-        response,
-        create_access_token(user_id, row["email"]),
-        create_refresh_token(user_id),
-    )
-
-    return {
-        "_id": str(user_id),
-        "id": str(user_id),
-        "email": row["email"],
-        "name": row["name"],
-        "role": row["role"],
-        "rayos_balance": row["rayos_balance"],
-    }
+        return {
+            "_id": str(user_id),
+            "id": str(user_id),
+            "email": row["email"],
+            "name": row["name"],
+            "role": row["role"],
+            "rayos_balance": row["rayos_balance"],
+        }
+    finally:
+        db.close()
 
 
 class ForgotPasswordRequest(BaseModel):

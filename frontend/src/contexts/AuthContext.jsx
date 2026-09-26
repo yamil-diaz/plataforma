@@ -94,8 +94,8 @@ export const AuthProvider = ({ children }) => {
     const { data } = await axios.post(`${API}/register`, { name, email, password, ref: ref || undefined });
     // El backend ahora devuelve { requires_verification: true, email, user_id } en lugar de loguear directamente
     if (data.requires_verification) {
-      // No hacer login automatico, solo devolver la data para que el frontend redirija
-      return data;
+      // Lanzar error para que RegisterPage redirija a /verify-email
+      throw { response: { data } };
     }
     setUser(data);
     return data;
