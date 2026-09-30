@@ -1,6 +1,13 @@
 # ── Stage 1: Build frontend ──────────────────────────────────────────────────
 FROM node:20-alpine AS frontend-build
 WORKDIR /app/frontend
+
+# Variables VITE (se inyectan en el build con --build-arg)
+ARG VITE_PADDLE_CLIENT_TOKEN
+ARG VITE_PADDLE_ENVIRONMENT
+ENV VITE_PADDLE_CLIENT_TOKEN=$VITE_PADDLE_CLIENT_TOKEN
+ENV VITE_PADDLE_ENVIRONMENT=$VITE_PADDLE_ENVIRONMENT
+
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
@@ -24,7 +31,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./
 
 # Copiar frontend buildado desde stage 1
-COPY --from=frontend-build /app/frontend/dist ./frontend_dist
+COPY --from=frontend-build /app/backend/frontend_dist ./frontend_dist
 
 # Crear directorios de storage
 RUN mkdir -p /data/aeternum/books /data/aeternum/covers /data/aeternum/videos /data/aeternum/temp
