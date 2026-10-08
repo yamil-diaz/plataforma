@@ -76,7 +76,19 @@ export const AuthProvider = ({ children }) => {
       const { data } = await axios.get(`${API}/me`);
       if (epoch === authEpochRef.current) setUser(data);
     } catch (error) {
-      if (epoch === authEpochRef.current) setUser(null);
+      // Access token vencido (Max-Age1h): refresh silencioso con el
+      // refresh_token y reintento. Sin esto, cada sesión >1h rebotaba al login.
+      if (error?.response?.status === 401) {
+        try {
+          await axios.post(`${API}/refresh-token`);
+          const retry = await axios.get(`${API}/me`);
+          if (epoch === authEpochRef.current) setUser(retry.data);
+        } catch (_) {
+          if (epoch === authEpochRef.current) setUser(null);
+        }
+      } else if (epoch === authEpochRef.current) {
+        setUser(null);
+      }
     } finally {
       if (epoch === authEpochRef.current) setLoading(false);
     }
