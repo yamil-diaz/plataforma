@@ -1,11 +1,7 @@
-version: "3.8"
-
 services:
-  # ── PostgreSQL ──────────────────────────────────────────────────────────────
   db:
     image: postgres:16-alpine
     restart: always
-    command: ["postgres", "-c", "max_connections=200", "-c", "idle_in_transaction_session_timeout=30s"]
     environment:
       POSTGRES_DB: aeternum
       POSTGRES_USER: aeternum
@@ -19,15 +15,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
-  # ── FastAPI App ─────────────────────────────────────────────────────────────
   app:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
+    build: .
     restart: always
     ports:
-      - "127.0.0.1:8000:8000"
+      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -35,10 +27,10 @@ services:
       - DATABASE_URL=postgresql://aeternum:${DB_PASSWORD:-cambiar_esto_seguro}@db:5432/aeternum
       - SECRET_KEY=${SECRET_KEY:-generar-con-openssl-rand-hex-32}
       - ENV=production
-      - RENDER=false
+      - RENDER=true
       - STORAGE_DIR=/data/aeternum
-      - DB_POOL_MAX=20
       - CORS_ORIGINS=${CORS_ORIGINS:-https://aeternumlibrary.com}
+      - FRONTEND_URL=${FRONTEND_URL:-https://aeternumlibrary.com}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
       - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-}
@@ -47,10 +39,12 @@ services:
       - PADDLE_CLIENT_TOKEN=${PADDLE_CLIENT_TOKEN:-}
       - PADDLE_WEBHOOK_SECRET=${PADDLE_WEBHOOK_SECRET:-}
       - PADDLE_ENVIRONMENT=${PADDLE_ENVIRONMENT:-sandbox}
+      - CULQI_PUBLIC_KEY=${CULQI_PUBLIC_KEY:-}
+      - CULQI_SECRET_KEY=${CULQI_SECRET_KEY:-}
+      - CULQI_WEBHOOK_SECRET=${CULQI_WEBHOOK_SECRET:-}
+      - CULQI_ENVIRONMENT=${CULQI_ENVIRONMENT:-production}
     volumes:
       - aeternum-data:/data/aeternum
-
-  # ── Nginx (HTTPS + Reverse Proxy) ──────────────────────────────────────────
   nginx:
     image: nginx:alpine
     restart: always
@@ -65,15 +59,12 @@ services:
       - ./certbot/www:/var/www/certbot:ro
       - aeternum-data:/data/aeternum:ro
     command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
-
-  # ── Certbot (HTTPS automático) ─────────────────────────────────────────────
   certbot:
     image: certbot/certbot
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-
 volumes:
   pgdata:
   aeternum-data:
