@@ -13,13 +13,42 @@
           "modelID": "nemotron-3-ultra-free",
           "reasoning": true
         },
-        "oc/mimo-v2.5-free": {
-          "name": "MiMo V2.5 Free",
-          "modelID": "mimo-v2.5-free",
+        "oc/mimo-v2.6-flash-free": {
+          "name": "MiMo V2.6 Flash Free",
+          "modelID": "mimo-v2.6-flash-free",
           "reasoning": true
         }
       }
     }
   },
-  "model": "omniroute/oc/mimo-v2.5-free"
+  "model": "omniroute/oc/mimo-v2.6-flash-free",
+  "permission": {
+    "bash": {
+      "ssh *": "allow",
+      "docker *": "allow",
+      "curl *": "allow",
+      "nslookup *": "allow",
+      "Resolve-DnsName *": "allow",
+      "git status*": "allow",
+      "git log*": "allow",
+      "git diff*": "allow",
+      "*": "ask"
+    }
+  },
+  "mcp": {
+    "github": {
+      "type": "remote",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "enabled": false,
+      "headers": {
+        "Authorization": "Bearer {env:GITHUB_TOKEN}"
+      }
+    },
+    "playwright": {
+      "type": "local",
+      "command": ["npx", "@playwright/mcp@latest", "--browser", "chromium"],
+      "enabled": true,
+      "environment": {}
+    }
+  }
 }
