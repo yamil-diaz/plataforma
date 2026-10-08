@@ -145,7 +145,7 @@ export default function ForumCreatePage() {
                 ) : (
                   <span />
                 )}
-                <span className={`text-xs ${title.length > 180 ? 'text-[#D92B2B]' : 'text-[#606060]'}`}>
+                <span className={`text-xs ${title.length > 180 ? 'text-[#D92B2B]' : 'text-[#A0A0A0]'}`}>
                   {title.length}/200
                 </span>
               </div>
@@ -156,12 +156,12 @@ export default function ForumCreatePage() {
                 Categoría
               </label>
               {loading ? (
-                <div className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-sm text-[#606060]">
+                <div className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-sm text-[#A0A0A0]">
                   Cargando categorías...
                 </div>
               ) : (
                 <div className="relative">
-                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#606060]" />
+                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A0A0A0]" />
                   <select
                     value={categoryId}
                     onChange={(e) => setCategoryId(e.target.value)}
@@ -188,7 +188,7 @@ export default function ForumCreatePage() {
                 Libro asociado (opcional)
               </label>
               <div className="relative">
-                <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#606060]" />
+                <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A0A0A0]" />
                 <input
                   type="number"
                   value={bookId}
@@ -225,7 +225,7 @@ export default function ForumCreatePage() {
                 ) : (
                   <span />
                 )}
-                <span className={`text-xs ${content.length > 9500 ? 'text-[#D92B2B]' : 'text-[#606060]'}`}>
+                <span className={`text-xs ${content.length > 9500 ? 'text-[#D92B2B]' : 'text-[#A0A0A0]'}`}>
                   {content.length.toLocaleString()}/10,000
                 </span>
               </div>

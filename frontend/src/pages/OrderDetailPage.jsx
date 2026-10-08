@@ -65,7 +65,7 @@ export default function OrderDetailPage() {
     switch (provider) {
       case 'paddle': return 'Paddle';
       case 'culqi': return 'Culqi';
-      case 'flow': return 'Flow';
+      case 'flow': return 'Otro (legado)';
       default: return provider || 'Desconocido';
     }
   };

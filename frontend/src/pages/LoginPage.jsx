@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Zap, Mail, Lock, AlertCircle, Chrome, Loader2 } from 'lucide-react';
+import { formatApiError } from '../utils/apiError';
 import axios from 'axios';
 
 const API = import.meta.env.VITE_API_URL || '/api';
@@ -29,7 +30,14 @@ export default function LoginPage() {
         navigate('/');
       }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error al iniciar sesión. Revisa tus credenciales.');
+      const detail = err?.response?.data?.detail;
+      if (err?.response?.status === 429) {
+        setError(typeof detail === 'string' ? detail : 'Demasiados intentos. Espera un momento y vuelve a intentar.');
+      } else if (err?.response?.status === 400) {
+        setError(typeof detail === 'string' ? detail : 'Correo o contraseña incorrectos. Si te registraste con Google, usa el botón de Google.');
+      } else {
+        setError(formatApiError(err, 'Error al iniciar sesión. Revisa tus credenciales.'));
+      }
     } finally {
       setLoading(false);
     }
@@ -42,22 +50,18 @@ export default function LoginPage() {
       const { data } = await axios.get(`${API}/auth/google`);
       window.location.href = data.auth_url;
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error al iniciar sesión con Google');
+      setError(formatApiError(err, 'Error al iniciar sesión con Google'));
       setGoogleLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A] px-4 relative overflow-hidden">
-      {/* Elementos Decorativos de Fondo */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#D92B2B]/5 rounded-full blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-1/3 right-1/4 w-96 h-96 bg-[#D4AF37]/5 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="w-full max-w-md bg-[#121212] border border-white/10 p-8 rounded-2xl relative z-10">
 
-      <div className="w-full max-w-md bg-[#121212] border border-white/10 p-8 rounded-2xl shadow-2xl backdrop-blur-sm relative z-10">
-        
         {/* Encabezado */}
         <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-xl bg-[#D92B2B] flex items-center justify-center mx-auto mb-4 shadow-lg shadow-[#D92B2B]/20 animate-bounce">
+          <div className="w-12 h-12 rounded-xl bg-[#D92B2B] flex items-center justify-center mx-auto mb-4">
             <Zap className="w-6 h-6 text-white fill-white" />
           </div>
           <h2 className="text-3xl font-bold tracking-tight text-white font-['Outfit']">Bienvenido de nuevo</h2>
@@ -75,30 +79,32 @@ export default function LoginPage() {
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Correo Electrónico</label>
+            <label htmlFor="login-email" className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Correo Electrónico</label>
             <div className="relative">
-              <Mail className="absolute left-3.5 top-3.5 w-5 h-5 text-[#606060]" />
+              <Mail className="absolute left-3.5 top-3.5 w-5 h-5 text-[#A0A0A0]" />
               <input
+                id="login-email"
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg pl-11 pr-4 py-3.5 text-[#F5F5F5] placeholder-[#505050] focus:outline-none focus:border-[#D92B2B] transition-colors"
+                className="ae-input w-full pl-11 pr-4 py-3.5 text-[#F5F5F5] placeholder-[#707070]"
                 placeholder="ejemplo@plataforma.com"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Contraseña</label>
+            <label htmlFor="login-password" className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Contraseña</label>
             <div className="relative">
-              <Lock className="absolute left-3.5 top-3.5 w-5 h-5 text-[#606060]" />
+              <Lock className="absolute left-3.5 top-3.5 w-5 h-5 text-[#A0A0A0]" />
               <input
+                id="login-password"
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg pl-11 pr-4 py-3.5 text-[#F5F5F5] placeholder-[#505050] focus:outline-none focus:border-[#D92B2B] transition-colors"
+                className="ae-input w-full pl-11 pr-4 py-3.5 text-[#F5F5F5] placeholder-[#707070]"
                 placeholder="••••••••"
               />
             </div>
@@ -107,7 +113,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#D92B2B] hover:bg-[#F03C3C] text-white font-semibold py-3.5 rounded-lg transition-all duration-200 shadow-lg shadow-[#D92B2B]/20 flex items-center justify-center gap-2 disabled:opacity-50"
+            className="ae-btn ae-btn-primary w-full py-3.5 disabled:opacity-50"
           >
             {loading ? 'Iniciando sesión...' : 'Ingresar'}
           </button>
@@ -118,7 +124,7 @@ export default function LoginPage() {
           type="button"
           onClick={handleGoogleSignIn}
           disabled={loading || googleLoading}
-          className="w-full flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold py-3.5 rounded-lg transition-all duration-200 disabled:opacity-50 mb-6"
+          className="ae-btn ae-btn-ghost w-full py-3.5 disabled:opacity-50 mb-6 mt-6"
         >
           <Chrome className="w-5 h-5" />
           <span>{googleLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Continuar con Google'}</span>

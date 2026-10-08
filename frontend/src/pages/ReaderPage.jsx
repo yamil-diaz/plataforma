@@ -359,7 +359,7 @@ export default function ReaderPage() {
               <div className="flex flex-wrap gap-3">
                 <Link
                   to={`/checkout?book_id=${book.id}`}
-                  className="inline-flex items-center gap-2 bg-[#D92B2B] hover:bg-[#F03C3C] text-white font-bold px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-[#D92B2B]/20 text-sm"
+                  className="inline-flex items-center gap-2 bg-[#D92B2B] hover:bg-[#F03C3C] text-white font-bold px-5 py-2.5 rounded-xl transition-all text-sm"
                 >
                   <CreditCard className="w-4 h-4" />
                   Comprar — ${parseFloat(book.price).toFixed(2)}
@@ -406,7 +406,7 @@ export default function ReaderPage() {
                 href={`${API}/books/${book._id || book.id}/download`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 bg-[#D92B2B] hover:bg-[#F03C3C] text-white font-semibold px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg transition-all duration-200 shadow-lg shadow-[#D92B2B]/20 text-sm sm:text-base"
+                className="inline-flex items-center gap-2 bg-[#D92B2B] hover:bg-[#F03C3C] text-white font-semibold px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg transition-all duration-200 text-sm sm:text-base"
               >
                 <Download className="w-5 h-5" />
                 Descargar PDF
@@ -667,7 +667,7 @@ export default function ReaderPage() {
       {/* Notificación de Recompensa de Meta Diaria */}
       {showReward && (
         <div
-          className="fixed top-20 sm:top-24 right-3 sm:right-6 bg-[#D4AF37]/20 border border-[#D4AF37] rounded-lg px-4 sm:px-6 py-3 sm:py-4 flex items-center gap-3 shadow-xl backdrop-blur-sm z-50 animate-bounce"
+          className="fixed top-20 sm:top-24 right-3 sm:right-6 bg-[#D4AF37]/20 border border-[#D4AF37] rounded-lg px-4 sm:px-6 py-3 sm:py-4 flex items-center gap-3 shadow-xl backdrop-blur-sm z-50"
           data-testid="rayos-reward-notification"
         >
           <Zap className="w-6 h-6 text-[#D4AF37]" />

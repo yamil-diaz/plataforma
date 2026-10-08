@@ -3,8 +3,9 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
+import { useCart } from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
-import { Star, Eye, Heart, BookOpen, Search, Trash2, CreditCard, Clock, Truck } from 'lucide-react';
+import { Star, Eye, Heart, BookOpen, Search, Trash2, CreditCard, Clock, Truck, ShoppingCart } from 'lucide-react';
 import { API } from '../config/api';
 
 export default function HomePage() {
@@ -13,31 +14,25 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
+  const { add: addToCart } = useCart();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  
-  const heroPhrases = [
-    "Descubre Nuevos Mundos",
-    "Aprende Sin Límites",
-    "Vive Mil Vidas",
-    "Expande Tu Mente"
-  ];
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentPhraseIndex((prev) => (prev + 1) % heroPhrases.length);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     const ptxn = searchParams.get('_ptxn');
     if (ptxn) {
       navigate(`/checkout/result?_ptxn=${encodeURIComponent(ptxn)}`, { replace: true });
+      return;
     }
-  }, [searchParams, navigate]);
+    // Google OAuth backend redirect: ?oauth=success
+    const oauth = searchParams.get('oauth');
+    if (oauth) {
+      const next = oauth === 'success' ? '/' : '/login';
+      refreshUser?.();
+      navigate(next, { replace: true });
+    }
+  }, [searchParams, navigate, refreshUser]);
 
   const loadBooks = async () => {
     setLoading(true);
@@ -75,7 +70,7 @@ export default function HomePage() {
     if (!window.confirm('¿Estás seguro de que deseas eliminar este libro?')) return;
 
     try {
-      await axios.delete(`${API}/books/${bookId}`);
+      await axios.delete(`${API}/books/${bookId}`, { withCredentials: true });
       loadBooks(); // Recargar catálogo
     } catch (error) {
       alert(error.response?.data?.detail || 'Error al eliminar el libro');
@@ -95,13 +90,12 @@ export default function HomePage() {
       <Navbar />
 
       {/* Hero Section */}
-      <header className="max-w-7xl mx-auto px-6 pt-16 pb-12 text-center relative">
-        <div className="absolute top-10 left-1/2 -translate-x-1/2 w-80 h-80 bg-[#D92B2B]/5 rounded-full blur-[80px] pointer-events-none"></div>
-        <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-white mb-4 font-['Outfit']">
-          <span className="text-[#D92B2B] transition-opacity duration-500 ease-in-out">{heroPhrases[currentPhraseIndex]}</span> en Aeternum
+      <header className="max-w-7xl mx-auto px-6 pt-14 pb-10 text-center relative">
+        <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-white mb-4 font-['Outfit'] text-balance">
+          Lee, acumula Rayos y reseña en <span className="text-[#D92B2B]">Aeternum</span>
         </h1>
-        <p className="text-lg md:text-xl text-[#A0A0A0] max-w-2xl mx-auto">
-          La primera plataforma donde la lectura tiene recompensa. Acumula Rayos leyendo y deja tus reseñas y opiniones de estrellas.
+        <p className="text-base md:text-lg text-[#A0A0A0] max-w-2xl mx-auto">
+          Compra y alquila libros digitales, pide físicos en Perú y gana recompensas por cada lectura.
         </p>
       </header>
 
@@ -117,7 +111,7 @@ export default function HomePage() {
               <Link
                 key={book.id}
                 to={`/books/${book.id}`}
-                className="group bg-[#121212] border border-white/5 rounded-xl overflow-hidden hover:border-white/10 transition-all duration-300 flex flex-col relative shadow-xl hover:-translate-y-1 flex-shrink-0"
+                className="group bg-[#121212] border border-white/5 rounded-xl overflow-hidden hover:border-white/15 transition-[transform,border-color] duration-150 ease-ae-out flex flex-col relative hover:-translate-y-0.5 active:scale-[0.99] flex-shrink-0"
                 style={{ width: '200px' }}
               >
                 {/* Portada */}
@@ -125,7 +119,7 @@ export default function HomePage() {
                   <img
                     src={book.cover_image_url || "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400"}
                     alt={book.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-200 ease-ae-out"
                     loading="lazy"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-transparent to-transparent opacity-60"></div>
@@ -151,15 +145,15 @@ export default function HomePage() {
                         <>
                           <Star className="w-3 h-3 fill-[#D4AF37] text-[#D4AF37]" />
                           <span className="text-[11px] font-semibold text-[#D4AF37]">{book.average_rating}</span>
-                          <span className="text-[10px] text-[#606060]">({book.total_reviews})</span>
+                          <span className="text-[11px] text-[#A0A0A0]">({book.total_reviews})</span>
                         </>
                       ) : (
-                        <span className="text-[10px] text-[#606060]">Sin calificaciones</span>
+                        <span className="text-[11px] text-[#A0A0A0]">Sin calificaciones</span>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-3">
-                    <div className="flex items-center gap-2 text-[10px] text-[#606060]">
+                    <div className="flex items-center gap-2 text-[11px] text-[#A0A0A0]">
                       <span className="flex items-center gap-0.5">
                         <Eye className="w-3 h-3" />
                         {book.views}
@@ -170,7 +164,7 @@ export default function HomePage() {
                       </span>
                     </div>
                     <span className="text-xs font-bold text-[#D4AF37]">
-                      {book.price > 0 ? `$${book.price.toFixed(2)}` : 'GRATIS'}
+                      {book.price > 0 ? `S/ ${book.price.toFixed(2)}` : 'GRATIS'}
                     </span>
                   </div>
                 </div>
@@ -180,38 +174,38 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Controles de Búsqueda y Filtro */}
-      <section className="max-w-7xl mx-auto px-6 mb-12 flex flex-col md:flex-row items-center justify-between gap-6">
-        
-        {/* Categorías */}
-        <div className="flex flex-wrap gap-2.5 justify-center md:justify-start">
+      {/* Buscador principal */}
+      <section className="max-w-3xl mx-auto px-6 mb-8">
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#A0A0A0]" />
+          <input
+            type="text"
+            placeholder="Buscar por título o autor..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-[#121212] border border-white/10 rounded-lg pl-12 pr-4 py-3.5 text-base text-[#F5F5F5] placeholder-[#707070] focus:outline-none focus:border-[#D92B2B]/60 focus:ring-2 focus:ring-[#D92B2B]/15 transition-[border-color,box-shadow] duration-150 ease-ae-out"
+          />
+        </div>
+      </section>
+
+      {/* Categorías */}
+      <section className="max-w-7xl mx-auto px-6 mb-10">
+        <p className="text-[11px] font-bold tracking-[0.16em] uppercase text-[#A0A0A0] mb-3 px-1">Explorar por categoría</p>
+        <div className="flex flex-wrap gap-2">
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat === 'Todos' ? '' : cat)}
-              className={`px-4 py-2 rounded-full text-xs font-semibold tracking-wider uppercase border transition-all duration-200 ${
+              className={`px-4 py-2 rounded-lg text-xs font-semibold tracking-wide border transition-[background-color,color,border-color,transform] duration-150 ease-ae-out active:scale-[0.97] ${
                 (cat === 'Todos' && !selectedCategory) || selectedCategory === cat
-                  ? 'bg-[#D92B2B] text-white border-[#D92B2B] shadow-lg shadow-[#D92B2B]/20'
-                  : 'bg-transparent text-[#A0A0A0] border-white/10 hover:text-white hover:border-white/20'
+                  ? 'bg-[#D92B2B] text-white border-[#D92B2B]'
+                  : 'bg-[#0A0A0A]/60 text-[#A0A0A0] border-white/10 hover:text-white hover:border-white/25 hover:bg-white/[0.04]'
               }`}
             >
               {cat}
             </button>
           ))}
         </div>
-
-        {/* Buscador */}
-        <div className="relative w-full md:max-w-xs">
-          <Search className="absolute left-3 top-3 w-4.5 h-4.5 text-[#606060]" />
-          <input
-            type="text"
-            placeholder="Buscar libro o autor..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#121212] border border-white/10 rounded-full pl-10 pr-4 py-2.5 text-sm text-[#F5F5F5] placeholder-[#505050] focus:outline-none focus:border-[#D92B2B] transition-colors"
-          />
-        </div>
-
       </section>
 
       {/* Secciones destacadas por tipo */}
@@ -230,10 +224,10 @@ export default function HomePage() {
                   <Link
                     key={book.id}
                     to={`/books/${book.id}`}
-                    className="group bg-[#121212] border border-white/5 rounded-xl overflow-hidden hover:border-[#D92B2B]/30 transition-all duration-300 flex flex-col shadow-xl hover:-translate-y-1"
+                    className="group bg-[#121212] border border-white/5 rounded-xl overflow-hidden hover:border-[#D92B2B]/30 transition-[transform,border-color] duration-150 ease-ae-out flex flex-col hover:-translate-y-0.5 active:scale-[0.99]"
                   >
                     <div className="aspect-[3/4] overflow-hidden bg-[#181818]">
-                      <img src={book.cover_image_url || "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400"} alt={book.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                      <img src={book.cover_image_url || "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400"} alt={book.title} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-200 ease-ae-out" loading="lazy" />
                     </div>
                     <div className="p-4 flex-1 flex flex-col justify-between">
                       <div>
@@ -242,8 +236,8 @@ export default function HomePage() {
                         <p className="text-xs text-[#A0A0A0] mt-0.5">por {book.author_name}</p>
                       </div>
                       <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-3">
-                        <span className="text-xs text-[#606060] flex items-center gap-1"><Eye className="w-3 h-3" />{book.views}</span>
-                        <span className="text-xs font-bold text-[#D4AF37]">${parseFloat(book.price).toFixed(2)}</span>
+                        <span className="text-xs text-[#A0A0A0] flex items-center gap-1"><Eye className="w-3 h-3" />{book.views}</span>
+                        <span className="text-xs font-bold text-[#D4AF37]">S/ {parseFloat(book.price).toFixed(2)}</span>
                       </div>
                     </div>
                   </Link>
@@ -264,10 +258,10 @@ export default function HomePage() {
                   <Link
                     key={book.id}
                     to={`/books/${book.id}`}
-                    className="group bg-[#121212] border border-white/5 rounded-xl overflow-hidden hover:border-emerald-500/30 transition-all duration-300 flex flex-col shadow-xl hover:-translate-y-1"
+                    className="group bg-[#121212] border border-white/5 rounded-xl overflow-hidden hover:border-emerald-500/30 transition-[transform,border-color] duration-150 ease-ae-out flex flex-col hover:-translate-y-0.5 active:scale-[0.99]"
                   >
                     <div className="aspect-[3/4] overflow-hidden bg-[#181818]">
-                      <img src={book.cover_image_url || "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400"} alt={book.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                      <img src={book.cover_image_url || "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400"} alt={book.title} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-200 ease-ae-out" loading="lazy" />
                     </div>
                     <div className="p-4 flex-1 flex flex-col justify-between">
                       <div>
@@ -276,7 +270,7 @@ export default function HomePage() {
                         <p className="text-xs text-[#A0A0A0] mt-0.5">por {book.author_name}</p>
                       </div>
                       <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-3">
-                        <span className="text-xs text-[#606060] flex items-center gap-1"><Eye className="w-3 h-3" />{book.views}</span>
+                        <span className="text-xs text-[#A0A0A0] flex items-center gap-1"><Eye className="w-3 h-3" />{book.views}</span>
                         <span className="text-xs font-bold text-emerald-400">S/ {parseFloat(book.physical_price || 0).toFixed(2)}</span>
                       </div>
                     </div>
@@ -304,10 +298,10 @@ export default function HomePage() {
                   <Link
                     key={book.id}
                     to={`/books/${book.id}`}
-                    className="group bg-[#121212] border border-white/5 rounded-xl overflow-hidden hover:border-[#D4AF37]/30 transition-all duration-300 flex flex-col shadow-xl hover:-translate-y-1"
+                    className="group bg-[#121212] border border-white/5 rounded-xl overflow-hidden hover:border-[#D4AF37]/30 transition-[transform,border-color] duration-150 ease-ae-out flex flex-col hover:-translate-y-0.5 active:scale-[0.99]"
                   >
                     <div className="aspect-[3/4] overflow-hidden bg-[#181818]">
-                      <img src={book.cover_image_url || "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400"} alt={book.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                      <img src={book.cover_image_url || "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400"} alt={book.title} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-200 ease-ae-out" loading="lazy" />
                     </div>
                     <div className="p-4 flex-1 flex flex-col justify-between">
                       <div>
@@ -316,8 +310,8 @@ export default function HomePage() {
                         <p className="text-xs text-[#A0A0A0] mt-0.5">por {book.author_name}</p>
                       </div>
                       <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-3">
-                        <span className="text-xs text-[#606060]">Alquiler desde</span>
-                        <span className="text-xs font-bold text-[#D4AF37]">${parseFloat(book.price * 0.3).toFixed(2)}</span>
+                        <span className="text-xs text-[#A0A0A0]">Alquiler desde</span>
+                        <span className="text-xs font-bold text-[#D4AF37]">S/ {parseFloat(book.price * 0.3).toFixed(2)}</span>
                       </div>
                     </div>
                   </Link>
@@ -337,18 +331,18 @@ export default function HomePage() {
             Cargando catálogo de libros...
           </div>
         ) : filteredBooks.length === 0 ? (
-          <div className="text-center py-20 border border-white/5 bg-[#121212]/30 rounded-2xl text-[#A0A0A0]">
-            <BookOpen className="w-12 h-12 mx-auto mb-4 text-[#404040]" />
+          <div className="text-center py-20 border border-white/5 bg-[#121212]/30 rounded-xl text-[#A0A0A0]">
+            <BookOpen className="w-12 h-12 mx-auto mb-4 text-[#707070]" />
             <p className="text-lg font-medium">No se encontraron libros</p>
             <p className="text-sm mt-1">Intenta con otra búsqueda o categoría.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-5">
             {filteredBooks.map((book) => (
               <Link
                 key={book.id}
                 to={`/books/${book.id}`}
-                className="group bg-[#121212] border border-white/5 rounded-xl overflow-hidden hover:border-white/10 transition-all duration-300 flex flex-col relative shadow-xl hover:-translate-y-1"
+                className="group bg-[#121212] border border-white/5 rounded-xl overflow-hidden hover:border-white/15 transition-[transform,border-color] duration-150 ease-ae-out flex flex-col relative hover:-translate-y-0.5 active:scale-[0.99]"
               >
                 
                 {/* Botón de Borrar (Admin) */}
@@ -367,7 +361,7 @@ export default function HomePage() {
                   <img
                     src={book.cover_image_url || "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400"}
                     alt={book.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-200 ease-ae-out"
                     loading="lazy"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-transparent to-transparent opacity-60"></div>
@@ -386,7 +380,7 @@ export default function HomePage() {
                       {book.title}
                     </h3>
                     
-                    {/* Autor */}
+                    {/* Vendedor */}
                     <p className="text-xs text-[#A0A0A0] mt-1 line-clamp-1">
                       por {book.author_name}
                     </p>
@@ -397,17 +391,17 @@ export default function HomePage() {
                         <>
                           <Star className="w-3.5 h-3.5 fill-[#D4AF37] text-[#D4AF37]" />
                           <span className="text-xs font-semibold text-[#D4AF37]">{book.average_rating}</span>
-                          <span className="text-[10px] text-[#606060]">({book.total_reviews})</span>
+                          <span className="text-[11px] text-[#A0A0A0]">({book.total_reviews})</span>
                         </>
                       ) : (
-                        <span className="text-[10px] text-[#606060]">Sin calificaciones</span>
+                        <span className="text-[11px] text-[#A0A0A0]">Sin calificaciones</span>
                       )}
                     </div>
                   </div>
 
                   {/* Footer de Tarjeta */}
                   <div className="flex items-center justify-between border-t border-white/5 pt-4 mt-4">
-                    <div className="flex items-center gap-3 text-[11px] text-[#606060]">
+                    <div className="flex items-center gap-3 text-[11px] text-[#A0A0A0]">
                       <span className="flex items-center gap-1">
                         <Eye className="w-3.5 h-3.5" />
                         {book.views}
@@ -417,9 +411,23 @@ export default function HomePage() {
                         {book.likes}
                       </span>
                     </div>
-                    <span className="text-xs font-bold text-[#D4AF37]">
-                      {book.price > 0 ? `$${book.price.toFixed(2)}` : 'GRATIS'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          addToCart(book);
+                        }}
+                        className="p-2 bg-[#D4AF37]/15 hover:bg-[#D4AF37] text-[#D4AF37] hover:text-black rounded-lg transition-[background-color,color,transform] duration-150 ease-ae-out active:scale-[0.97]"
+                        title="Agregar al carrito"
+                      >
+                        <ShoppingCart className="w-4 h-4" />
+                      </button>
+                      <span className="text-xs font-bold text-[#D4AF37] tabular-nums">
+                        {book.price > 0 ? `S/ ${parseFloat(book.price).toFixed(2)}` : 'GRATIS'}
+                      </span>
+                    </div>
                   </div>
 
                 </div>

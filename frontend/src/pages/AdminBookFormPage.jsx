@@ -13,6 +13,7 @@ export default function AdminBookFormPage() {
   const [authorName, setAuthorName] = useState('');
   const [category, setCategory] = useState('Ficción');
   const [price, setPrice] = useState(0.0);
+  const [rentalPrice, setRentalPrice] = useState(0.0);
   const [pdfFile, setPdfFile] = useState(null);
   const [coverFile, setCoverFile] = useState(null);
   
@@ -64,6 +65,7 @@ export default function AdminBookFormPage() {
     formData.append('author_name', authorName);
     formData.append('category', category);
     formData.append('price', price);
+    formData.append('rental_price', rentalPrice || 0);
     formData.append('pdf_file', pdfFile);
     if (coverFile) {
       formData.append('cover_file', coverFile);
@@ -83,11 +85,22 @@ export default function AdminBookFormPage() {
       });
     } catch (err) {
       console.error(err);
+      const status = err.response?.status;
       const detail = err.response?.data?.detail;
       const detailMsg = Array.isArray(detail)
         ? detail.map(d => d.msg || JSON.stringify(d)).join(' · ')
         : detail;
-      setError(detailMsg || 'Error al subir el libro. Verifica el archivo e inténtalo de nuevo.');
+      if (status === 413) {
+        setError('El archivo es demasiado grande para el servidor. Máximo 50 MB.');
+      } else if (status === 409) {
+        setError(detailMsg || 'Ya existe un libro con el mismo contenido.');
+      } else if (status === 422) {
+        setError(detailMsg || 'El PDF no pudo procesarse. Prueba con otro archivo.');
+      } else if (!detail && !err.response) {
+        setError('No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.');
+      } else {
+        setError(detailMsg || 'Error al subir el libro. Verifica el archivo e inténtalo de nuevo.');
+      }
     } finally {
       setLoading(false);
     }
@@ -155,7 +168,7 @@ export default function AdminBookFormPage() {
                   required
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-[#F5F5F5] placeholder-[#505050] focus:outline-none focus:border-[#D92B2B] transition-colors"
+                  className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-[#F5F5F5] placeholder-[#707070] focus:outline-none focus:border-[#D92B2B] transition-colors"
                   placeholder="Ej. Cien Años de Soledad"
                 />
               </div>
@@ -167,14 +180,14 @@ export default function AdminBookFormPage() {
                   required
                   value={authorName}
                   onChange={(e) => setAuthorName(e.target.value)}
-                  className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-[#F5F5F5] placeholder-[#505050] focus:outline-none focus:border-[#D92B2B] transition-colors"
+                  className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-[#F5F5F5] placeholder-[#707070] focus:outline-none focus:border-[#D92B2B] transition-colors"
                   placeholder="Ej. Gabriel García Márquez"
                 />
               </div>
             </div>
 
             {/* Fila Categoría y Precio */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <label className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Categoría</label>
                 <select
@@ -191,16 +204,30 @@ export default function AdminBookFormPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Precio (Configurable)</label>
+                <label className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Precio compra (PEN)</label>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
                   required
                   value={price}
-                  onChange={(e) => setPrice(parseFloat(e.target.value))}
-                  className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-[#F5F5F5] placeholder-[#505050] focus:outline-none focus:border-[#D92B2B] transition-colors"
+                  onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+                  className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-[#F5F5F5] placeholder-[#707070] focus:outline-none focus:border-[#D92B2B] transition-colors"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Precio alquiler (PEN)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={rentalPrice}
+                  onChange={(e) => setRentalPrice(parseFloat(e.target.value) || 0)}
+                  placeholder="0 = 30% del precio"
+                  className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-[#F5F5F5] placeholder-[#707070] focus:outline-none focus:border-[#D92B2B] transition-colors"
+                />
+                <p className="text-[10px] text-[#A0A0A0] mt-1">Si dejas 0, se cobra 30% del precio de compra.</p>
               </div>
             </div>
 
@@ -211,7 +238,7 @@ export default function AdminBookFormPage() {
               <div className="border-2 border-dashed border-white/10 rounded-xl p-6 text-center hover:border-white/20 transition-colors flex flex-col items-center justify-center min-h-[180px]">
                 <FileText className="w-10 h-10 text-[#A0A0A0] mb-3" />
                 <span className="text-sm font-semibold text-white">Archivo PDF del Libro</span>
-                <span className="text-xs text-[#606060] mt-1 mb-4">Obligatorio · Máximo {MAX_PDF_SIZE_MB} MB (Sube el contenido del libro)</span>
+                <span className="text-xs text-[#A0A0A0] mt-1 mb-4">Obligatorio · Máximo {MAX_PDF_SIZE_MB} MB (Sube el contenido del libro)</span>
                 <input
                   type="file"
                   accept=".pdf"
@@ -242,7 +269,7 @@ export default function AdminBookFormPage() {
                   <>
                     <ImageIcon className="w-10 h-10 text-[#A0A0A0] mb-3" />
                     <span className="text-sm font-semibold text-white">Foto de Portada</span>
-                    <span className="text-xs text-[#606060] mt-1 mb-4">Opcional (Dejar en blanco para usar genérica)</span>
+                    <span className="text-xs text-[#A0A0A0] mt-1 mb-4">Opcional (Dejar en blanco para usar genérica)</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -259,7 +286,7 @@ export default function AdminBookFormPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#D92B2B] hover:bg-[#F03C3C] text-white font-semibold py-4 rounded-lg transition-all duration-200 shadow-lg shadow-[#D92B2B]/20 flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full bg-[#D92B2B] hover:bg-[#F03C3C] text-white font-semibold py-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {loading ? 'Subiendo y procesando libro...' : 'Publicar Libro'}
             </button>

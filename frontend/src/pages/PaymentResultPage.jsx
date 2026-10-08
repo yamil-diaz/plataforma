@@ -57,7 +57,7 @@ export default function PaymentResultPage() {
       if (pollCountRef.current > MAX_POLLS) {
         clearInterval(pollRef.current);
         setStatus('pending');
-        setMessage('El pago está tardando más de lo esperado. Puedes revisar en "Mis Libros" más tarde.');
+        setMessage('El pago está tardando más de lo esperado. Puedes revisar en "Mis Compras" más tarde.');
         return;
       }
       const data = await fetchOrderStatus();
@@ -105,7 +105,7 @@ export default function PaymentResultPage() {
   useEffect(() => {
     if (status === 'approved') {
       redirectTimerRef.current = setTimeout(() => {
-        navigate('/mis-libros');
+        navigate('/mis-compras');
       }, 5000);
     }
     return () => {
@@ -168,15 +168,15 @@ export default function PaymentResultPage() {
         <div className="flex flex-col gap-3 mt-8">
           {status === 'approved' && (
             <button
-              onClick={() => navigate('/mis-libros')}
+              onClick={() => navigate('/mis-compras')}
               className="w-full bg-[#D92B2B] hover:bg-[#F03C3C] text-white font-bold py-3 rounded-xl transition-all"
             >
-              Ir a Mis Libros
+              Ir a Mis Compras
             </button>
           )}
           {status === 'approved' && (
             <p className="text-[#A0A0A0] text-sm text-center">
-              Redirigiendo a Mis Libros en 5 segundos...
+              Redirigiendo a Mis Compras en 5 segundos...
             </p>
           )}
           {status === 'pending' && (

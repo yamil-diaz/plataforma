@@ -90,7 +90,7 @@ export default function ForumPage() {
         <div className="flex flex-col md:flex-row gap-4 mb-8">
           <form onSubmit={handleSearch} className="flex-1 flex gap-2">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#606060]" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A0A0A0]" />
               <input
                 type="text"
                 value={searchQuery}
@@ -165,9 +165,9 @@ export default function ForumPage() {
           </div>
         ) : posts.length === 0 ? (
           <div className="bg-[#121212] border border-white/5 rounded-xl p-12 text-center">
-            <MessageSquare className="w-12 h-12 mx-auto mb-4 text-[#404040]" />
+            <MessageSquare className="w-12 h-12 mx-auto mb-4 text-[#707070]" />
             <p className="text-lg font-medium text-[#A0A0A0]">No hay publicaciones aún</p>
-            <p className="text-sm mt-1 text-[#606060]">Sé el primero en crear una conversación</p>
+            <p className="text-sm mt-1 text-[#A0A0A0]">Sé el primero en crear una conversación</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -195,7 +195,7 @@ export default function ForumPage() {
                       <span>{new Date(post.created_at).toLocaleDateString('es-PE')}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 text-xs text-[#606060] shrink-0">
+                  <div className="flex items-center gap-4 text-xs text-[#A0A0A0] shrink-0">
                     <span className="flex items-center gap-1"><MessageSquare className="w-3.5 h-3.5" /> {post.reply_count || 0}</span>
                     <span className="flex items-center gap-1"><TrendingUp className="w-3.5 h-3.5" /> {post.like_count || 0}</span>
                     <span className="flex items-center gap-1"><Filter className="w-3.5 h-3.5" /> {post.views || 0}</span>

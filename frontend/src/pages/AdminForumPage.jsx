@@ -50,7 +50,7 @@ const STATUS_MAP = {
   deleted: { label: 'Eliminado', color: 'text-[#D92B2B]', bg: 'bg-[#D92B2B]/10' },
   pending: { label: 'Pendiente', color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
   resolved: { label: 'Resuelto', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-  dismissed: { label: 'Descartado', color: 'text-[#606060]', bg: 'bg-white/5' }
+  dismissed: { label: 'Descartado', color: 'text-[#A0A0A0]', bg: 'bg-white/5' }
 };
 
 export default function AdminForumPage() {
@@ -277,7 +277,7 @@ export default function AdminForumPage() {
         <div className="flex-1 flex flex-col items-center justify-center text-[#A0A0A0]">
           <Shield className="w-12 h-12 mb-4 text-[#D92B2B]" />
           <p className="text-lg">Acceso denegado</p>
-          <p className="text-sm text-[#606060] mt-2">Se requieren permisos de administrador</p>
+          <p className="text-sm text-[#A0A0A0] mt-2">Se requieren permisos de administrador</p>
         </div>
       </div>
     );
@@ -353,7 +353,7 @@ export default function AdminForumPage() {
           <div>
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-[#606060]" />
+                <Filter className="w-4 h-4 text-[#A0A0A0]" />
                 <select
                   value={postsStatusFilter}
                   onChange={(e) => setPostsStatusFilter(e.target.value)}
@@ -366,7 +366,7 @@ export default function AdminForumPage() {
                   <option value="deleted">Eliminado</option>
                 </select>
               </div>
-              <p className="text-sm text-[#606060]">{postsMeta.total} resultados</p>
+              <p className="text-sm text-[#A0A0A0]">{postsMeta.total} resultados</p>
             </div>
 
             {postsLoading ? (
@@ -375,7 +375,7 @@ export default function AdminForumPage() {
               </div>
             ) : posts.length === 0 ? (
               <div className="bg-[#121212] border border-white/10 rounded-xl p-12 text-center">
-                <FileText className="w-12 h-12 text-[#606060] mx-auto mb-4" />
+                <FileText className="w-12 h-12 text-[#A0A0A0] mx-auto mb-4" />
                 <p className="text-[#A0A0A0]">No se encontraron publicaciones</p>
               </div>
             ) : (
@@ -396,7 +396,7 @@ export default function AdminForumPage() {
                             )}
                           </div>
                           <h3 className="text-[#F5F5F5] font-medium mb-1 truncate">{post.title}</h3>
-                          <p className="text-[#606060] text-xs mb-2">
+                          <p className="text-[#A0A0A0] text-xs mb-2">
                             por {post.username} · {formatDate(post.created_at)} · {post.category_name || 'Sin categoría'}
                           </p>
                           <p className="text-[#A0A0A0] text-sm line-clamp-1">{post.content}</p>
@@ -407,7 +407,7 @@ export default function AdminForumPage() {
                             className={`p-2 rounded-lg transition-colors ${
                               post.pinned
                                 ? 'text-[#D4AF37] bg-[#D4AF37]/10'
-                                : 'text-[#606060] hover:text-[#D4AF37] hover:bg-[#D4AF37]/10'
+                                : 'text-[#A0A0A0] hover:text-[#D4AF37] hover:bg-[#D4AF37]/10'
                             }`}
                             title={post.pinned ? 'Desfijar' : 'Fijar'}
                           >
@@ -416,7 +416,7 @@ export default function AdminForumPage() {
                           {post.status !== 'active' && (
                             <button
                               onClick={() => handleStatusChange(post.id, 'active')}
-                              className="p-2 text-[#606060] hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                              className="p-2 text-[#A0A0A0] hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors"
                               title="Activar"
                             >
                               <Eye className="w-4 h-4" />
@@ -425,7 +425,7 @@ export default function AdminForumPage() {
                           {post.status !== 'hidden' && (
                             <button
                               onClick={() => handleStatusChange(post.id, 'hidden')}
-                              className="p-2 text-[#606060] hover:text-yellow-400 hover:bg-yellow-500/10 rounded-lg transition-colors"
+                              className="p-2 text-[#A0A0A0] hover:text-yellow-400 hover:bg-yellow-500/10 rounded-lg transition-colors"
                               title="Ocultar"
                             >
                               <EyeOff className="w-4 h-4" />
@@ -434,7 +434,7 @@ export default function AdminForumPage() {
                           {post.status !== 'closed' && (
                             <button
                               onClick={() => handleStatusChange(post.id, 'closed')}
-                              className="p-2 text-[#606060] hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
+                              className="p-2 text-[#A0A0A0] hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
                               title="Cerrar"
                             >
                               <Lock className="w-4 h-4" />
@@ -443,7 +443,7 @@ export default function AdminForumPage() {
                           {post.status !== 'deleted' && (
                             <button
                               onClick={() => handleStatusChange(post.id, 'deleted')}
-                              className="p-2 text-[#606060] hover:text-[#D92B2B] hover:bg-[#D92B2B]/10 rounded-lg transition-colors"
+                              className="p-2 text-[#A0A0A0] hover:text-[#D92B2B] hover:bg-[#D92B2B]/10 rounded-lg transition-colors"
                               title="Eliminar"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -460,7 +460,7 @@ export default function AdminForumPage() {
                     <button
                       onClick={() => setPostsPage(p => Math.max(1, p - 1))}
                       disabled={postsPage <= 1}
-                      className="p-2 text-[#606060] hover:text-[#F5F5F5] hover:bg-white/5 rounded-lg transition-colors disabled:opacity-30"
+                      className="p-2 text-[#A0A0A0] hover:text-[#F5F5F5] hover:bg-white/5 rounded-lg transition-colors disabled:opacity-30"
                     >
                       <ChevronLeft className="w-5 h-5" />
                     </button>
@@ -474,7 +474,7 @@ export default function AdminForumPage() {
                         className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
                           p === postsPage
                             ? 'bg-[#D92B2B] text-white'
-                            : 'text-[#606060] hover:text-[#F5F5F5] hover:bg-white/5'
+                            : 'text-[#A0A0A0] hover:text-[#F5F5F5] hover:bg-white/5'
                         }`}
                       >
                         {p}
@@ -483,7 +483,7 @@ export default function AdminForumPage() {
                     <button
                       onClick={() => setPostsPage(p => Math.min(postsMeta.pages, p + 1))}
                       disabled={postsPage >= postsMeta.pages}
-                      className="p-2 text-[#606060] hover:text-[#F5F5F5] hover:bg-white/5 rounded-lg transition-colors disabled:opacity-30"
+                      className="p-2 text-[#A0A0A0] hover:text-[#F5F5F5] hover:bg-white/5 rounded-lg transition-colors disabled:opacity-30"
                     >
                       <ChevronRight className="w-5 h-5" />
                     </button>
@@ -498,7 +498,7 @@ export default function AdminForumPage() {
           <div>
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-[#606060]" />
+                <Filter className="w-4 h-4 text-[#A0A0A0]" />
                 <select
                   value={reportsStatusFilter}
                   onChange={(e) => setReportsStatusFilter(e.target.value)}
@@ -510,7 +510,7 @@ export default function AdminForumPage() {
                   <option value="dismissed">Descartado</option>
                 </select>
               </div>
-              <p className="text-sm text-[#606060]">{reportsMeta.total} resultados</p>
+              <p className="text-sm text-[#A0A0A0]">{reportsMeta.total} resultados</p>
             </div>
 
             {reportsLoading ? (
@@ -519,7 +519,7 @@ export default function AdminForumPage() {
               </div>
             ) : reports.length === 0 ? (
               <div className="bg-[#121212] border border-white/10 rounded-xl p-12 text-center">
-                <Flag className="w-12 h-12 text-[#606060] mx-auto mb-4" />
+                <Flag className="w-12 h-12 text-[#A0A0A0] mx-auto mb-4" />
                 <p className="text-[#A0A0A0]">No se encontraron reportes</p>
               </div>
             ) : (
@@ -540,7 +540,7 @@ export default function AdminForumPage() {
                           <p className="text-[#F5F5F5] text-sm mb-1">
                             Reportado por: <span className="text-[#D4AF37]">{report.reporter_username}</span>
                           </p>
-                          <p className="text-[#606060] text-xs mb-2">
+                          <p className="text-[#A0A0A0] text-xs mb-2">
                             {formatDate(report.created_at)}
                             {report.target_type && ` · Tipo: ${report.target_type}`}
                           </p>
@@ -548,7 +548,7 @@ export default function AdminForumPage() {
                             <p className="text-[#A0A0A0] text-sm mb-2 italic">"{report.explanation}"</p>
                           )}
                           {report.admin_note && (
-                            <p className="text-[#606060] text-xs mt-2">
+                            <p className="text-[#A0A0A0] text-xs mt-2">
                               <Shield className="w-3 h-3 inline mr-1" />
                               Nota admin: {report.admin_note}
                             </p>
@@ -576,7 +576,7 @@ export default function AdminForumPage() {
                     <button
                       onClick={() => setReportsPage(p => Math.max(1, p - 1))}
                       disabled={reportsPage <= 1}
-                      className="p-2 text-[#606060] hover:text-[#F5F5F5] hover:bg-white/5 rounded-lg transition-colors disabled:opacity-30"
+                      className="p-2 text-[#A0A0A0] hover:text-[#F5F5F5] hover:bg-white/5 rounded-lg transition-colors disabled:opacity-30"
                     >
                       <ChevronLeft className="w-5 h-5" />
                     </button>
@@ -590,7 +590,7 @@ export default function AdminForumPage() {
                         className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
                           p === reportsPage
                             ? 'bg-[#D92B2B] text-white'
-                            : 'text-[#606060] hover:text-[#F5F5F5] hover:bg-white/5'
+                            : 'text-[#A0A0A0] hover:text-[#F5F5F5] hover:bg-white/5'
                         }`}
                       >
                         {p}
@@ -599,7 +599,7 @@ export default function AdminForumPage() {
                     <button
                       onClick={() => setReportsPage(p => Math.min(reportsMeta.pages, p + 1))}
                       disabled={reportsPage >= reportsMeta.pages}
-                      className="p-2 text-[#606060] hover:text-[#F5F5F5] hover:bg-white/5 rounded-lg transition-colors disabled:opacity-30"
+                      className="p-2 text-[#A0A0A0] hover:text-[#F5F5F5] hover:bg-white/5 rounded-lg transition-colors disabled:opacity-30"
                     >
                       <ChevronRight className="w-5 h-5" />
                     </button>
@@ -642,7 +642,7 @@ export default function AdminForumPage() {
                       <div className="flex-1 min-w-0">
                         <h3 className="text-[#F5F5F5] font-medium">{cat.name}</h3>
                         {cat.description && (
-                          <p className="text-[#606060] text-xs truncate">{cat.description}</p>
+                          <p className="text-[#A0A0A0] text-xs truncate">{cat.description}</p>
                         )}
                       </div>
                     </div>
@@ -653,13 +653,13 @@ export default function AdminForumPage() {
                           setCategoryName(cat.name);
                           setCategoryDesc(cat.description || '');
                         }}
-                        className="p-2 text-[#606060] hover:text-[#D4AF37] hover:bg-[#D4AF37]/10 rounded-lg transition-colors"
+                        className="p-2 text-[#A0A0A0] hover:text-[#D4AF37] hover:bg-[#D4AF37]/10 rounded-lg transition-colors"
                       >
                         <Edit3 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleCategoryDeactivate(cat.id)}
-                        className="p-2 text-[#606060] hover:text-[#D92B2B] hover:bg-[#D92B2B]/10 rounded-lg transition-colors"
+                        className="p-2 text-[#A0A0A0] hover:text-[#D92B2B] hover:bg-[#D92B2B]/10 rounded-lg transition-colors"
                       >
                         <XCircle className="w-4 h-4" />
                       </button>
@@ -681,7 +681,7 @@ export default function AdminForumPage() {
               </div>
             ) : auditLogs.length === 0 ? (
               <div className="bg-[#121212] border border-white/10 rounded-xl p-12 text-center">
-                <ClipboardList className="w-12 h-12 text-[#606060] mx-auto mb-4" />
+                <ClipboardList className="w-12 h-12 text-[#A0A0A0] mx-auto mb-4" />
                 <p className="text-[#A0A0A0]">No hay registros de auditoría</p>
               </div>
             ) : (
@@ -699,7 +699,7 @@ export default function AdminForumPage() {
                     <tbody>
                       {auditLogs.map((log, idx) => (
                         <tr key={log.id || idx} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
-                          <td className="px-5 py-3 text-[#606060] whitespace-nowrap">
+                          <td className="px-5 py-3 text-[#A0A0A0] whitespace-nowrap">
                             {formatDate(log.created_at || log.timestamp)}
                           </td>
                           <td className="px-5 py-3 text-[#D4AF37] whitespace-nowrap">
@@ -728,7 +728,7 @@ export default function AdminForumPage() {
                 <h3 className="text-lg font-semibold text-[#F5F5F5]">Resolver reporte</h3>
                 <button
                   onClick={() => { setResolveModal({ open: false, report: null }); setAdminNote(''); }}
-                  className="p-1 text-[#606060] hover:text-[#F5F5F5] transition-colors"
+                  className="p-1 text-[#A0A0A0] hover:text-[#F5F5F5] transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -800,7 +800,7 @@ export default function AdminForumPage() {
                 </h3>
                 <button
                   onClick={() => { setCategoryModal({ open: false, edit: null }); setCategoryName(''); setCategoryDesc(''); }}
-                  className="p-1 text-[#606060] hover:text-[#F5F5F5] transition-colors"
+                  className="p-1 text-[#A0A0A0] hover:text-[#F5F5F5] transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>

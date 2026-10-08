@@ -65,15 +65,20 @@ axios.interceptors.response.use(
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Época de auth: evita que /me lento borre un login recién completado
+  // (típico en /auth/google/callback: checkAuth corre al montar y el OAuth
+  // termina después; si /me devuelve 401 pisaba la sesión).
+  const authEpochRef = React.useRef(0);
 
   const checkAuth = async () => {
+    const epoch = authEpochRef.current;
     try {
       const { data } = await axios.get(`${API}/me`);
-      setUser(data);
+      if (epoch === authEpochRef.current) setUser(data);
     } catch (error) {
-      setUser(null);
+      if (epoch === authEpochRef.current) setUser(null);
     } finally {
-      setLoading(false);
+      if (epoch === authEpochRef.current) setLoading(false);
     }
   };
 
@@ -83,36 +88,55 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const { data } = await axios.post(`${API}/login`, { email, password });
+    authEpochRef.current += 1;
     setUser(data);
+    setLoading(false);
     return data;
   };
 
   const register = async (name, email, password, ref) => {
-    // ref (FASE 3): valor del parametro ?ref= ya validado en RegisterPage.
-    // Si es null se envia como undefined para que Axios lo omita del body;
-    // asi /register normal envia exactamente { name, email, password }.
     const { data } = await axios.post(`${API}/register`, { name, email, password, ref: ref || undefined });
-    // El backend ahora devuelve { requires_verification: true, email, user_id } en lugar de loguear directamente
-    if (data.requires_verification) {
-      // Lanzar error para que RegisterPage redirija a /verify-email
-      throw { response: { data } };
+    if (data?.requires_verification) {
+      try {
+        sessionStorage.setItem('pending_verify_email', data.email || email);
+        sessionStorage.setItem('pending_verify_user_id', String(data.user_id || ''));
+      } catch (_) {}
+      return data;
     }
+    authEpochRef.current += 1;
     setUser(data);
+    setLoading(false);
     return data;
   };
 
   const logout = async () => {
     await axios.post(`${API}/logout`);
+    authEpochRef.current += 1;
     setUser(null);
   };
 
-  const loginWithGoogle = (userData) => {
-    setUser(userData);
-  };
+  const completeAuth = useCallback((userData) => {
+    if (userData) {
+      authEpochRef.current += 1;
+      setUser(userData);
+      setLoading(false);
+    }
+    return userData;
+  }, []);
+
+  const loginWithGoogle = useCallback((userData) => {
+    if (userData) {
+      authEpochRef.current += 1;
+      setUser(userData);
+      setLoading(false);
+    }
+    return userData;
+  }, []);
 
   const refreshUser = async () => {
     try {
       const { data } = await axios.get(`${API}/me`);
+      authEpochRef.current += 1;
       setUser(data);
     } catch (error) {
       console.error('Error al actualizar datos de usuario:', error);
@@ -120,7 +144,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser, loginWithGoogle }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser, loginWithGoogle, completeAuth }}>
       {children}
     </AuthContext.Provider>
   );

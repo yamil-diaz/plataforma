@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { sanitizeRef } from '../utils/ref';
 import { Zap, Mail, Lock, User, AlertCircle, Chrome, Loader2 } from 'lucide-react';
+import { formatApiError } from '../utils/apiError';
 
 const API = import.meta.env.VITE_API_URL || '/api';
 
@@ -39,15 +40,17 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
     try {
-      await register(name, email, password, ref);
-      navigate('/');
-    } catch (err) {
-      // Si el backend requiere verificación, redirigir a la página de verificación
-      if (err.response?.data?.requires_verification) {
-        navigate('/verify-email', { state: { email: err.response.data.email, user_id: err.response.data.user_id } });
+      const result = await register(name, email, password, ref);
+      if (result?.requires_verification) {
+        navigate('/verify-email', {
+          state: { email: result.email || email, user_id: result.user_id },
+          replace: true,
+        });
         return;
       }
-      setError(err.response?.data?.detail || 'Error al registrarse. Inténtalo de nuevo.');
+      navigate('/');
+    } catch (err) {
+      setError(formatApiError(err, 'Error al registrarse. Inténtalo de nuevo.'));
     } finally {
       setLoading(false);
     }
@@ -62,22 +65,31 @@ export default function RegisterPage() {
       // Redirigir a Google OAuth
       window.location.href = data.auth_url;
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error al iniciar sesión con Google');
+      setError(formatApiError(err, 'Error al iniciar sesión con Google'));
       setGoogleLoading(false);
     }
   };
 
+  // Errores que llegan desde Google callback (?error=...)
+  useEffect(() => {
+    const errCode = searchParams.get('error');
+    if (!errCode) return;
+    const map = {
+      google_oauth_failed: 'Google no autorizó el inicio de sesión. Intenta de nuevo.',
+      no_code: 'Google no devolvió el código de autorización. Intenta de nuevo.',
+      google_callback_failed: 'No pudimos completar el registro con Google. Si ya tenías cuenta, inicia sesión con correo o Google desde Iniciar sesión.',
+      google_not_configured: 'Google OAuth no está configurado en el servidor.',
+    };
+    setError(map[errCode] || 'Error al continuar con Google. Intenta de nuevo.');
+  }, [searchParams]);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A] px-4 relative overflow-hidden">
-      {/* Elementos Decorativos de Fondo */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#D92B2B]/5 rounded-full blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-1/3 right-1/4 w-96 h-96 bg-[#D4AF37]/5 rounded-full blur-[120px] pointer-events-none"></div>
-
-      <div className="w-full max-w-md bg-[#121212] border border-white/10 p-8 rounded-2xl shadow-2xl backdrop-blur-sm relative z-10">
+      <div className="w-full max-w-md bg-[#121212] border border-white/10 p-8 rounded-2xl relative z-10">
         
         {/* Encabezado */}
         <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-xl bg-[#D92B2B] flex items-center justify-center mx-auto mb-4 shadow-lg shadow-[#D92B2B]/20 animate-bounce">
+          <div className="w-12 h-12 rounded-xl bg-[#D92B2B] flex items-center justify-center mx-auto mb-4">
             <Zap className="w-6 h-6 text-white fill-white" />
           </div>
           <h2 className="text-3xl font-bold tracking-tight text-white font-['Outfit']">Crear Cuenta</h2>
@@ -118,13 +130,13 @@ export default function RegisterPage() {
           <div>
             <label className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Nombre Completo</label>
             <div className="relative">
-              <User className="absolute left-3.5 top-3.5 w-5 h-5 text-[#606060]" />
+              <User className="absolute left-3.5 top-3.5 w-5 h-5 text-[#A0A0A0]" />
               <input
                 type="text"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg pl-11 pr-4 py-3.5 text-[#F5F5F5] placeholder-[#505050] focus:outline-none focus:border-[#D92B2B] transition-colors"
+                className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg pl-11 pr-4 py-3.5 text-[#F5F5F5] placeholder-[#707070] focus:outline-none focus:border-[#D92B2B] transition-colors"
                 placeholder="Tu nombre"
               />
             </div>
@@ -133,13 +145,13 @@ export default function RegisterPage() {
           <div>
             <label className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Correo Electrónico</label>
             <div className="relative">
-              <Mail className="absolute left-3.5 top-3.5 w-5 h-5 text-[#606060]" />
+              <Mail className="absolute left-3.5 top-3.5 w-5 h-5 text-[#A0A0A0]" />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg pl-11 pr-4 py-3.5 text-[#F5F5F5] placeholder-[#505050] focus:outline-none focus:border-[#D92B2B] transition-colors"
+                className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg pl-11 pr-4 py-3.5 text-[#F5F5F5] placeholder-[#707070] focus:outline-none focus:border-[#D92B2B] transition-colors"
                 placeholder="ejemplo@plataforma.com"
               />
             </div>
@@ -148,13 +160,13 @@ export default function RegisterPage() {
           <div>
             <label className="block text-xs font-semibold text-[#A0A0A0] uppercase tracking-wider mb-2">Contraseña</label>
             <div className="relative">
-              <Lock className="absolute left-3.5 top-3.5 w-5 h-5 text-[#606060]" />
+              <Lock className="absolute left-3.5 top-3.5 w-5 h-5 text-[#A0A0A0]" />
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg pl-11 pr-4 py-3.5 text-[#F5F5F5] placeholder-[#505050] focus:outline-none focus:border-[#D92B2B] transition-colors"
+                className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg pl-11 pr-4 py-3.5 text-[#F5F5F5] placeholder-[#707070] focus:outline-none focus:border-[#D92B2B] transition-colors"
                 placeholder="Crea una contraseña segura"
               />
             </div>
@@ -167,7 +179,7 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#D92B2B] hover:bg-[#F03C3C] text-white font-semibold py-3.5 rounded-lg transition-all duration-200 shadow-lg shadow-[#D92B2B]/20 flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full bg-[#D92B2B] hover:bg-[#F03C3C] text-white font-semibold py-3.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {loading ? 'Creando cuenta...' : 'Registrarse'}
           </button>

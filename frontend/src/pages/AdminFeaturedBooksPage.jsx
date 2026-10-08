@@ -175,14 +175,14 @@ export default function AdminFeaturedBooksPage() {
             </div>
             <div className="flex gap-3 mb-4">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-3 w-4 h-4 text-[#606060]" />
+                <Search className="absolute left-3 top-3 w-4 h-4 text-[#A0A0A0]" />
                 <input
                   type="text"
                   placeholder="Buscar por título o autor..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg pl-10 pr-4 py-2.5 text-sm text-[#F5F5F5] placeholder-[#505050] focus:outline-none focus:border-[#D92B2B] transition-colors"
+                  className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg pl-10 pr-4 py-2.5 text-sm text-[#F5F5F5] placeholder-[#707070] focus:outline-none focus:border-[#D92B2B] transition-colors"
                 />
               </div>
               <button
@@ -209,7 +209,7 @@ export default function AdminFeaturedBooksPage() {
                         disabled={isFeatured || featured.length >= 20}
                         className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors border ${
                           isFeatured
-                            ? 'bg-[#404040]/10 text-[#505050] border-[#303030] cursor-not-allowed'
+                            ? 'bg-[#404040]/10 text-[#A0A0A0] border-[#303030] cursor-not-allowed'
                             : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border-emerald-500/30'
                         }`}
                       >
@@ -232,7 +232,7 @@ export default function AdminFeaturedBooksPage() {
           <div className="text-center text-[#A0A0A0] py-20">Cargando libros destacados...</div>
         ) : featured.length === 0 ? (
           <div className="bg-[#121212] border border-white/5 rounded-xl p-12 text-center">
-            <BookOpen className="w-12 h-12 mx-auto mb-4 text-[#404040]" />
+            <BookOpen className="w-12 h-12 mx-auto mb-4 text-[#707070]" />
             <p className="text-[#A0A0A0] mb-4">No hay libros destacados este mes.</p>
             <button onClick={() => setShowSearch(true)} className="text-[#D92B2B] hover:underline font-semibold">Agrega el primer libro destacado</button>
           </div>
@@ -312,7 +312,7 @@ export default function AdminFeaturedBooksPage() {
               className={`flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold transition-all ${
                 hasChanges
                   ? 'bg-[#D4AF37] hover:bg-[#F2D06B] text-black shadow-lg shadow-[#D4AF37]/20'
-                  : 'bg-white/5 text-[#505050] cursor-not-allowed'
+                  : 'bg-white/5 text-[#A0A0A0] cursor-not-allowed'
               } disabled:opacity-50`}
             >
               {saving ? 'Guardando...' : 'Guardar cambios'}

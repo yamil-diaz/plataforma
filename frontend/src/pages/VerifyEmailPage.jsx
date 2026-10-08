@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { Zap, Mail, AlertCircle, Loader2, RefreshCw } from 'lucide-react';
+import { formatApiError } from '../utils/apiError';
+import { useAuth } from '../contexts/AuthContext';
 
 const API = import.meta.env.VITE_API_URL || '/api';
 
@@ -14,9 +16,15 @@ export default function VerifyEmailPage() {
   const [countdown, setCountdown] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
-  
-  // Obtener email del state o query params
-  const email = location.state?.email || new URLSearchParams(location.search).get('email');
+  const { completeAuth } = useAuth();
+
+  // Obtener email del state, query params o sessionStorage (si refresca la página)
+  const email =
+    location.state?.email ||
+    new URLSearchParams(location.search).get('email') ||
+    (() => {
+      try { return sessionStorage.getItem('pending_verify_email'); } catch { return null; }
+    })();
   const userId = location.state?.user_id || new URLSearchParams(location.search).get('user_id');
 
   useEffect(() => {
@@ -43,10 +51,25 @@ export default function VerifyEmailPage() {
     setLoading(true);
     try {
       const { data } = await axios.post(`${API}/verify-email`, { email, code });
-      setMessage(data.message);
-      setTimeout(() => navigate('/'), 2000);
+      // CRITICAL: el backend setea cookies, pero React sigue sin user
+      // hasta que actualizamos el contexto. Sin esto, el navbar muestra
+      // "Crear cuenta" y el usuario cree que debe registrarse de nuevo.
+      completeAuth({
+        id: data.id || data._id,
+        _id: data._id || data.id,
+        email: data.email,
+        name: data.name,
+        role: data.role || 'user',
+        rayos_balance: data.rayos_balance ?? 0,
+      });
+      try {
+        sessionStorage.removeItem('pending_verify_email');
+        sessionStorage.removeItem('pending_verify_user_id');
+      } catch (_) {}
+      setMessage(data.message || 'Correo verificado. Bienvenido a AETERNUM!');
+      setTimeout(() => navigate('/', { replace: true }), 1200);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error al verificar el código');
+      setError(formatApiError(err, 'Error al verificar el código'));
     } finally {
       setLoading(false);
     }
@@ -62,7 +85,7 @@ export default function VerifyEmailPage() {
       setMessage('Nuevo código enviado a tu correo');
       setCountdown(60); // 60 segundos de espera
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error al reenviar el código');
+      setError(formatApiError(err, 'Error al reenviar el código'));
     } finally {
       setResending(false);
     }
@@ -86,7 +109,7 @@ export default function VerifyEmailPage() {
         
         {/* Encabezado */}
         <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-xl bg-[#D92B2B] flex items-center justify-center mx-auto mb-4 shadow-lg shadow-[#D92B2B]/20 animate-pulse">
+          <div className="w-12 h-12 rounded-xl bg-[#D92B2B] flex items-center justify-center mx-auto mb-4">
             <Mail className="w-6 h-6 text-white fill-white" />
           </div>
           <h2 className="text-3xl font-bold tracking-tight text-white font-['Outfit']">Verifica tu Correo</h2>
@@ -146,7 +169,7 @@ export default function VerifyEmailPage() {
           <button
             type="submit"
             disabled={loading || code.length !== 6}
-            className="w-full bg-[#D92B2B] hover:bg-[#F03C3C] text-white font-semibold py-3.5 rounded-lg transition-all duration-200 shadow-lg shadow-[#D92B2B]/20 flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full bg-[#D92B2B] hover:bg-[#F03C3C] text-white font-semibold py-3.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {loading ? (
               <>

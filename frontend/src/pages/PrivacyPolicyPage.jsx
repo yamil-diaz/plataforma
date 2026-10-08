@@ -32,7 +32,7 @@ export default function PrivacyPolicyPage() {
               <li><strong>Datos de registro:</strong> nombre, correo electrónico, contraseña (encriptada) y fecha de nacimiento.</li>
               <li><strong>Datos de perfil:</strong> foto de perfil, biografía y configuración de idioma.</li>
               <li><strong>Datos de lectura:</strong> libros leídos, tiempo de lectura, progreso, reseñas y calificaciones.</li>
-              <li><strong>Datos de compras:</strong> historial de transacciones, métodos de pago (procesados por terceros seguros como Paddle, Culqi y Flow).</li>
+              <li><strong>Datos de compras:</strong> historial de transacciones, métodos de pago (procesados por terceros seguros como Paddle y Culqi).</li>
               <li><strong>Datos de uso:</strong> dirección IP, tipo de navegador, dispositivo y páginas visitadas.</li>
             </ul>
           </section>
@@ -81,7 +81,7 @@ export default function PrivacyPolicyPage() {
               No vendemos ni compartimos tu información personal con terceros, excepto en los siguientes casos:
             </p>
             <ul className="list-disc pl-6 space-y-2">
-              <li><strong>Proveedores de pago:</strong> Paddle, Culqi y Flow reciben los datos necesarios para procesar tus transacciones.</li>
+              <li><strong>Proveedores de pago:</strong> Paddle y Culqi reciben los datos necesarios para procesar tus transacciones.</li>
               <li><strong>Servicios de autenticación:</strong> Google OAuth recibe tu nombre y correo electrónico si inicias sesión con Google.</li>
               <li><strong>Obligaciones legales:</strong> Cuando lo requiera la ley o una orden judicial.</li>
             </ul>

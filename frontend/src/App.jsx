@@ -45,7 +45,7 @@ import TestCheckoutPage from './pages/TestCheckoutPage';
 import WelcomePage from './pages/WelcomePage';
 
 // Componente para proteger rutas (Debe estar autenticado)
-const ProtectedRoute = ({ children, adminOnly = false }) => {
+const ProtectedRoute = ({ children, adminOnly = false, authorOnly = false }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
 
@@ -65,12 +65,17 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
     return <Navigate to="/" replace />;
   }
 
+  if (authorOnly && user.role !== 'admin' && user.role !== 'autor') {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return children;
 };
 
 function PaddleInit() {
   useEffect(() => {
-    initializePaddle();
+    // fire-and-forget; CheckoutPage llama ensurePaddleReady() al pagar
+    initializePaddle().catch(() => {});
   }, []);
 
   return null;
@@ -123,11 +128,7 @@ function AppRoutes() {
       <Route path="/welcome" element={<WelcomePage />} />
       <Route
         path="/mis-libros"
-        element={
-          <ProtectedRoute>
-            <MyBooksPage />
-          </ProtectedRoute>
-        }
+        element={<Navigate to="/mis-compras" replace />}
       />
       <Route
         path="/mis-compras"
@@ -188,7 +189,7 @@ function AppRoutes() {
       <Route
         path="/admin/new-book"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute authorOnly={true}>
             <AdminBookFormPage />
           </ProtectedRoute>
         }

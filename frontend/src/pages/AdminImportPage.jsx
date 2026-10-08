@@ -170,7 +170,7 @@ export default function AdminImportPage() {
                     required
                     value={defaultPrice}
                     onChange={(e) => setDefaultPrice(parseFloat(e.target.value))}
-                    className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-[#F5F5F5] placeholder-[#505050] focus:outline-none focus:border-[#D92B2B] transition-colors"
+                    className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-[#F5F5F5] placeholder-[#707070] focus:outline-none focus:border-[#D92B2B] transition-colors"
                   />
                 </div>
               </div>
@@ -179,7 +179,7 @@ export default function AdminImportPage() {
               <div className="border-2 border-dashed border-white/10 rounded-xl p-8 text-center hover:border-white/20 transition-colors flex flex-col items-center justify-center min-h-[200px]">
                 <FileArchive className="w-12 h-12 text-[#A0A0A0] mb-3" />
                 <span className="text-sm font-semibold text-white">Selecciona tu Archivo ZIP</span>
-                <span className="text-xs text-[#606060] mt-1 mb-5">El archivo debe contener PDFs e imágenes de portadas</span>
+                <span className="text-xs text-[#A0A0A0] mt-1 mb-5">El archivo debe contener PDFs e imágenes de portadas</span>
                 
                 <input
                   type="file"
@@ -195,7 +195,7 @@ export default function AdminImportPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#D92B2B] hover:bg-[#F03C3C] text-white font-semibold py-4 rounded-lg transition-all duration-200 shadow-lg shadow-[#D92B2B]/20 flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full bg-[#D92B2B] hover:bg-[#F03C3C] text-white font-semibold py-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 Iniciar Procesamiento ZIP
               </button>
@@ -231,7 +231,7 @@ export default function AdminImportPage() {
                       style={{ width: `${progress}%` }}
                     ></div>
                   </div>
-                  <div className="flex justify-between text-xs text-[#606060] font-semibold">
+                  <div className="flex justify-between text-xs text-[#A0A0A0] font-semibold">
                     <span>{progress}% Procesado</span>
                     <span>Consulte el progreso</span>
                   </div>

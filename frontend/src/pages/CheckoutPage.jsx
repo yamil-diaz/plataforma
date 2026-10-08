@@ -2,9 +2,10 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { Navbar } from '../components/Navbar';
+import { Footer } from '../components/Footer';
 import { useAuth } from '../contexts/AuthContext';
 import { API } from '../config/api';
-import { openPaddleCheckout, isPaddleReady, onCheckoutClosed, onCheckoutCompleted } from '../utils/paddle';
+import { openPaddleCheckout, ensurePaddleReady, onCheckoutClosed, onCheckoutCompleted } from '../utils/paddle';
 import { CreditCard, Zap, Clock, Truck, CheckCircle, AlertCircle } from 'lucide-react';
 
 export default function CheckoutPage() {
@@ -85,7 +86,10 @@ export default function CheckoutPage() {
       const { data } = await axios.get(`${API}/commerce/currencies`, { withCredentials: true });
       setAvailableCurrencies(data.currencies || []);
     } catch (err) {
-      setAvailableCurrencies([{ code: 'PEN', symbol: 'S/' }]);
+      setAvailableCurrencies([
+        { code: 'PEN', symbol: 'S/', label: 'Sol peruano' },
+        { code: 'USD', symbol: 'US$', label: 'Dólar estadounidense' },
+      ]);
     }
   };
 
@@ -158,7 +162,8 @@ export default function CheckoutPage() {
       // Paddle (digitales): SIEMPRE usar overlay (el redirect URL de Paddle sandbox
       // apunta a nuestro dominio en vez de a la checkout page de Paddle)
       if (data.transaction_id) {
-        if (!isPaddleReady()) {
+        const ready = await ensurePaddleReady();
+        if (!ready) {
           setError('El sistema de pago no está disponible. Recarga la pagina e intentalo de nuevo.');
           setProcessing(false);
           return;
@@ -241,6 +246,7 @@ export default function CheckoutPage() {
             Volver al catálogo
           </button>
         </div>
+        <Footer />
       </div>
     );
   }
@@ -267,7 +273,7 @@ export default function CheckoutPage() {
         )}
 
         {/* Resumen del libro */}
-        <div className="bg-[#121212] border border-white/10 rounded-2xl p-6 mb-6">
+        <div className="ae-card p-6 mb-6">
           <div className="flex gap-4">
             {book.cover_image_url && (
               <img src={book.cover_image_url} alt={book.title} className="w-20 h-28 object-cover rounded-lg" />
@@ -282,9 +288,10 @@ export default function CheckoutPage() {
 
         {/* Selector de moneda (solo para digitales) */}
         {itemType !== 'physical_purchase' && availableCurrencies.length > 1 && (
-          <div className="bg-[#121212] border border-white/10 rounded-2xl p-6 mb-6">
-            <h3 className="text-lg font-bold text-white mb-4">Moneda de pago</h3>
-            <div className="flex gap-3">
+          <div className="ae-card p-6 mb-6">
+            <h3 className="text-lg font-bold text-white mb-1">Moneda de pago</h3>
+            <p className="text-xs text-[#A0A0A0] mb-4">Selecciona la moneda en la que quieres pagar</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {availableCurrencies.map(c => {
                 const hasPrice = bookPrices[c.code];
                 return (
@@ -292,17 +299,23 @@ export default function CheckoutPage() {
                     key={c.code}
                     onClick={() => hasPrice && setSelectedCurrency(c.code)}
                     disabled={!hasPrice}
-                    className={`flex-1 py-3 rounded-xl font-semibold transition-all border ${
+                    className={`py-3 px-2 rounded-lg font-semibold transition-[background-color,color,border-color,transform] duration-150 ease-ae-out border text-center active:scale-[0.97] ${
                       selectedCurrency === c.code
                         ? 'border-[#D92B2B] bg-[#D92B2B]/10 text-white'
                         : hasPrice
-                          ? 'border-white/10 bg-white/5 text-[#A0A0A0] hover:border-white/20'
-                          : 'border-white/5 bg-white/2 text-[#555] cursor-not-allowed'
+                          ? 'border-white/10 bg-white/5 text-[#A0A0A0] hover:border-white/20 hover:text-white'
+                          : 'border-white/5 bg-white/[0.02] text-[#707070] cursor-not-allowed'
                     }`}
                   >
-                    <span className="block text-lg">{c.symbol}</span>
-                    <span className="block text-xs">{c.code}</span>
-                    {!hasPrice && <span className="block text-xs text-[#666]">Sin precio</span>}
+                    <span className="block text-base font-bold">{c.code}</span>
+                    <span className="block text-[11px] font-normal text-[#A0A0A0] mt-0.5">{c.symbol}</span>
+                    {hasPrice ? (
+                      <span className="block text-xs text-[#D4AF37] mt-1">
+                        {c.symbol} {parseFloat(bookPrices[c.code].price).toFixed(2)}
+                      </span>
+                    ) : (
+                      <span className="block text-[10px] text-[#707070] mt-1">Sin precio</span>
+                    )}
                   </button>
                 );
               })}
@@ -311,11 +324,11 @@ export default function CheckoutPage() {
         )}
 
         {/* Tipo de compra */}
-        <div className="bg-[#121212] border border-white/10 rounded-2xl p-6 mb-6">
+        <div className="ae-card p-6 mb-6">
           <h3 className="text-lg font-bold text-white mb-4">Tipo de compra</h3>
           <div className="space-y-3">
             {currentPriceData && currentPriceData.price > 0 && (
-              <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
+              <label className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-[background-color,border-color] duration-150 ease-ae-out ${
                 itemType === 'digital_purchase' ? 'border-[#D92B2B] bg-[#D92B2B]/10' : 'border-white/10 hover:border-white/20'
               }`}>
                 <input type="radio" name="itemType" value="digital_purchase"
@@ -327,12 +340,16 @@ export default function CheckoutPage() {
                   <p className="text-white font-semibold">Compra digital</p>
                   <p className="text-[#A0A0A0] text-sm">Acceso permanente</p>
                 </div>
-                <span className="text-[#D4AF37] font-bold">{displaySymbol} {currentPriceData.price.toFixed(2)}</span>
+                <span className="text-[#D4AF37] font-bold">
+                  {itemType === 'physical_purchase'
+                    ? `S/ ${parseFloat(book.physical_price || 0).toFixed(2)}`
+                    : `${currentSymbol} ${parseFloat(currentPriceData?.price || 0).toFixed(2)}`}
+                </span>
               </label>
             )}
 
             {currentPriceData && currentPriceData.rental_price > 0 && (
-              <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
+              <label className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-[background-color,border-color] duration-150 ease-ae-out ${
                 itemType === 'digital_rental' ? 'border-[#D92B2B] bg-[#D92B2B]/10' : 'border-white/10 hover:border-white/20'
               }`}>
                 <input type="radio" name="itemType" value="digital_rental"
@@ -349,14 +366,14 @@ export default function CheckoutPage() {
             )}
 
             {book.is_physical && book.physical_price > 0 && (
-              <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
+              <label className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-[background-color,border-color] duration-150 ease-ae-out ${
                 itemType === 'physical_purchase' ? 'border-[#D92B2B] bg-[#D92B2B]/10' : 'border-white/10 hover:border-white/20'
               }`}>
                 <input type="radio" name="itemType" value="physical_purchase"
                   checked={itemType === 'physical_purchase'}
                   onChange={() => { setItemType('physical_purchase'); setSelectedCurrency('PEN'); }}
                   className="sr-only" />
-                <Truck className="w-5 h-5 text-green-400" />
+                <Truck className="w-5 h-5 text-emerald-400" />
                 <div className="flex-1">
                   <p className="text-white font-semibold">Compra física</p>
                   <p className="text-[#A0A0A0] text-sm">Envío a tu dirección (solo Perú)</p>
@@ -369,7 +386,7 @@ export default function CheckoutPage() {
 
         {/* Duración de alquiler */}
         {itemType === 'digital_rental' && (
-          <div className="bg-[#121212] border border-white/10 rounded-2xl p-6 mb-6">
+          <div className="ae-card p-6 mb-6">
             <h3 className="text-lg font-bold text-white mb-4">Duración del alquiler</h3>
             <div className="flex gap-3">
               {[7, 14, 30].map(days => {
@@ -380,7 +397,7 @@ export default function CheckoutPage() {
                   <button
                     key={days}
                     onClick={() => setRentalDays(days)}
-                    className={`flex-1 py-3 rounded-xl font-semibold transition-all ${
+                    className={`flex-1 py-3 rounded-lg font-semibold transition-[background-color,color,transform] duration-150 ease-ae-out active:scale-[0.97] ${
                       rentalDays === days
                         ? 'bg-[#D92B2B] text-white'
                         : 'bg-white/5 text-[#A0A0A0] hover:bg-white/10'
@@ -401,7 +418,7 @@ export default function CheckoutPage() {
 
         {/* Dirección de envío (físico) */}
         {itemType === 'physical_purchase' && (
-          <div className="bg-[#121212] border border-white/10 rounded-2xl p-6 mb-6">
+          <div className="ae-card p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-white">Dirección de envío</h3>
               <button onClick={() => setShowAddressForm(!showAddressForm)}
@@ -411,32 +428,32 @@ export default function CheckoutPage() {
             </div>
 
             {showAddressForm && (
-              <div className="bg-[#0A0A0A] rounded-xl p-4 mb-4 space-y-3">
+              <div className="bg-[#0A0A0A] rounded-lg p-4 mb-4 space-y-3">
                 <input placeholder="Nombre receptor" value={newAddress.recipient_name}
                   onChange={e => setNewAddress({...newAddress, recipient_name: e.target.value})}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white text-sm" />
+                  className="ae-input w-full px-4 py-2 text-white text-sm placeholder-[#707070]" />
                 <input placeholder="Teléfono" value={newAddress.recipient_phone}
                   onChange={e => setNewAddress({...newAddress, recipient_phone: e.target.value})}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white text-sm" />
+                  className="ae-input w-full px-4 py-2 text-white text-sm placeholder-[#707070]" />
                 <input placeholder="Dirección línea 1" value={newAddress.address_line1}
                   onChange={e => setNewAddress({...newAddress, address_line1: e.target.value})}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white text-sm" />
+                  className="ae-input w-full px-4 py-2 text-white text-sm placeholder-[#707070]" />
                 <input placeholder="Línea 2 (opcional)" value={newAddress.address_line2}
                   onChange={e => setNewAddress({...newAddress, address_line2: e.target.value})}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white text-sm" />
+                  className="ae-input w-full px-4 py-2 text-white text-sm placeholder-[#707070]" />
                 <div className="grid grid-cols-2 gap-3">
                   <input placeholder="Distrito" value={newAddress.district}
                     onChange={e => setNewAddress({...newAddress, district: e.target.value})}
-                    className="bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white text-sm" />
+                    className="ae-input px-4 py-2 text-white text-sm placeholder-[#707070]" />
                   <input placeholder="Ciudad" value={newAddress.city}
                     onChange={e => setNewAddress({...newAddress, city: e.target.value})}
-                    className="bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white text-sm" />
+                    className="ae-input px-4 py-2 text-white text-sm placeholder-[#707070]" />
                 </div>
                 <input placeholder="Departamento" value={newAddress.department}
                   onChange={e => setNewAddress({...newAddress, department: e.target.value})}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white text-sm" />
+                  className="ae-input w-full px-4 py-2 text-white text-sm placeholder-[#707070]" />
                 <button onClick={handleCreateAddress}
-                  className="w-full bg-[#D92B2B] text-white py-2 rounded-lg font-semibold hover:bg-[#F03C3C] transition-colors">
+                  className="ae-btn ae-btn-primary w-full py-2">
                   Guardar dirección
                 </button>
               </div>
@@ -447,7 +464,7 @@ export default function CheckoutPage() {
             )}
 
             {addresses.map(addr => (
-              <label key={addr.id} className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all mb-2 ${
+              <label key={addr.id} className={`flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-[background-color,border-color] duration-150 ease-ae-out mb-2 ${
                 selectedAddress === addr.id ? 'border-[#D92B2B] bg-[#D92B2B]/10' : 'border-white/10 hover:border-white/20'
               }`}>
                 <input type="radio" name="address" value={addr.id}
@@ -465,7 +482,7 @@ export default function CheckoutPage() {
         )}
 
         {/* Resumen de pago */}
-        <div className="bg-[#121212] border border-white/10 rounded-2xl p-6 mb-6">
+        <div className="ae-card p-6 mb-6">
           <h3 className="text-lg font-bold text-white mb-4">Resumen</h3>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
@@ -496,13 +513,13 @@ export default function CheckoutPage() {
           <button
             onClick={() => setShowConfirm(true)}
             disabled={processing || (!currentPriceData && itemType !== 'physical_purchase')}
-            className="w-full bg-[#D92B2B] hover:bg-[#F03C3C] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2"
+            className="ae-btn ae-btn-primary w-full py-4 text-base disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Zap className="w-5 h-5" />
             Pagar {displaySymbol} {total.toFixed(2)}
           </button>
         ) : (
-          <div className="bg-[#121212] border border-[#D4AF37]/30 rounded-xl p-4 mb-4">
+          <div className="ae-card border-[#D4AF37]/30 p-4 mb-4">
             <p className="text-white font-semibold mb-3">Confirmar pago de {displaySymbol} {total.toFixed(2)}</p>
             <div className="flex gap-3">
               <button
@@ -511,13 +528,13 @@ export default function CheckoutPage() {
                   handleCheckout();
                 }}
                 disabled={processing}
-                className="flex-1 bg-[#D92B2B] hover:bg-[#F03C3C] disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all"
+                className="ae-btn ae-btn-primary flex-1 py-3 disabled:opacity-50"
               >
                 {processing ? 'Procesando...' : 'Confirmar'}
               </button>
               <button
                 onClick={() => setShowConfirm(false)}
-                className="flex-1 bg-white/5 hover:bg-white/10 text-white font-semibold py-3 rounded-xl transition-all border border-white/10"
+                className="ae-btn ae-btn-ghost flex-1 py-3"
               >
                 Cancelar
               </button>
@@ -531,6 +548,7 @@ export default function CheckoutPage() {
             : 'Se abrirá el checkout de pago de forma segura.'}
         </p>
       </div>
+      <Footer />
     </div>
   );
 }

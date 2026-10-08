@@ -114,7 +114,7 @@ export default function PricingPage() {
                   <h4 className="text-white text-sm font-semibold line-clamp-1">{book.title}</h4>
                   <p className="text-[#A0A0A0] text-xs">{book.author_name}</p>
                   <p className="text-[#D4AF37] font-bold text-sm mt-2">${book.price.toFixed(2)}</p>
-                  <p className="text-[#606060] text-xs">Alquiler: ${(book.price * 0.3).toFixed(2)}</p>
+                  <p className="text-[#A0A0A0] text-xs">Alquiler: ${(book.price * 0.3).toFixed(2)}</p>
                 </div>
               </div>
             ))}

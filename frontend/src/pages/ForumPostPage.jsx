@@ -316,7 +316,7 @@ export default function ForumPostPage() {
                 )}
                 <button
                   onClick={() => setDeleteConfirm({ open: true, type: 'post', id: postId })}
-                  className="p-2 text-[#606060] hover:text-[#D92B2B] hover:bg-[#D92B2B]/10 rounded-lg transition-colors"
+                  className="p-2 text-[#A0A0A0] hover:text-[#D92B2B] hover:bg-[#D92B2B]/10 rounded-lg transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -326,14 +326,14 @@ export default function ForumPostPage() {
 
           <div className="flex items-center gap-3 mb-4 text-sm">
             <span className="text-[#D4AF37] font-medium">{post.username}</span>
-            <span className="text-[#606060]">·</span>
-            <span className="text-[#606060] flex items-center gap-1">
+            <span className="text-[#A0A0A0]">·</span>
+            <span className="text-[#A0A0A0] flex items-center gap-1">
               <Clock className="w-3 h-3" />
               {formatDate(post.created_at)}
             </span>
             {post.category_name && (
               <>
-                <span className="text-[#606060]">·</span>
+                <span className="text-[#A0A0A0]">·</span>
                 <span className="px-2 py-0.5 bg-[#D92B2B]/10 text-[#D92B2B] text-xs rounded-full">
                   {post.category_name}
                 </span>
@@ -341,7 +341,7 @@ export default function ForumPostPage() {
             )}
             {post.book_title && (
               <>
-                <span className="text-[#606060]">·</span>
+                <span className="text-[#A0A0A0]">·</span>
                 <span className="px-2 py-0.5 bg-[#D4AF37]/10 text-[#D4AF37] text-xs rounded-full">
                   {post.book_title}
                 </span>
@@ -359,7 +359,7 @@ export default function ForumPostPage() {
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
                 liked
                   ? 'bg-[#D92B2B]/10 text-[#D92B2B]'
-                  : 'text-[#606060] hover:text-[#F5F5F5] hover:bg-white/5'
+                  : 'text-[#A0A0A0] hover:text-[#F5F5F5] hover:bg-white/5'
               }`}
             >
               <ThumbsUp className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} />
@@ -371,7 +371,7 @@ export default function ForumPostPage() {
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
                 bookmarked
                   ? 'bg-[#D4AF37]/10 text-[#D4AF37]'
-                  : 'text-[#606060] hover:text-[#F5F5F5] hover:bg-white/5'
+                  : 'text-[#A0A0A0] hover:text-[#F5F5F5] hover:bg-white/5'
               }`}
             >
               {bookmarked ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
@@ -383,7 +383,7 @@ export default function ForumPostPage() {
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
                   following
                     ? 'bg-blue-500/10 text-blue-400'
-                    : 'text-[#606060] hover:text-[#F5F5F5] hover:bg-white/5'
+                    : 'text-[#A0A0A0] hover:text-[#F5F5F5] hover:bg-white/5'
                 }`}
               >
                 {following ? <UserMinus className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
@@ -391,7 +391,7 @@ export default function ForumPostPage() {
               </button>
             )}
 
-            <div className="flex items-center gap-2 text-[#606060] text-sm ml-auto">
+            <div className="flex items-center gap-2 text-[#A0A0A0] text-sm ml-auto">
               <MessageCircle className="w-4 h-4" />
               <span>{repliesMeta.total} respuestas</span>
             </div>
@@ -399,7 +399,7 @@ export default function ForumPostPage() {
             {user && !isOwner && (
               <button
                 onClick={() => setReportModal({ open: true, type: 'post', id: postId })}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-[#606060] hover:text-[#F03C3C] hover:bg-[#D92B2B]/10 transition-colors"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-[#A0A0A0] hover:text-[#F03C3C] hover:bg-[#D92B2B]/10 transition-colors"
               >
                 <Flag className="w-4 h-4" />
               </button>
@@ -432,16 +432,16 @@ export default function ForumPostPage() {
                 <div className="flex items-center justify-between gap-3 mb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-[#D4AF37] font-medium text-sm">{reply.username}</span>
-                    <span className="text-[#606060] text-xs">{formatDate(reply.created_at)}</span>
+                    <span className="text-[#A0A0A0] text-xs">{formatDate(reply.created_at)}</span>
                     {reply.updated_at !== reply.created_at && (
-                      <span className="text-[#606060] text-xs italic">(editado)</span>
+                      <span className="text-[#A0A0A0] text-xs italic">(editado)</span>
                     )}
                   </div>
                   <div className="flex items-center gap-1">
                     {isOwner && !reply.accepted && post.status !== 'closed' && (
                       <button
                         onClick={() => handleAcceptReply(reply.id)}
-                        className="p-1.5 text-[#606060] hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                        className="p-1.5 text-[#A0A0A0] hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors"
                         title="Aceptar como solución"
                       >
                         <CheckCircle className="w-4 h-4" />
@@ -453,7 +453,7 @@ export default function ForumPostPage() {
                           setEditingReplyId(reply.id);
                           setEditContent(reply.content);
                         }}
-                        className="p-1.5 text-[#606060] hover:text-[#D4AF37] hover:bg-[#D4AF37]/10 rounded-lg transition-colors"
+                        className="p-1.5 text-[#A0A0A0] hover:text-[#D4AF37] hover:bg-[#D4AF37]/10 rounded-lg transition-colors"
                       >
                         <Edit3 className="w-4 h-4" />
                       </button>
@@ -461,7 +461,7 @@ export default function ForumPostPage() {
                     {(user?.id === reply.user_id || isAdmin) && (
                       <button
                         onClick={() => setDeleteConfirm({ open: true, type: 'reply', id: reply.id })}
-                        className="p-1.5 text-[#606060] hover:text-[#D92B2B] hover:bg-[#D92B2B]/10 rounded-lg transition-colors"
+                        className="p-1.5 text-[#A0A0A0] hover:text-[#D92B2B] hover:bg-[#D92B2B]/10 rounded-lg transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -469,7 +469,7 @@ export default function ForumPostPage() {
                     {user && user.id !== reply.user_id && (
                       <button
                         onClick={() => setReportModal({ open: true, type: 'reply', id: reply.id })}
-                        className="p-1.5 text-[#606060] hover:text-[#F03C3C] hover:bg-[#D92B2B]/10 rounded-lg transition-colors"
+                        className="p-1.5 text-[#A0A0A0] hover:text-[#F03C3C] hover:bg-[#D92B2B]/10 rounded-lg transition-colors"
                       >
                         <Flag className="w-4 h-4" />
                       </button>
@@ -515,7 +515,7 @@ export default function ForumPostPage() {
               <button
                 onClick={() => fetchReplies(repliesMeta.page - 1)}
                 disabled={repliesMeta.page <= 1}
-                className="p-2 text-[#606060] hover:text-[#F5F5F5] hover:bg-white/5 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-2 text-[#A0A0A0] hover:text-[#F5F5F5] hover:bg-white/5 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
@@ -526,7 +526,7 @@ export default function ForumPostPage() {
                   className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
                     p === repliesMeta.page
                       ? 'bg-[#D92B2B] text-white'
-                      : 'text-[#606060] hover:text-[#F5F5F5] hover:bg-white/5'
+                      : 'text-[#A0A0A0] hover:text-[#F5F5F5] hover:bg-white/5'
                   }`}
                 >
                   {p}
@@ -535,7 +535,7 @@ export default function ForumPostPage() {
               <button
                 onClick={() => fetchReplies(repliesMeta.page + 1)}
                 disabled={repliesMeta.page >= repliesMeta.pages}
-                className="p-2 text-[#606060] hover:text-[#F5F5F5] hover:bg-white/5 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-2 text-[#A0A0A0] hover:text-[#F5F5F5] hover:bg-white/5 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
@@ -555,7 +555,7 @@ export default function ForumPostPage() {
                 rows={4}
               />
               <div className="flex items-center justify-between mt-3">
-                <span className={`text-xs ${replyContent.length < 2 ? 'text-[#606060]' : 'text-[#A0A0A0]'}`}>
+                <span className={`text-xs ${replyContent.length < 2 ? 'text-[#A0A0A0]' : 'text-[#A0A0A0]'}`}>
                   {replyContent.length} caracteres
                 </span>
                 <button
@@ -584,7 +584,7 @@ export default function ForumPostPage() {
                 </h3>
                 <button
                   onClick={() => { setReportModal({ open: false, type: null, id: null }); setReportReason(''); setReportExplanation(''); }}
-                  className="p-1 text-[#606060] hover:text-[#F5F5F5] transition-colors"
+                  className="p-1 text-[#A0A0A0] hover:text-[#F5F5F5] transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
