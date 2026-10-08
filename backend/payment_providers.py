@@ -66,9 +66,21 @@ PADDLE_CURRENCY_CONFIG = {
     "VND": {"decimals": 0, "symbol": "\u20ab"},
 }
 
-# Las monedas habilitadas para checkout digital se derivan de PADDLE_CURRENCY_CONFIG.
-# Si Paddle agrega monedas, se habilitan automáticamente.
-ENABLED_DIGITAL_CURRENCIES = list(PADDLE_CURRENCY_CONFIG.keys())
+# Monedas habilitadas para checkout digital (lista corta y formal).
+# Solo Paddle (digital internacional) + Culqi (físico Perú). Sin Flow/Chile.
+ENABLED_DIGITAL_CURRENCIES = ["USD", "PEN", "EUR", "MXN", "COP", "ARS", "BRL"]
+
+# Nombres formales para mostrar en la UI
+CURRENCY_LABELS = {
+    "USD": "Dólar estadounidense",
+    "PEN": "Sol peruano",
+    "EUR": "Euro",
+    "MXN": "Peso mexicano",
+    "CLP": "Peso chileno",
+    "COP": "Peso colombiano",
+    "ARS": "Peso argentino",
+    "BRL": "Real brasileño",
+}
 
 
 def get_currency_symbol(currency: str) -> str:
@@ -231,23 +243,23 @@ class PaddleProvider(PaymentProvider):
 
         amount_int = format_amount_for_provider(amount, currency)
 
-        payload = {
-            "items": [{
-                "quantity": 1,
-                "price": {
-                    "description": description,
-                    "name": description,
-                    "tax_mode": "account_setting",
-                    "unit_price": {
-                        "amount": str(amount_int),
-                        "currency_code": currency,
-                    },
-                    "product": {
-                        "name": description[:200],
-                        "tax_category": "ebooks",
-                    },
-                },
-            }],
+        # Paddle Billing: "standard" es la categoría que suele estar aprobada.
+        # "ebooks"/"online_publications" pueden no estar habilitadas en la cuenta.
+        tax_categories = ["standard", "ebooks", "online_publications"]
+        # Mínimo de Paddle (unidad más baja): USD/EUR suelen ser ~50-100 centavos
+        paddle_min_by_currency = {
+            "USD": 50, "EUR": 50, "GBP": 30, "PEN": 100, "CLP": 400, "MXN": 100,
+        }
+        min_amount = paddle_min_by_currency.get(currency, 50)
+        if int(amount_int) < min_amount:
+            return {
+                "success": False,
+                "error": (
+                    f"El monto {amount_int} {currency} está por debajo del mínimo "
+                    f"de Paddle ({min_amount}). Configura un precio mayor para este libro."
+                ),
+            }
+        payload_base = {
             "currency_code": currency,
             "collection_mode": "automatic",
             "custom_data": {
@@ -257,47 +269,93 @@ class PaddleProvider(PaymentProvider):
         }
 
         try:
-            data_bytes = json.dumps(payload).encode("utf-8")
-            print(f"[PADDLE DEBUG] Creating transaction: amount={amount_int} {currency}", flush=True)
-            print(f"[PADDLE DEBUG] Payload: {json.dumps(payload, indent=2)[:800]}", flush=True)
-            req = urllib.request.Request(
-                f"{self.api_base}/transactions",
-                data=data_bytes,
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Paddle-Version": "1",
-                    "User-Agent": "AeternumBackend/2.0",
-                },
-                method="POST",
-            )
-            with urllib.request.urlopen(req, timeout=30) as response:
-                result = json.loads(response.read().decode("utf-8"))
-
-            # Paddle Billing retorna HTTP 201 con { "data": {...} }
-            data = result.get("data", {})
-            print(f"[PADDLE DEBUG] Transaction created: id={data.get('id')}", flush=True)
-            print(f"[PADDLE DEBUG] Status: {data.get('status')}", flush=True)
-            print(f"[PADDLE DEBUG] Checkout: {json.dumps(data.get('checkout', {}))[:500]}", flush=True)
-
-            if data.get("id"):
-                checkout = data.get("checkout") or {}
-                checkout_url = checkout.get("url", "")
-                print(f"[PADDLE DEBUG] Checkout URL: {checkout_url[:200]}", flush=True)
-                return {
-                    "success": True,
-                    "checkout_url": checkout_url,
-                    "provider_order_id": str(data.get("id", "")),
-                    "provider_token": data.get("id", ""),
+            last_error_body = ""
+            last_error_msg = ""
+            for tax_cat in tax_categories:
+                payload = {
+                    **payload_base,
+                    "items": [{
+                        "quantity": 1,
+                        "price": {
+                            "description": description,
+                            "name": description,
+                            "tax_mode": "account_setting",
+                            "unit_price": {
+                                "amount": str(amount_int),
+                                "currency_code": currency,
+                            },
+                            "product": {
+                                "name": description[:200],
+                                "tax_category": tax_cat,
+                            },
+                        },
+                    }],
                 }
-            else:
-                error = result.get("error", {})
-                print(f"[PADDLE DEBUG] ERROR creating transaction: {json.dumps(result)[:500]}", flush=True)
-                return {
-                    "success": False,
-                    "error": error.get("message", "Error desconocido de Paddle"),
-                    "details": result,
-                }
+                data_bytes = json.dumps(payload).encode("utf-8")
+                print(f"[PADDLE DEBUG] Creating transaction: amount={amount_int} {currency} tax={tax_cat}", flush=True)
+                req = urllib.request.Request(
+                    f"{self.api_base}/transactions",
+                    data=data_bytes,
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Paddle-Version": "1",
+                        "User-Agent": "AeternumBackend/2.0",
+                    },
+                    method="POST",
+                )
+                try:
+                    with urllib.request.urlopen(req, timeout=30) as response:
+                        result = json.loads(response.read().decode("utf-8"))
+                except urllib.error.HTTPError as e:
+                    body = ""
+                    try:
+                        body = e.read().decode("utf-8")
+                    except Exception:
+                        pass
+                    last_error_body = body
+                    last_error_msg = f"Error HTTP {e.code} de Paddle (tax_category={tax_cat})"
+                    print(f"[PADDLE DEBUG] HTTP ERROR {e.code} tax={tax_cat}: {body[:400]}", flush=True)
+                    # Si es error de tax category, probar la siguiente
+                    if "tax_category" in body or e.code == 400:
+                        continue
+                    return {
+                        "success": False,
+                        "error": last_error_msg,
+                        "details": body,
+                    }
+
+                data = result.get("data", {})
+                print(f"[PADDLE DEBUG] Transaction created: id={data.get('id')} tax={tax_cat}", flush=True)
+
+                if data.get("id"):
+                    checkout = data.get("checkout") or {}
+                    checkout_url = checkout.get("url", "")
+                    print(f"[PADDLE DEBUG] Checkout URL: {checkout_url[:200]}", flush=True)
+                    return {
+                        "success": True,
+                        "checkout_url": checkout_url,
+                        "provider_order_id": str(data.get("id", "")),
+                        "provider_token": data.get("id", ""),
+                    }
+                else:
+                    error = result.get("error", {})
+                    last_error_msg = error.get("message", "Error desconocido de Paddle")
+                    last_error_body = json.dumps(result)[:500]
+                    print(f"[PADDLE DEBUG] ERROR creating transaction: {last_error_body}", flush=True)
+                    if "tax_category" in last_error_body:
+                        continue
+                    return {
+                        "success": False,
+                        "error": last_error_msg,
+                        "details": result,
+                    }
+
+            return {
+                "success": False,
+                "error": last_error_msg or "Paddle rechazó la transacción",
+                "details": last_error_body,
+            }
 
         except urllib.error.HTTPError as e:
             body = ""

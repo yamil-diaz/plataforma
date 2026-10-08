@@ -112,7 +112,7 @@ def test_K_registro_normal_sigue_funcionando(client, fake_db):
         "name": "Normal", "email": "normal5@test.com", "password": "claveSegura123"
     })
     assert r.status_code == 200
-    assert r.json()["role"] == "user"
+    assert r.json()["requires_verification"] is True
 
 
 # Estadísticas futuras: consultas de conteo ya soportadas por el esquema

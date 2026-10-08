@@ -20,32 +20,66 @@ if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 # ── Connection Pool ──────────────────────────────────────────────────────────
-# Reutiliza conexiones en vez de crear una nueva por request.
-# Reduce memoria ~50% (cada conexión psycopg2 usa ~10MB).
+# Pool por proceso uvicorn. Con 2 workers: maxconn*2 debe ser < postgres max_connections.
 _connection_pool = None
+_POOL_LOCK = __import__("threading").Lock()
 
 
 def _get_pool():
     global _connection_pool
     if _connection_pool is None:
-        _connection_pool = pool.ThreadedConnectionPool(
-            minconn=2,
-            maxconn=10,
-            dsn=DATABASE_URL,
-            cursor_factory=psycopg2.extras.RealDictCursor,
-        )
+        with _POOL_LOCK:
+            if _connection_pool is None:
+                maxconn = int(os.getenv("DB_POOL_MAX", "20"))
+                _connection_pool = pool.ThreadedConnectionPool(
+                    minconn=1,
+                    maxconn=maxconn,
+                    dsn=DATABASE_URL,
+                    cursor_factory=psycopg2.extras.RealDictCursor,
+                )
     return _connection_pool
 
 
+def _discard_broken(pool_obj, conn):
+    try:
+        pool_obj.putconn(conn, close=True)
+    except Exception:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
 def get_db():
-    """Devuelve una conexión del pool. Cuando se llama db.close(),
-    la conexión se devuelve al pool (no se cierra físicamente).
-    Esto permite que el código existente funcione sin cambios.
-    """
+    """Conexión del pool. db.close() la devuelve al pool (o la descarta si está rota)."""
+    import time
     p = _get_pool()
-    conn = p.getconn()
+    last_err = None
+    for attempt in range(3):
+        try:
+            conn = p.getconn()
+            conn.autocommit = False
+            # ping barato: si está muerta, descartar y reintentar
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT 1")
+                    cur.fetchone()
+            except Exception:
+                _discard_broken(p, conn)
+                last_err = Exception("conexion invalida del pool")
+                time.sleep(0.2 * (attempt + 1))
+                continue
+            return _PooledConnection(conn, p)
+        except pool.PoolError as e:
+            last_err = e
+            time.sleep(0.3 * (attempt + 1))
+        except Exception as e:
+            last_err = e
+            time.sleep(0.2 * (attempt + 1))
+    # último recurso: conexión directa fuera del pool
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
     conn.autocommit = False
-    return _PooledConnection(conn, p)
+    return _DirectConnection(conn)
 
 
 class _PooledConnection:
@@ -58,12 +92,45 @@ class _PooledConnection:
 
     def close(self):
         try:
+            if self._conn.closed:
+                _discard_broken(self._pool, self._conn)
+                return
+            # si hay transacción abortada, devolver limpia
+            if self._conn.info.transaction_status == psycopg2.extensions.TRANSACTION_STATUS_INERROR:
+                try:
+                    self._conn.rollback()
+                except Exception:
+                    _discard_broken(self._pool, self._conn)
+                    return
             self._pool.putconn(self._conn)
         except Exception:
             try:
                 self._conn.close()
             except Exception:
                 pass
+
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+
+class _DirectConnection:
+    """Conexión directa (fuera de pool) que se cierra al llamar close()."""
+    __slots__ = ('_conn',)
+
+    def __init__(self, conn):
+        self._conn = conn
+
+    def close(self):
+        try:
+            self._conn.close()
+        except Exception:
+            pass
 
     def __getattr__(self, name):
         return getattr(self._conn, name)

@@ -3,8 +3,8 @@
 Tests del sistema de comercio AeternumLibrary.
 
 Prueba:
-- Flow: firma, parámetros, URLs, respuesta
-- Webhook: token, consulta Flow, validaciones
+- Flow eliminado: endpoints legacy responden 410
+- Webhooks: Paddle (digital) + Culqi (físico)
 - Checkout: multimoneda, precios, validaciones
 - Entitlements: compra permanente, alquiler, expiración
 - Stock: concurrencia, descuento atómico
@@ -48,7 +48,6 @@ sys.modules["database"] = database_mod
 
 import server
 import commerce_service
-import flow_service
 import payment_providers
 from fastapi.testclient import TestClient
 
@@ -82,243 +81,22 @@ def as_admin(client):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# FLOW: FIRMA HMAC-SHA256
+# CURRENCIAS DEL PROVEEDOR ACTIVO
 # ══════════════════════════════════════════════════════════════════════════════
 
-class TestFlowSignature:
-    """Tests de la firma HMAC-SHA256 de Flow."""
+class TestCurrencyRouting:
+    """Monedas habilitadas segun el proveedor activo (payment_providers)."""
 
-    def test_signature_format_key_value(self):
-        """La firma debe concatenar key+value sin = ni &."""
-        original_key = flow_service.FLOW_SECRET_KEY
-        try:
-            flow_service.FLOW_SECRET_KEY = "test_secret"
-            params = {"amount": "5000", "apiKey": "XXX", "currency": "CLP"}
-            sig = flow_service._compute_signature(params)
-            # Debe ser un hash hex de 64 caracteres
-            assert len(sig) == 64
-            assert all(c in "0123456789abcdef" for c in sig)
-        finally:
-            flow_service.FLOW_SECRET_KEY = original_key
-
-    def test_signature_sorted_params(self):
-        """Los parámetros deben estar ordenados alfabéticamente."""
-        original_key = flow_service.FLOW_SECRET_KEY
-        try:
-            flow_service.FLOW_SECRET_KEY = "secret"
-            p1 = {"z": "1", "a": "2"}
-            p2 = {"a": "2", "z": "1"}
-            assert flow_service._compute_signature(p1) == flow_service._compute_signature(p2)
-        finally:
-            flow_service.FLOW_SECRET_KEY = original_key
-
-    def test_signature_uses_secret_key(self):
-        """La firma debe usar FLOW_SECRET_KEY, no FLOW_API_KEY."""
-        original_secret = flow_service.FLOW_SECRET_KEY
-        original_api = flow_service.FLOW_API_KEY
-        try:
-            flow_service.FLOW_SECRET_KEY = "secret_A"
-            flow_service.FLOW_API_KEY = "key_B"
-            sig1 = flow_service._compute_signature({"a": "1"})
-            flow_service.FLOW_SECRET_KEY = "secret_C"
-            sig2 = flow_service._compute_signature({"a": "1"})
-            assert sig1 != sig2
-        finally:
-            flow_service.FLOW_SECRET_KEY = original_secret
-            flow_service.FLOW_API_KEY = original_api
-
-    def test_signature_no_equals_no_ampersand(self):
-        """La concatenación NO debe contener = ni &."""
-        original_key = flow_service.FLOW_SECRET_KEY
-        try:
-            flow_service.FLOW_SECRET_KEY = "k"
-            import hmac as _hmac, hashlib
-            params = {"b": "2", "a": "1"}
-            sorted_params = sorted(params.items())
-            to_sign = "".join(f"{k}{v}" for k, v in sorted_params)
-            assert "=" not in to_sign
-            assert "&" not in to_sign
-            assert to_sign == "a1b2"
-        finally:
-            flow_service.FLOW_SECRET_KEY = original_key
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# FLOW: CREACIÓN DE PAGO
-# ══════════════════════════════════════════════════════════════════════════════
-
-class TestFlowCreatePayment:
-    """Tests de creación de pago."""
-
-    def test_uses_apiKey_not_commerceCode(self):
-        """Flow usa 'apiKey', no 'commerceCode'."""
-        original_key = flow_service.FLOW_API_KEY
-        original_secret = flow_service.FLOW_SECRET_KEY
-        try:
-            flow_service.FLOW_API_KEY = ""
-            flow_service.FLOW_SECRET_KEY = ""
-            result = flow_service.create_payment("ORD-001", 1000, "Test", "t@t.com")
-            assert result["success"] is False
-            assert "FLOW_API_KEY" in result["error"]
-        finally:
-            flow_service.FLOW_API_KEY = original_key
-            flow_service.FLOW_SECRET_KEY = original_secret
-
-    def test_create_payment_missing_config(self):
-        """Falla sin configuración."""
-        original_key = flow_service.FLOW_API_KEY
-        original_secret = flow_service.FLOW_SECRET_KEY
-        try:
-            flow_service.FLOW_API_KEY = ""
-            flow_service.FLOW_SECRET_KEY = ""
-            result = flow_service.create_payment("ORD-001", 1000, "Test", "t@t.com")
-            assert result["success"] is False
-        finally:
-            flow_service.FLOW_API_KEY = original_key
-            flow_service.FLOW_SECRET_KEY = original_secret
-
-    def test_create_payment_url_endpoint(self):
-        """El endpoint debe ser /payment/create, no /api/v1.0/payments/create."""
-        url = f"{flow_service.FLOW_BASE_URL}/payment/create"
-        assert "/api/v1.0/" not in url
-        assert "/payments/" not in url
-
-    def test_create_payment_redirect_url_format(self):
-        """La URL de redirección debe ser url + '?token=' + token."""
-        # Simular respuesta de Flow
-        flow_response = {"url": "https://flow.cl/pay", "token": "ABC123", "flowOrder": 123}
-        redirect = f"{flow_response['url']}?token={flow_response['token']}"
-        assert redirect == "https://flow.cl/pay?token=ABC123"
-
-    def test_create_payment_accepts_currency(self):
-        """create_payment debe aceptar currency como parámetro."""
-        import inspect
-        sig = inspect.signature(flow_service.create_payment)
-        assert "currency" in sig.parameters
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# FLOW: CONSULTA DE ESTADO
-# ══════════════════════════════════════════════════════════════════════════════
-
-class TestFlowVerifyPayment:
-    """Tests de consulta de estado."""
-
-    def test_verify_uses_getStatus(self):
-        """El endpoint debe ser /payment/getStatus."""
-        url = f"{flow_service.FLOW_BASE_URL}/payment/getStatus"
-        assert "getPayment" not in url
-
-    def test_is_payment_approved_status_2(self):
-        assert flow_service.is_payment_approved({"status": 2}) is True
-        assert flow_service.is_payment_approved({"status": 1}) is False
-        assert flow_service.is_payment_approved({"status": 3}) is False
-
-    def test_is_payment_rejected_status_3_4(self):
-        assert flow_service.is_payment_rejected({"status": 3}) is True
-        assert flow_service.is_payment_rejected({"status": 4}) is True
-        assert flow_service.is_payment_rejected({"status": 2}) is False
-
-    def test_status_codes_official(self):
-        """Estados oficiales de Flow: 1=pendiente, 2=pagado, 3=rechazado, 4=cancelado."""
-        assert flow_service.get_payment_status_code({"status": 1}) == "pending"
-        assert flow_service.get_payment_status_code({"status": 2}) == "approved"
-        assert flow_service.get_payment_status_code({"status": 3}) == "rejected"
-        assert flow_service.get_payment_status_code({"status": 4}) == "cancelled"
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# FLOW: MONEDAS
-# ══════════════════════════════════════════════════════════════════════════════
-
-class TestFlowCurrencies:
-    """Tests de soporte multimoneda."""
-
-    def test_enabled_currencies(self):
-        """PEN, CLP, MXN deben estar habilitados."""
-        assert "PEN" in flow_service.ENABLED_DIGITAL_CURRENCIES
-        assert "CLP" in flow_service.ENABLED_DIGITAL_CURRENCIES
-        assert "MXN" in flow_service.ENABLED_DIGITAL_CURRENCIES
-
-    def test_eur_usd_not_enabled_in_flow(self):
-        """EUR y USD NO están habilitados en flow_service (legacy), pero sí en payment_providers."""
-        assert "EUR" not in flow_service.ENABLED_DIGITAL_CURRENCIES
-        assert "USD" not in flow_service.ENABLED_DIGITAL_CURRENCIES
-
-    def test_eur_usd_enabled_in_paddle(self):
-        """EUR y USD SÍ están habilitados en payment_providers (Paddle)."""
+    def test_eur_usd_enabled_with_paddle(self):
+        """EUR y USD estan habilitados con Paddle."""
         assert "EUR" in payment_providers.ENABLED_DIGITAL_CURRENCIES
         assert "USD" in payment_providers.ENABLED_DIGITAL_CURRENCIES
 
-    def test_eur_usd_exist_in_config(self):
-        """EUR y USD existen en CURRENCY_CONFIG pero con flow_tested=False."""
-        assert "EUR" in flow_service.CURRENCY_CONFIG
-        assert "USD" in flow_service.CURRENCY_CONFIG
-        assert flow_service.CURRENCY_CONFIG["EUR"]["flow_tested"] is False
-        assert flow_service.CURRENCY_CONFIG["USD"]["flow_tested"] is False
-
-    def test_currency_symbols(self):
-        assert flow_service.get_currency_symbol("PEN") == "S/"
-        assert flow_service.get_currency_symbol("CLP") == "$"
-        assert flow_service.get_currency_symbol("MXN") == "MX$"
-        assert flow_service.get_currency_symbol("EUR") == "\u20ac"
-        assert flow_service.get_currency_symbol("USD") == "US$"
-
-    def test_format_amount_pen(self):
-        """PEN: 25.90 → 2590 (2 decimales, ×100)."""
-        assert flow_service.format_amount_for_flow(Decimal("25.90"), "PEN") == 2590
-
-    def test_format_amount_clp(self):
-        """CLP: 50000 → 50000 (0 decimales, sin ×100)."""
-        assert flow_service.format_amount_for_flow(Decimal("50000"), "CLP") == 50000
-
-    def test_format_amount_mxn(self):
-        """MXN: 150.50 → 15050 (2 decimales, ×100)."""
-        assert flow_service.format_amount_for_flow(Decimal("150.50"), "MXN") == 15050
-
-    def test_format_amount_eur(self):
-        """EUR: 10.50 → 1050 (2 decimales, ×100)."""
-        assert flow_service.format_amount_for_flow(Decimal("10.50"), "EUR") == 1050
-
-    def test_format_amount_usd(self):
-        """USD: 25.00 → 2500 (2 decimales, ×100)."""
-        assert flow_service.format_amount_for_flow(Decimal("25.00"), "USD") == 2500
-
-    def test_format_amount_clp_no_decimal(self):
-        """CLP: 1500 → 1500 (sin decimales, sin redondeo)."""
-        assert flow_service.format_amount_for_flow(Decimal("1500"), "CLP") == 1500
-
-    def test_format_amount_clp_rounding(self):
-        """CLP: decimales se redondean al entero más cercano."""
-        assert flow_service.format_amount_for_flow(Decimal("1500.6"), "CLP") == 1501
-        assert flow_service.format_amount_for_flow(Decimal("1500.4"), "CLP") == 1500
-
-    def test_format_amount_unknown_currency_raises(self):
-        """Moneda desconocida debe lanzar ValueError."""
-        with pytest.raises(ValueError, match="Moneda no soportada"):
-            flow_service.format_amount_for_flow(Decimal("100"), "XYZ")
-
-    def test_format_amount_default_pen(self):
-        """Sin currency, default es PEN."""
-        assert flow_service.format_amount_for_flow(Decimal("25.90")) == 2590
-
     def test_is_currency_enabled(self):
-        assert flow_service.is_currency_enabled("PEN") is True
-        assert flow_service.is_currency_enabled("CLP") is True
-        assert flow_service.is_currency_enabled("EUR") is False
-        assert flow_service.is_currency_enabled("XYZ") is False
-
-    def test_is_currency_enabled_paddle(self):
-        """payment_providers.is_currency_enabled tiene más monedas."""
         assert payment_providers.is_currency_enabled("PEN") is True
         assert payment_providers.is_currency_enabled("EUR") is True
         assert payment_providers.is_currency_enabled("USD") is True
         assert payment_providers.is_currency_enabled("XYZ") is False
-
-    def test_currency_decimals(self):
-        assert flow_service.get_currency_decimals("PEN") == 2
-        assert flow_service.get_currency_decimals("CLP") == 0
-        assert flow_service.get_currency_decimals("MXN") == 2
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -423,29 +201,29 @@ class TestCheckoutEndpoints:
 # WEBHOOK
 # ══════════════════════════════════════════════════════════════════════════════
 
-class TestFlowWebhook:
-    def test_webhook_no_token(self):
+class TestFlowRemoved:
+    """Flow fue eliminado: los endpoints legacy responden 410 Gone."""
+
+    def test_webhook_returns_410(self):
         db = FakeDb()
         server.get_db = lambda: db
         client = TestClient(server.app)
         response = client.post("/api/flow/webhook", json={})
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "error"
+        assert response.status_code == 410
 
-    def test_webhook_with_token(self):
+    def test_webhook_with_token_returns_410(self):
         db = FakeDb()
         server.get_db = lambda: db
         client = TestClient(server.app)
         response = client.post("/api/flow/webhook", json={"token": "test123"})
-        assert response.status_code == 200
+        assert response.status_code == 410
 
-    def test_flow_result_no_token(self):
+    def test_flow_result_returns_410(self):
         db = FakeDb()
         server.get_db = lambda: db
         client = TestClient(server.app)
         response = client.get("/api/flow/result")
-        assert response.status_code == 400
+        assert response.status_code == 410
 
     def test_check_access_unauthenticated(self):
         db = FakeDb()
@@ -535,20 +313,20 @@ class TestDecimalMoney:
         assert a + b == Decimal("0.3")
 
     def test_format_amount_integer(self):
-        """format_amount_for_flow debe retornar entero."""
-        result = flow_service.format_amount_for_flow(Decimal("25.90"), "PEN")
+        """format_amount_for_provider debe retornar entero."""
+        result = payment_providers.format_amount_for_provider(Decimal("25.90"), "PEN")
         assert isinstance(result, int)
         assert result == 2590
 
     def test_format_amount_rounding_pen(self):
         """Redondeo correcto para PEN (2 decimales)."""
-        assert flow_service.format_amount_for_flow(Decimal("25.905"), "PEN") == 2591
-        assert flow_service.format_amount_for_flow(Decimal("25.904"), "PEN") == 2590
+        assert payment_providers.format_amount_for_provider(Decimal("25.905"), "PEN") == 2591
+        assert payment_providers.format_amount_for_provider(Decimal("25.904"), "PEN") == 2590
 
     def test_format_amount_rounding_clp(self):
         """Redondeo correcto para CLP (0 decimales)."""
-        assert flow_service.format_amount_for_flow(Decimal("1500.5"), "CLP") == 1501
-        assert flow_service.format_amount_for_flow(Decimal("1500.4"), "CLP") == 1500
+        assert payment_providers.format_amount_for_provider(Decimal("1500.5"), "CLP") == 1501
+        assert payment_providers.format_amount_for_provider(Decimal("1500.4"), "CLP") == 1500
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -582,11 +360,11 @@ class TestCheckoutCurrencyValidation:
         assert response.status_code == 422
 
     def test_physical_with_clp_rejected(self, as_user):
-        """Físico + CLP: backend debe rechazar."""
+        """Físico + CLP: CLP ya no está habilitado (se eliminó con Flow) → 422."""
         response = as_user.post("/api/checkout", json={
             "book_id": 99, "item_type": "physical_purchase", "currency": "CLP"
         })
-        assert response.status_code == 400
+        assert response.status_code == 422
 
     def test_physical_with_mxn_rejected(self, as_user):
         """Físico + MXN: backend debe rechazar."""
@@ -621,7 +399,7 @@ class TestAdminConfig:
         data = response.json()
         assert "enabled_currencies" in data
         assert "PEN" in data["enabled_currencies"]
-        assert "CLP" in data["enabled_currencies"]
+        assert "BRL" in data["enabled_currencies"]
         assert "MXN" in data["enabled_currencies"]
         assert "USD" in data["enabled_currencies"]
         assert "EUR" in data["enabled_currencies"]
@@ -642,13 +420,6 @@ class TestAdminConfig:
         text = json.dumps(data)
         assert "FLOW_API_KEY" not in text
         assert "FLOW_SECRET_KEY" not in text
-
-    def test_config_flow_sandbox_field(self, as_admin):
-        """Config tiene flow_sandbox."""
-        response = as_admin.get("/api/admin/commerce/config")
-        data = response.json()
-        assert "flow_sandbox" in data
-        assert isinstance(data["flow_sandbox"], bool)
 
     def test_config_unauthorized(self, as_user):
         """No-admin no puede ver config."""
@@ -674,7 +445,7 @@ class TestPublicEndpoints:
         assert "currencies" in data
         codes = [c["code"] for c in data["currencies"]]
         assert "PEN" in codes
-        assert "CLP" in codes
+        assert "USD" in codes
         assert "MXN" in codes
 
     def test_book_prices_endpoint(self):
@@ -690,12 +461,12 @@ class TestPublicEndpoints:
         assert data["prices"]["PEN"]["price"] == 25.90
 
     def test_flow_result_no_crash(self):
-        """GET /flow/result sin token no causa crash."""
+        """GET /flow/result responde 410 (Flow eliminado) sin crash."""
         db = FakeDb()
         server.get_db = lambda: db
         client = TestClient(server.app)
         response = client.get("/api/flow/result")
-        assert response.status_code == 400
+        assert response.status_code == 410
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -732,36 +503,36 @@ class TestEmailTemplatesMultiCurrency:
 # ══════════════════════════════════════════════════════════════════════════════
 
 class TestWebhookAmountConsistency:
-    """Tests de que webhook usa la misma función que payment/create."""
+    """Tests de que la misma función formatea montos al crear y verificar pagos."""
 
     def test_format_function_same_both_sides(self):
         """La misma función se usa para crear y verificar pagos."""
         amount = Decimal("25.90")
-        create_result = flow_service.format_amount_for_flow(amount, "PEN")
-        verify_result = flow_service.format_amount_for_flow(amount, "PEN")
+        create_result = payment_providers.format_amount_for_provider(amount, "PEN")
+        verify_result = payment_providers.format_amount_for_provider(amount, "PEN")
         assert create_result == verify_result
 
     def test_format_function_clp_consistent(self):
         """CLP: mismo resultado en ambos lados."""
         amount = Decimal("50000")
-        create_result = flow_service.format_amount_for_flow(amount, "CLP")
-        verify_result = flow_service.format_amount_for_flow(amount, "CLP")
+        create_result = payment_providers.format_amount_for_provider(amount, "CLP")
+        verify_result = payment_providers.format_amount_for_provider(amount, "CLP")
         assert create_result == verify_result
         assert create_result == 50000
 
     def test_format_function_mxn_consistent(self):
         """MXN: mismo resultado en ambos lados."""
         amount = Decimal("150.50")
-        create_result = flow_service.format_amount_for_flow(amount, "MXN")
-        verify_result = flow_service.format_amount_for_flow(amount, "MXN")
+        create_result = payment_providers.format_amount_for_provider(amount, "MXN")
+        verify_result = payment_providers.format_amount_for_provider(amount, "MXN")
         assert create_result == verify_result
         assert create_result == 15050
 
     def test_format_function_eur_consistent(self):
         """EUR: mismo resultado en ambos lados."""
         amount = Decimal("10.50")
-        create_result = flow_service.format_amount_for_flow(amount, "EUR")
-        verify_result = flow_service.format_amount_for_flow(amount, "EUR")
+        create_result = payment_providers.format_amount_for_provider(amount, "EUR")
+        verify_result = payment_providers.format_amount_for_provider(amount, "EUR")
         assert create_result == verify_result
         assert create_result == 1050
 
@@ -777,9 +548,9 @@ class TestPaymentProviders:
         """Las monedas principales deben estar habilitadas."""
         assert "USD" in payment_providers.ENABLED_DIGITAL_CURRENCIES
         assert "EUR" in payment_providers.ENABLED_DIGITAL_CURRENCIES
-        assert "GBP" in payment_providers.ENABLED_DIGITAL_CURRENCIES
+        assert "BRL" in payment_providers.ENABLED_DIGITAL_CURRENCIES
         assert "PEN" in payment_providers.ENABLED_DIGITAL_CURRENCIES
-        assert "JPY" in payment_providers.ENABLED_DIGITAL_CURRENCIES
+        assert "MXN" in payment_providers.ENABLED_DIGITAL_CURRENCIES
 
     def test_get_currency_symbol(self):
         assert payment_providers.get_currency_symbol("USD") == "US$"
@@ -924,7 +695,7 @@ class TestAdminConfigNew:
         assert len(data["enabled_currencies"]) > 3
         assert "USD" in data["enabled_currencies"]
         assert "EUR" in data["enabled_currencies"]
-        assert "GBP" in data["enabled_currencies"]
+        assert "BRL" in data["enabled_currencies"]
 
     def test_config_no_secrets(self, as_admin):
         """Config no expone claves."""
@@ -951,6 +722,6 @@ class TestCurrenciesEndpoint:
         codes = [c["code"] for c in data["currencies"]]
         assert "USD" in codes
         assert "EUR" in codes
-        assert "GBP" in codes
+        assert "BRL" in codes
         assert "PEN" in codes
-        assert "JPY" in codes
+        assert "COP" in codes

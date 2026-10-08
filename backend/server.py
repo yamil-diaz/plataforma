@@ -51,7 +51,6 @@ from storage_config import (
 )
 
 # Comercio (lazy loaded - se importan cuando se usa el endpoint)
-flow_service = None
 commerce_service = None
 import payment_providers
 webhook_handler = None
@@ -181,7 +180,9 @@ RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 # ── Configuración de Google OAuth ──────────────────────────────────────────────
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:5173/auth/google/callback")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "https://aeternumlibrary.com/api/auth/google/callback")
+# El SPA también puede recibir el callback (flujo legacy)
+GOOGLE_REDIRECT_URI_SPA = os.getenv("GOOGLE_REDIRECT_URI_SPA", "https://aeternumlibrary.com/auth/google/callback")
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
@@ -462,7 +463,19 @@ DAILY_GOAL_PAGES = 15
 DAILY_GOAL_REWARD_AMOUNT = 20
 MIN_SECONDS_BETWEEN_PAGE_REPORTS = 5
 MIN_COURSE_REWARD_SECONDS = 30
-MAX_REGISTRATIONS_PER_IP_PER_DAY = 3
+MAX_REGISTRATIONS_PER_IP_PER_DAY = 15
+
+
+def _client_ip(request: Request) -> str:
+    """IP real del cliente detrás de nginx/docker."""
+    forwarded = request.headers.get("x-forwarded-for") or request.headers.get("X-Forwarded-For")
+    if forwarded:
+        # primer hop
+        return forwarded.split(",")[0].strip()
+    real_ip = request.headers.get("x-real-ip") or request.headers.get("X-Real-IP")
+    if real_ip:
+        return real_ip.strip()
+    return request.client.host if request.client else "unknown"
 MAX_COMPETITION_TIME_MS = 7200000
 
 
@@ -671,6 +684,15 @@ async def health_check():
     return result
 
 
+@api_router.get("/config/public")
+async def public_config():
+    """Config pública para el frontend (client tokens de Paddle son públicos)."""
+    return {
+        "paddle_client_token": os.getenv("PADDLE_CLIENT_TOKEN", ""),
+        "paddle_environment": os.getenv("PADDLE_ENVIRONMENT", "sandbox"),
+    }
+
+
 @api_router.get("/debug/files")
 async def debug_files(request: Request):
     """Endpoint de diagnóstico. Solo accesible para administradores en producción."""
@@ -737,7 +759,7 @@ async def register(user_data: UserRegister, response: Response, request: Request
     db = get_db()
     cursor = db.cursor()
 
-    user_ip = (request.client.host if request.client else "unknown")
+    user_ip = _client_ip(request)
 
     # Protección contra abuso: máx. 3 cuentas por IP cada 24 horas
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
@@ -751,14 +773,41 @@ async def register(user_data: UserRegister, response: Response, request: Request
         db.close()
         raise HTTPException(status_code=429, detail="Demasiados registros desde esta IP. Intenta más tarde.")
 
-    cursor.execute("SELECT id, google_id, email_verified FROM users WHERE email = %s", (user_data.email,))
+    cursor.execute("SELECT id, google_id, email_verified, email FROM users WHERE lower(email) = lower(%s)", (user_data.email,))
     existing_user = cursor.fetchone()
-    if existing_user:
-        db.close()
-        raise HTTPException(status_code=400, detail="El correo ya está registrado")
-
+    email_norm = (user_data.email or "").strip().lower()
     hashed = hash_password(user_data.password)
     now = datetime.now(timezone.utc).isoformat()
+
+    if existing_user:
+        # Cuenta ya verificada: no permitir duplicado
+        if existing_user.get("email_verified"):
+            db.close()
+            raise HTTPException(status_code=400, detail="El correo ya está registrado. Si es tu cuenta, inicia sesión.")
+        # Cuenta creada pero sin verificar: reenviar código y continuar flujo
+        verification_code = generate_verification_code()
+        verification_expiry = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+        try:
+            cursor.execute(
+                "UPDATE users SET hashed_password = %s, verification_code = %s, verification_expiry = %s WHERE id = %s",
+                (hashed, verification_code, verification_expiry, existing_user["id"]),
+            )
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"Error al actualizar registro: {str(e)}")
+        finally:
+            db.close()
+        try:
+            send_verification_code_email(email_norm, verification_code)
+        except Exception as email_err:
+            print(f"[REGISTER] Aviso: no se pudo reenviar código a {email_norm}: {email_err}")
+        return {
+            "message": "Esta cuenta aún no estaba verificada. Te enviamos un nuevo código de verificación.",
+            "requires_verification": True,
+            "email": email_norm,
+            "user_id": str(existing_user["id"]),
+        }
 
     base_username = "".join(c for c in user_data.name.lower() if c.isalnum())
     random_suffix = "".join(random.choices(string.digits, k=4))
@@ -776,9 +825,9 @@ async def register(user_data: UserRegister, response: Response, request: Request
         verification_expiry = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
         
         cursor.execute(
-            """INSERT INTO users (name, email, hashed_password, role, rayos_balance, created_at, username, registration_ip, referred_by_qr_id, verification_code, verification_expiry, email_verified) 
+            """INSERT INTO users (name, email, hashed_password, role, rayos_balance, created_at, username, registration_ip, referred_by_qr_id, verification_code, verification_expiry, email_verified)
                VALUES (%s, %s, %s, 'user', 0, %s, %s, %s, %s, %s, %s, FALSE) RETURNING id""",
-            (user_data.name, user_data.email, hashed, now, username, user_ip, qr_id, verification_code, verification_expiry),
+            (user_data.name, email_norm, hashed, now, username, user_ip, qr_id, verification_code, verification_expiry),
         )
         user_id = cursor.fetchone()["id"]
 
@@ -809,7 +858,7 @@ async def register(user_data: UserRegister, response: Response, request: Request
     return {
         "message": "Registro exitoso. Hemos enviado un código de verificación a tu correo.",
         "requires_verification": True,
-        "email": user_data.email,
+        "email": email_norm,
         "user_id": str(user_id),
     }
 
@@ -825,7 +874,7 @@ async def verify_email(req: VerifyEmailRequest, response: Response):
     cursor = db.cursor()
     try:
         cursor.execute(
-            "SELECT id, name, email, verification_code, verification_expiry, email_verified FROM users WHERE email = %s",
+            "SELECT id, name, email, verification_code, verification_expiry, email_verified FROM users WHERE lower(email) = lower(%s)",
             (req.email,),
         )
         row = cursor.fetchone()
@@ -890,7 +939,7 @@ async def resend_verification(email: EmailStr):
     cursor = db.cursor()
     try:
         cursor.execute(
-            "SELECT id, email_verified FROM users WHERE email = %s",
+            "SELECT id, email, email_verified FROM users WHERE lower(email) = lower(%s)",
             (email,),
         )
         row = cursor.fetchone()
@@ -909,7 +958,7 @@ async def resend_verification(email: EmailStr):
         )
         db.commit()
         
-        send_verification_code_email(email, verification_code)
+        send_verification_code_email(row["email"] or email, verification_code)
         
         return {"message": "Nuevo código de verificación enviado"}
     except HTTPException:
@@ -933,7 +982,8 @@ async def google_auth_url():
     """Devuelve la URL de autorización de Google OAuth."""
     if not GOOGLE_CLIENT_ID or GOOGLE_CLIENT_ID == "your_google_client_id_here":
         raise HTTPException(status_code=503, detail="Google OAuth no configurado")
-    
+
+    import urllib.parse
     params = {
         "client_id": GOOGLE_CLIENT_ID,
         "redirect_uri": GOOGLE_REDIRECT_URI,
@@ -942,27 +992,22 @@ async def google_auth_url():
         "access_type": "offline",
         "prompt": "consent",
     }
-    query_string = "&".join(f"{k}={v}" for k, v in params.items())
-    auth_url = f"{GOOGLE_AUTH_URL}?{query_string}"
+    auth_url = f"{GOOGLE_AUTH_URL}?{urllib.parse.urlencode(params)}"
     return {"auth_url": auth_url}
 
 
-@api_router.post("/auth/google/callback")
-async def google_callback(req: GoogleAuthRequest, response: Response):
-    """Intercambia el código de autorización por tokens y registra/loguea al usuario."""
-    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
-        raise HTTPException(status_code=503, detail="Google OAuth no configurado")
-    
-    db = get_db()
-    cursor = db.cursor()
-    try:
-        # Intercambiar código por access token
-        import urllib.parse
+def _exchange_google_code(code: str):
+    """Intercambia el code de Google por userinfo. Lanza HTTPException en fallo."""
+    import urllib.parse
+    import urllib.error
+
+    last_err = None
+    for redirect_uri in (GOOGLE_REDIRECT_URI, GOOGLE_REDIRECT_URI_SPA):
         token_data = {
-            "code": req.code,
+            "code": code,
             "client_id": GOOGLE_CLIENT_ID,
             "client_secret": GOOGLE_CLIENT_SECRET,
-            "redirect_uri": GOOGLE_REDIRECT_URI,
+            "redirect_uri": redirect_uri,
             "grant_type": "authorization_code",
         }
         token_req = urllib.request.Request(
@@ -971,124 +1016,181 @@ async def google_callback(req: GoogleAuthRequest, response: Response):
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             method="POST",
         )
-        with urllib.request.urlopen(token_req) as token_resp:
-            import json
-            token_json = json.loads(token_resp.read().decode())
-        
-        access_token = token_json.get("access_token")
-        if not access_token:
-            raise HTTPException(status_code=400, detail="No se pudo obtener access token de Google")
-        
-        # Obtener info del usuario
-        userinfo_req = urllib.request.Request(
-            GOOGLE_USERINFO_URL,
-            headers={"Authorization": f"Bearer {access_token}"},
-        )
-        with urllib.request.urlopen(userinfo_req) as userinfo_resp:
-            userinfo = json.loads(userinfo_resp.read().decode())
-        
-        google_id = userinfo.get("id")
-        google_email = userinfo.get("email", "").lower()
-        google_name = userinfo.get("name", "")
-        
-        if not google_id or not google_email:
-            raise HTTPException(status_code=400, detail="Información incompleta de Google")
-        
-        # Verificar si ya existe un usuario con este google_id
-        cursor.execute("SELECT id, name, email, role, rayos_balance, is_banned FROM users WHERE google_id = %s", (google_id,))
-        existing_google_user = cursor.fetchone()
-        
-        if existing_google_user:
-            # Usuario ya vinculado a Google - loguear directamente
-            if existing_google_user["is_banned"]:
-                raise HTTPException(status_code=403, detail="Tu cuenta ha sido suspendida")
-            
-            user_id = existing_google_user["id"]
-            set_auth_cookies(
-                response,
-                create_access_token(user_id, existing_google_user["email"]),
-                create_refresh_token(user_id),
+        try:
+            with urllib.request.urlopen(token_req) as token_resp:
+                import json
+                token_json = json.loads(token_resp.read().decode())
+            access_token = token_json.get("access_token")
+            if not access_token:
+                raise HTTPException(status_code=400, detail="Google no devolvió access token")
+            userinfo_req = urllib.request.Request(
+                GOOGLE_USERINFO_URL,
+                headers={"Authorization": f"Bearer {access_token}"},
             )
-            return {
-                "_id": str(user_id),
-                "id": str(user_id),
-                "email": existing_google_user["email"],
-                "name": existing_google_user["name"],
-                "role": existing_google_user["role"],
-                "rayos_balance": existing_google_user["rayos_balance"],
-            }
-        
-        # Verificar si existe un usuario con el mismo email (sin google_id)
-        cursor.execute("SELECT id, name, email, role, rayos_balance, is_banned, google_id FROM users WHERE email = %s", (google_email,))
-        existing_email_user = cursor.fetchone()
-        
-        if existing_email_user:
-            # Usuario existe con mismo email - vincular cuenta de Google
-            if existing_email_user["is_banned"]:
-                raise HTTPException(status_code=403, detail="Tu cuenta ha sido suspendida")
-            
-            if existing_email_user["google_id"]:
-                # Ya tiene otro Google vinculado (edge case)
-                raise HTTPException(status_code=400, detail="Este correo ya está vinculado a otra cuenta de Google")
-            
-            user_id = existing_email_user["id"]
-            cursor.execute(
-                "UPDATE users SET google_id = %s, google_email = %s, email_verified = TRUE WHERE id = %s",
-                (google_id, google_email, user_id),
-            )
-            db.commit()
-            
-            set_auth_cookies(
-                response,
-                create_access_token(user_id, existing_email_user["email"]),
-                create_refresh_token(user_id),
-            )
-            return {
-                "_id": str(user_id),
-                "id": str(user_id),
-                "email": existing_email_user["email"],
-                "name": existing_email_user["name"],
-                "role": existing_email_user["role"],
-                "rayos_balance": existing_email_user["rayos_balance"],
-            }
-        
-        # Usuario nuevo - crear cuenta con Google
-        base_username = "".join(c for c in google_name.lower() if c.isalnum())
-        random_suffix = "".join(random.choices(string.digits, k=4))
-        username = f"{base_username}{random_suffix}"
-        now = datetime.now(timezone.utc).isoformat()
-        
-        cursor.execute(
-            """INSERT INTO users (name, email, hashed_password, role, rayos_balance, created_at, username, google_id, google_email, email_verified) 
-               VALUES (%s, %s, %s, 'user', %s, %s, %s, %s, %s, TRUE) RETURNING id""",
-            (google_name, google_email, "", REGISTRATION_REWARD_AMOUNT, now, username, google_id, google_email),
-        )
-        user_id = cursor.fetchone()["id"]
-        
-        # Recompensa de registro
-        _credit_rayos(
-            cursor,
-            user_id,
-            REGISTRATION_REWARD_AMOUNT,
-            "registration_reward",
-            "Recompensa por crear tu cuenta en AETERNUM con Google",
-        )
-        db.commit()
-        
+            with urllib.request.urlopen(userinfo_req) as userinfo_resp:
+                userinfo = json.loads(userinfo_resp.read().decode())
+            print(f"[GOOGLE] exchange OK with redirect_uri={redirect_uri} email={userinfo.get('email')}")
+            return userinfo
+        except urllib.error.HTTPError as http_err:
+            err_body = ""
+            try:
+                err_body = http_err.read().decode()
+            except Exception:
+                pass
+            print(f"[GOOGLE] token exchange HTTP {http_err.code} redirect={redirect_uri}: {err_body}")
+            last_err = err_body
+            continue
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"[GOOGLE] exchange error redirect={redirect_uri}: {e}")
+            last_err = str(e)
+            continue
+
+    raise HTTPException(
+        status_code=400,
+        detail="No se pudo validar el acceso con Google (código inválido o expirado). Intenta de nuevo.",
+    )
+
+
+def _google_user_payload(cursor, response, userinfo):
+    """Crea o loguea al usuario de Google. Setea cookies y devuelve dict."""
+    google_id = userinfo.get("id")
+    google_email = (userinfo.get("email") or "").lower()
+    google_name = userinfo.get("name") or ""
+    if not google_id or not google_email:
+        raise HTTPException(status_code=400, detail="Google no devolvió email. Revisa los permisos de la cuenta.")
+
+    cursor.execute(
+        "SELECT id, name, email, role, rayos_balance, is_banned FROM users WHERE google_id = %s",
+        (google_id,),
+    )
+    existing_google_user = cursor.fetchone()
+
+    if existing_google_user:
+        if existing_google_user["is_banned"]:
+            raise HTTPException(status_code=403, detail="Tu cuenta ha sido suspendida")
+        user_id = existing_google_user["id"]
         set_auth_cookies(
             response,
-            create_access_token(user_id, google_email),
+            create_access_token(user_id, existing_google_user["email"]),
             create_refresh_token(user_id),
         )
-        
         return {
             "_id": str(user_id),
             "id": str(user_id),
-            "email": google_email,
-            "name": google_name,
-            "role": "user",
-            "rayos_balance": REGISTRATION_REWARD_AMOUNT,
+            "email": existing_google_user["email"],
+            "name": existing_google_user["name"],
+            "role": existing_google_user["role"],
+            "rayos_balance": existing_google_user["rayos_balance"],
         }
+
+    cursor.execute(
+        "SELECT id, name, email, role, rayos_balance, is_banned, google_id FROM users WHERE lower(email) = lower(%s)",
+        (google_email,),
+    )
+    existing_email_user = cursor.fetchone()
+
+    if existing_email_user:
+        if existing_email_user["is_banned"]:
+            raise HTTPException(status_code=403, detail="Tu cuenta ha sido suspendida")
+        if existing_email_user["google_id"]:
+            raise HTTPException(status_code=400, detail="Este correo ya está vinculado a otra cuenta de Google")
+        user_id = existing_email_user["id"]
+        cursor.execute(
+            "UPDATE users SET google_id = %s, google_email = %s, email_verified = TRUE WHERE id = %s",
+            (google_id, google_email, user_id),
+        )
+        cursor.connection.commit()
+        set_auth_cookies(
+            response,
+            create_access_token(user_id, existing_email_user["email"]),
+            create_refresh_token(user_id),
+        )
+        return {
+            "_id": str(user_id),
+            "id": str(user_id),
+            "email": existing_email_user["email"],
+            "name": existing_email_user["name"],
+            "role": existing_email_user["role"],
+            "rayos_balance": existing_email_user["rayos_balance"],
+        }
+
+    base_username = "".join(c for c in google_name.lower() if c.isalnum()) or "user"
+    random_suffix = "".join(random.choices(string.digits, k=4))
+    username = f"{base_username}{random_suffix}"
+    now = datetime.now(timezone.utc).isoformat()
+    cursor.execute(
+        """INSERT INTO users (name, email, hashed_password, role, rayos_balance, created_at, username, google_id, google_email, email_verified)
+           VALUES (%s, %s, %s, 'user', %s, %s, %s, %s, %s, TRUE) RETURNING id""",
+        (google_name, google_email, "", REGISTRATION_REWARD_AMOUNT, now, username, google_id, google_email),
+    )
+    user_id = cursor.fetchone()["id"]
+    _credit_rayos(
+        cursor,
+        user_id,
+        REGISTRATION_REWARD_AMOUNT,
+        "registration_reward",
+        "Recompensa por crear tu cuenta en AETERNUM con Google",
+    )
+    cursor.connection.commit()
+    set_auth_cookies(
+        response,
+        create_access_token(user_id, google_email),
+        create_refresh_token(user_id),
+    )
+    return {
+        "_id": str(user_id),
+        "id": str(user_id),
+        "email": google_email,
+        "name": google_name,
+        "role": "user",
+        "rayos_balance": REGISTRATION_REWARD_AMOUNT,
+    }
+
+
+@api_router.get("/auth/google/callback")
+async def google_callback_get(code: str = "", error: str = "", state: str = ""):
+    """Redirect flow: Google vuelve aquí, seteamos cookies y vamos al home."""
+    from fastapi.responses import RedirectResponse
+
+    if error or not code:
+        return RedirectResponse(url="/register?error=google_oauth_failed", status_code=302)
+
+    db = get_db()
+    cursor = db.cursor()
+    tmp_response = Response()
+    try:
+        userinfo = _exchange_google_code(code)
+        payload = _google_user_payload(cursor, tmp_response, userinfo)
+        print(f"[GOOGLE] login OK user={payload.get('email')} id={payload.get('id')}")
+        redirect = RedirectResponse(url="/?oauth=success", status_code=302)
+        for cookie in tmp_response.headers.get_list("set-cookie"):
+            redirect.headers.append("set-cookie", cookie)
+        return redirect
+    except HTTPException as he:
+        db.rollback()
+        print(f"[GOOGLE] callback GET failed: {he.detail}")
+        return RedirectResponse(url="/register?error=google_callback_failed", status_code=302)
+    except Exception as e:
+        db.rollback()
+        traceback.print_exc()
+        return RedirectResponse(url="/register?error=google_callback_failed", status_code=302)
+    finally:
+        db.close()
+
+
+@api_router.post("/auth/google/callback")
+async def google_callback(req: GoogleAuthRequest, response: Response):
+    """Flujo SPA (legacy): devuelve JSON + cookies."""
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        raise HTTPException(status_code=503, detail="Google OAuth no configurado")
+
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        userinfo = _exchange_google_code(req.code)
+        return _google_user_payload(cursor, response, userinfo)
     except HTTPException:
         db.rollback()
         raise
@@ -1121,7 +1223,7 @@ async def qr_visit(code: str, request: Request):
         row = cursor.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Código QR no encontrado o inactivo")
-        ip = (request.client.host if request.client else "unknown")
+        ip = _client_ip(request)
         visit_date = datetime.now(timezone.utc).date().isoformat()
         created_at = datetime.now(timezone.utc).isoformat()
         cursor.execute(
@@ -1313,7 +1415,7 @@ async def login(login_data: UserLogin, response: Response, request: Request):
                 db.commit()
 
         cursor.execute(
-            "SELECT id, name, email, hashed_password, role, rayos_balance, is_banned, google_id, email_verified FROM users WHERE email = %s",
+            "SELECT id, name, email, hashed_password, role, rayos_balance, is_banned, google_id, email_verified FROM users WHERE lower(email) = lower(%s)",
             (login_data.email,),
         )
         row = cursor.fetchone()
@@ -1342,7 +1444,9 @@ async def login(login_data: UserLogin, response: Response, request: Request):
             else:
                 cursor.execute("INSERT INTO login_attempts (ip_address, attempts) VALUES (%s, 1)", (identifier,))
             db.commit()
-            raise HTTPException(status_code=400, detail="Credenciales incorrectas")
+            if row and not pwd_check:
+                raise HTTPException(status_code=400, detail="Contraseña incorrecta. Si tu cuenta es de Google, usa el botón Continuar con Google.")
+            raise HTTPException(status_code=400, detail="No existe una cuenta con este correo. Regístrate o usa Google.")
 
         # Reset attempts on success
         cursor.execute("DELETE FROM login_attempts WHERE ip_address = %s", (identifier,))
@@ -1378,7 +1482,7 @@ async def forgot_password(req: ForgotPasswordRequest):
     db = get_db()
     try:
         cursor = db.cursor()
-        cursor.execute("SELECT id FROM users WHERE email = %s", (req.email,))
+        cursor.execute("SELECT id, email FROM users WHERE lower(email) = lower(%s)", (req.email,))
         row = cursor.fetchone()
         if not row:
             raise HTTPException(status_code=400, detail="Este correo NO está registrado en la base de datos. Asegúrate de haberlo escrito correctamente.")
@@ -1831,29 +1935,43 @@ async def get_settings():
 @api_router.get("/books")
 async def get_books(category: Optional[str] = None):
     db = get_db()
-    cursor = db.cursor()
+    try:
+        cursor = db.cursor()
+        # Catálogo: SIN content (pesan megas y alargan la respuesta)
+        query = """
+            SELECT b.id, b.title, b.author_name, b.category, b.price, b.cover_image_url,
+                   b.views, b.likes, b.dislikes, b.average_rating, b.total_reviews,
+                   b.published, b.created_at, b.page_count, b.uploader_id,
+                   b.is_physical, b.physical_price, b.stock, b.isbn, b.source,
+                   COALESCE(bp.rental_price, 0) AS rental_price
+            FROM books b
+            LEFT JOIN book_prices bp
+              ON bp.book_id = b.id AND bp.currency = 'PEN' AND bp.is_active = TRUE
+            WHERE b.published = 1
+        """
+        params = []
+        if category:
+            query += " AND category = %s"
+            params.append(category)
 
-    query = "SELECT * FROM books WHERE published = 1"
-    params = []
-    if category:
-        query += " AND category = %s"
-        params.append(category)
+        query += " ORDER BY views DESC"
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
 
-    query += " ORDER BY views DESC"
-    cursor.execute(query, params)
-    rows = cursor.fetchall()
+        books = []
+        for row in rows:
+            book = dict(row)
+            book["_id"] = str(book["id"])
+            books.append(book)
 
-    books = []
-    for row in rows:
-        book = dict(row)
-        book["_id"] = str(book["id"])
-        books.append(book)
-
-    return books
+        return books
+    finally:
+        db.close()
 
 
 @api_router.get("/books/{book_id}")
 async def get_book(book_id: str, request: Request):
+    db = None
     try:
         db = get_db()
         cursor = db.cursor()
@@ -1878,6 +1996,9 @@ async def get_book(book_id: str, request: Request):
         price = book.get("price", 0) or 0
         if price > 0 and not has_access:
             book.pop("content", None)
+        elif len(book.get("content") or "") > 5000:
+            # Catálogo/detalle: no devolver el texto íntegro (lo da /pages/{n})
+            book["content"] = (book["content"] or "")[:500] + "…"
 
         # Incrementar vistas solo si tiene acceso
         if has_access:
@@ -1895,6 +2016,12 @@ async def get_book(book_id: str, request: Request):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if db is not None:
+            try:
+                db.close()
+            except Exception:
+                pass
 
 class InteractRequest(BaseModel):
     action: str
@@ -1966,6 +2093,8 @@ async def get_book_interaction(book_id: int, request: Request):
 @api_router.delete("/books/{book_id}")
 async def delete_book(book_id: str, request: Request):
     user = await get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="No autorizado")
 
     try:
         db = get_db()
@@ -1981,6 +2110,17 @@ async def delete_book(book_id: str, request: Request):
 
         if user["role"] != "admin" and row["uploader_id"] != user["id"]:
             raise HTTPException(status_code=403, detail="No autorizado para borrar este libro")
+
+        bid = int(book_id)
+
+        # Limpiar FKs que NO hacen cascade (bloquean el DELETE)
+        cursor.execute("DELETE FROM order_items WHERE book_id = %s", (bid,))
+        deleted_orders = cursor.rowcount
+        cursor.execute("DELETE FROM digital_entitlements WHERE book_id = %s", (bid,))
+        deleted_ents = cursor.rowcount
+        cursor.execute("DELETE FROM order_effects WHERE order_id IN (SELECT id FROM orders WHERE id IN (SELECT order_id FROM order_items WHERE book_id = %s))", (bid,))
+        # featured y resto ya son CASCADE; por si acaso:
+        cursor.execute("DELETE FROM featured_books WHERE book_id = %s", (bid,))
 
         pdf_resuelto = _resolver_pdf_path(row["pdf_path"])
         if pdf_resuelto:
@@ -1998,9 +2138,23 @@ async def delete_book(book_id: str, request: Request):
                 except OSError:
                     pass
 
-        cursor.execute("DELETE FROM books WHERE id = %s", (int(book_id),))
+        cursor.execute("DELETE FROM books WHERE id = %s", (bid,))
         db.commit()
-        return {"detail": "Libro borrado exitosamente"}
+        return {
+            "detail": "Libro borrado exitosamente",
+            "removed_orders": deleted_orders,
+            "removed_entitlements": deleted_ents,
+        }
+    except HTTPException:
+        db.rollback()
+        raise
+    except psycopg2.errors.ForeignKeyViolation as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="No se puede borrar: el libro tiene compras u órdenes asociadas. "
+                   "Contacta al administrador si necesitas eliminarlo a la fuerza.",
+        )
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -2016,6 +2170,7 @@ async def update_book(
     author_name: str = Form(None),
     category: str = Form(None),
     price: float = Form(None),
+    rental_price: float = Form(None),
     cover_image: UploadFile = File(None)
 ):
     user = await get_current_user(request)
@@ -2068,6 +2223,14 @@ async def update_book(
 
     try:
         cursor.execute(query, tuple(params))
+        if price is not None or rental_price is not None:
+            now = datetime.now(timezone.utc).isoformat()
+            final_price = price
+            if final_price is None:
+                cursor.execute("SELECT price FROM books WHERE id = %s", (book_id,))
+                final_price = cursor.fetchone()["price"] or 0
+            final_rental = rental_price or 0
+            _upsert_book_prices(cursor, book_id, float(final_price or 0), float(final_rental or 0), now)
         db.commit()
         return {"detail": "Libro actualizado exitosamente"}
     except Exception as e:
@@ -2176,6 +2339,43 @@ MAX_PDF_SIZE_MB = 50
 MAX_PDF_SIZE_BYTES = MAX_PDF_SIZE_MB * 1024 * 1024
 
 
+def _upsert_book_prices(cursor, book_id: int, price: float, rental_price: float, now: str) -> None:
+    """Escribe book_prices para PEN y USD (checkout Paddle)."""
+    try:
+        pen_price = float(price or 0)
+        pen_rental = float(rental_price or 0) or None
+        if pen_price > 0:
+            cursor.execute(
+                """
+                INSERT INTO book_prices (book_id, currency, price, rental_price, is_active, created_at, updated_at)
+                VALUES (%s, 'PEN', %s, %s, TRUE, %s, %s)
+                ON CONFLICT (book_id, currency) DO UPDATE
+                SET price = EXCLUDED.price,
+                    rental_price = EXCLUDED.rental_price,
+                    is_active = TRUE,
+                    updated_at = EXCLUDED.updated_at
+                """,
+                (book_id, pen_price, pen_rental, now, now),
+            )
+            # USD aproximado (PEN -> USD ~0.27) para checkout internacional
+            usd_price = round(pen_price * 0.27, 2)
+            usd_rental = round(pen_rental * 0.27, 2) if pen_rental else None
+            cursor.execute(
+                """
+                INSERT INTO book_prices (book_id, currency, price, rental_price, is_active, created_at, updated_at)
+                VALUES (%s, 'USD', %s, %s, TRUE, %s, %s)
+                ON CONFLICT (book_id, currency) DO UPDATE
+                SET price = EXCLUDED.price,
+                    rental_price = EXCLUDED.rental_price,
+                    is_active = TRUE,
+                    updated_at = EXCLUDED.updated_at
+                """,
+                (book_id, usd_price, usd_rental, now, now),
+            )
+    except Exception as e:
+        print(f"[BOOK_PRICES] No se pudo upsertear precios libro {book_id}: {e}", flush=True)
+
+
 def _validar_archivo_pdf(pdf_file: Optional[UploadFile]) -> None:
     """Valida el PDF por contenido (magic bytes %PDF) y por tamaño, NUNCA por
     extensión. HTTP 413 si excede el límite; HTTP 422 si no es un PDF real."""
@@ -2209,6 +2409,7 @@ async def create_book(
     author_name: str = Form(...),
     category: str = Form(...),
     price: float = Form(0.0),
+    rental_price: float = Form(0.0),
     pdf_file: Optional[UploadFile] = File(None),
     cover_file: Optional[UploadFile] = File(None),
     request: Request = None,
@@ -2233,7 +2434,6 @@ async def create_book(
     cover_url = "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400"
 
     # FASE 2: extracción por páginas (sin límite) + detección de capítulos.
-    # El contenido completo se mantiene en books.content para compatibilidad.
     paginas_libro = []
     capitulos_libro = []
 
@@ -2243,22 +2443,39 @@ async def create_book(
         with open(pdf_path, "wb") as buffer:
             shutil.copyfileobj(pdf_file.file, buffer)
 
-        # PASO 3: pipeline central (extracción + validación). Un PDF cuya
-        # extracción falla, produce placeholder, basura, contenido patológico
-        # o insuficiente se RECHAZA: no se publica ni queda nada a medias.
         procesado = lectura.procesar_contenido_para_publicacion(pdf_path=pdf_path, fuente="pdf")
         validacion = procesado["validacion"]
-        if not validacion["valid"]:
-            raise HTTPException(
-                status_code=422,
-                detail="Libro rechazado: el archivo no pudo procesarse correctamente. "
-                + "; ".join(validacion["errors"]),
-            )
-        content = procesado["content"]
-        paginas_libro = procesado["paginas"]
-        capitulos_libro = procesado["capitulos"]
+        can_force = user["role"] in ("admin", "autor")
 
-        # Verificar duplicado ANTES de insertar (título+autor normalizado o hash de PDF)
+        if not validacion["valid"]:
+            # Admin/autor: si el PDF es estructuralmente válido, se publica igual
+            # (el lector usa pages o download del PDF).
+            if not can_force:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Libro rechazado: el archivo no pudo procesarse correctamente. "
+                    + "; ".join(validacion["errors"]),
+                )
+            print(f"[CREATE_BOOK] Validación fallida forzada (role={user['role']}): {validacion['errors']}", flush=True)
+
+        content = procesado.get("content") or content
+        paginas_libro = procesado.get("paginas") or []
+        capitulos_libro = procesado.get("capitulos") or []
+
+        # Si no hubo páginas extraíbles, generar una por página del PDF
+        if not paginas_libro and pdf_path and os.path.isfile(pdf_path):
+            try:
+                from pypdf import PdfReader
+                reader = PdfReader(pdf_path)
+                n = max(1, len(reader.pages))
+                titulo = (title or "Libro").strip()[:80]
+                paginas_libro = [
+                    f"{titulo}\n\nCapítulo 1\n\nEl contenido de este libro está disponible para lectura en el PDF original."
+                ] + ["Contenido disponible en el PDF original."] * (n - 1)
+            except Exception:
+                paginas_libro = [content if content and content != lectura.CONTENIDO_NO_DISPONIBLE else "Contenido disponible en el PDF original."]
+
+        # Verificar duplicado ANTES de insertar
         pdf_hash = _calcular_hash_pdf(pdf_path) if pdf_path and os.path.isfile(pdf_path) else None
         dup_id = _verificar_duplicado(cursor, title, author_name, content, pdf_path, pdf_hash, existing_hashes)
         if dup_id:
@@ -2275,13 +2492,8 @@ async def create_book(
             cover_url = f"/static/covers/{unique_cover_name}"
 
         now = datetime.now(timezone.utc).isoformat()
-
-        # Admin y autor publican directamente; el resto queda pendiente de aprobación.
         published_status = 1 if user["role"] in ("admin", "autor") else 0
 
-        # Transacción única: INSERT + páginas + capítulos + page_count/paginated_at
-        # se confirman juntos; si cualquier paso falla, rollback completo (sin
-        # libros fantasma ni libros sin páginas).
         cursor.execute(
             """
             INSERT INTO books (title, author_name, content, category, price, cover_image_url, pdf_path, views, likes, average_rating, total_reviews, published, created_at, uploader_id, source, source_hash)
@@ -2299,11 +2511,12 @@ async def create_book(
                 (len(paginas_libro), now, book_id),
             )
 
+        # Precios por moneda (checkout Paddle)
+        _upsert_book_prices(cursor, book_id, price, rental_price, now)
+
         db.commit()
     except HTTPException:
         db.rollback()
-        # Sin filas huérfanas en BD (rollback) y sin archivos huérfanos en disco
-        # (el PDF rechazado por validación se elimina de STORAGE_BOOKS).
         for ruta in (pdf_path, cover_path):
             if ruta and os.path.exists(ruta):
                 try:
@@ -2312,7 +2525,6 @@ async def create_book(
                     pass
         raise
     except psycopg2.errors.UniqueViolation:
-        # UNIQUE constraint en source_hash: otro proceso insertó el mismo hash.
         db.rollback()
         for ruta in (pdf_path, cover_path):
             if ruta and os.path.exists(ruta):
@@ -2327,7 +2539,6 @@ async def create_book(
         )
     except Exception as e:
         db.rollback()
-        # Sin filas huérfanas en BD (rollback) y sin archivos huérfanos en disco.
         for ruta in (pdf_path, cover_path):
             if ruta and os.path.exists(ruta):
                 try:
@@ -2345,6 +2556,7 @@ async def create_book(
         "author_name": author_name,
         "category": category,
         "price": price,
+        "rental_price": rental_price,
         "cover_image_url": cover_url,
         "average_rating": 0.0,
         "total_reviews": 0,
@@ -4569,6 +4781,28 @@ async def forum_admin_list_categories(request: Request):
         db.close()
 
 
+@api_router.put("/admin/forum/categories/{category_id}/deactivate")
+async def forum_admin_deactivate_category(category_id: int, request: Request):
+    user = await get_current_user(request)
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+    db = get_db()
+    try:
+        cursor = db.cursor()
+        cursor.execute("SELECT id, is_active FROM forum_categories WHERE id = %s", (category_id,))
+        cat = cursor.fetchone()
+        if not cat:
+            raise HTTPException(status_code=404, detail="Categoría no encontrada")
+        if not cat["is_active"]:
+            raise HTTPException(status_code=400, detail="La categoría ya está inactiva")
+        cursor.execute("UPDATE forum_categories SET is_active = FALSE WHERE id = %s", (category_id,))
+        db.commit()
+        _audit_log(db, user["id"], "deactivate_category", "category", category_id)
+        return {"deactivated": True}
+    finally:
+        db.close()
+
+
 @api_router.delete("/admin/forum/categories/{category_id}")
 async def forum_admin_delete_category(category_id: int, request: Request):
     user = await get_current_user(request)
@@ -4643,12 +4877,68 @@ async def forum_list_posts(
             f"""SELECT fp.id, fp.user_id, u.username AS author_username, u.name AS author_name,
                        fp.category_id, fc.name AS category_name, fc.icon AS category_icon, fc.color AS category_color,
                        fp.title, fp.slug, fp.status, fp.views, fp.reply_count, fp.like_count,
-                       fp.is_pinned, fp.is_resolved, fp.book_id, fp.created_at, fp.updated_at
+                       fp.is_pinned, fp.is_resolved, fp.book_id, fp.created_at, fp.updated_at,
+                       LEFT(substring(fp.content, 1, 200), 200) AS content_excerpt
                 FROM forum_posts fp
                 LEFT JOIN users u ON fp.user_id = u.id
                 LEFT JOIN forum_categories fc ON fp.category_id = fc.id
                 WHERE {where_sql}
                 ORDER BY {order}
+                LIMIT %s OFFSET %s""",
+            tuple(params) + (limit, offset),
+        )
+        posts = cursor.fetchall()
+        return {
+            "posts": posts,
+            "total": total,
+            "page": page,
+            "pages": math.ceil(total / limit) if total else 0,
+        }
+    finally:
+        db.close()
+
+
+@api_router.get("/admin/forum/posts")
+async def forum_admin_list_posts(
+    request: Request,
+    status: Optional[str] = None,
+    page: int = 1,
+    limit: int = FORUM_PAGE_DEFAULT,
+):
+    """Listado de posts para el panel admin (incluye no activos)."""
+    user = await get_current_user(request)
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+    limit = min(max(limit, 1), FORUM_PAGE_MAX)
+    page = max(page, 1)
+    offset = (page - 1) * limit
+    db = get_db()
+    try:
+        cursor = db.cursor()
+        where = []
+        params = []
+        if status:
+            where.append("fp.status = %s")
+            params.append(status)
+        where_sql = " AND ".join(where)
+
+        count_sql = "SELECT COUNT(*) AS total FROM forum_posts fp"
+        if where_sql:
+            count_sql += f" WHERE {where_sql}"
+        cursor.execute(count_sql, tuple(params))
+        total = cursor.fetchone()["total"]
+
+        cursor.execute(
+            f"""SELECT fp.id, fp.user_id, u.username AS author_username,
+                       fp.category_id, fc.name AS category_name, fc.icon AS category_icon, fc.color AS category_color,
+                       fp.title, fp.slug, fp.status, fp.views, fp.reply_count, fp.like_count,
+                       fp.is_pinned, fp.is_resolved, fp.book_id, fp.created_at, fp.updated_at,
+                       LEFT(substring(fp.content, 1, 200), 200) AS content_excerpt
+                FROM forum_posts fp
+                LEFT JOIN users u ON fp.user_id = u.id
+                LEFT JOIN forum_categories fc ON fp.category_id = fc.id
+                {"WHERE " + where_sql if where_sql else ""}
+                ORDER BY fp.created_at DESC
                 LIMIT %s OFFSET %s""",
             tuple(params) + (limit, offset),
         )
@@ -5104,6 +5394,16 @@ async def forum_toggle_like(post_id: int, request: Request):
             )
             cursor.execute("UPDATE forum_posts SET like_count = like_count + 1 WHERE id = %s", (post_id,))
             liked = True
+            # Notificar al autor del post (si no se lo da like a sí mismo)
+            if post["user_id"] and post["user_id"] != user["id"]:
+                cursor.execute(
+                    "INSERT INTO notifications (user_id, message, created_at) VALUES (%s, %s, %s)",
+                    (
+                        post["user_id"],
+                        f"A {user.get('name') or user.get('username')} le gustó tu publicación",
+                        now,
+                    ),
+                )
         db.commit()
         cursor.execute("SELECT like_count FROM forum_posts WHERE id = %s", (post_id,))
         count_row = cursor.fetchone()
@@ -5290,7 +5590,8 @@ async def forum_search(
             f"""SELECT fp.id, fp.user_id, u.username AS author_username, u.name AS author_name,
                        fp.category_id, fc.name AS category_name, fc.icon AS category_icon, fc.color AS category_color,
                        fp.title, fp.slug, fp.status, fp.views, fp.reply_count, fp.like_count,
-                       fp.is_pinned, fp.is_resolved, fp.book_id, fp.created_at, fp.updated_at
+                       fp.is_pinned, fp.is_resolved, fp.book_id, fp.created_at, fp.updated_at,
+                       LEFT(substring(fp.content, 1, 200), 200) AS content_excerpt
                 FROM forum_posts fp
                 LEFT JOIN users u ON fp.user_id = u.id
                 LEFT JOIN forum_categories fc ON fp.category_id = fc.id
@@ -5596,6 +5897,210 @@ async def forum_admin_resolve_report(report_id: int, request: Request):
         db.close()
 
 
+# ── Ganancias y retiros de autores ──────────────────────────────────────────
+
+class WithdrawalRequest(BaseModel):
+    amount: float
+    currency: str = "PEN"
+    method: str = "bank_transfer"
+    account_details: str
+
+
+@api_router.get("/author/earnings")
+async def author_earnings(request: Request):
+    """Resumen de ganancias del autor: ventas de sus libros."""
+    user = await get_current_user(request)
+    db = get_db()
+    try:
+        cursor = db.cursor()
+        cursor.execute(
+            """
+            SELECT
+                COALESCE(SUM(o.subtotal), 0) AS total_sales,
+                COUNT(DISTINCT o.id) AS orders_count,
+                COUNT(oi.id) AS items_count
+            FROM orders o
+            JOIN order_items oi ON oi.order_id = o.id
+            JOIN books b ON b.id = oi.book_id
+            WHERE b.uploader_id = %s
+              AND o.payment_status = 'approved'
+            """,
+            (user["id"],),
+        )
+        summary = cursor.fetchone()
+
+        cursor.execute(
+            """
+            SELECT COALESCE(SUM(amount), 0) AS requested
+            FROM author_withdrawals
+            WHERE user_id = %s AND status IN ('pending', 'approved', 'paid')
+            """,
+            (user["id"],),
+        )
+        requested = cursor.fetchone()["requested"]
+
+        total = float(summary["total_sales"] or 0)
+        req = float(requested or 0)
+        available = max(0.0, total - req)
+
+        cursor.execute(
+            """
+            SELECT b.title, o.subtotal, o.currency, o.created_at, o.order_number
+            FROM orders o
+            JOIN order_items oi ON oi.order_id = o.id
+            JOIN books b ON b.id = oi.book_id
+            WHERE b.uploader_id = %s AND o.payment_status = 'approved'
+            ORDER BY o.created_at DESC
+            LIMIT 20
+            """,
+            (user["id"],),
+        )
+        recent = cursor.fetchall()
+
+        cursor.execute(
+            """
+            SELECT id, amount, currency, status, method, created_at, processed_at, admin_note
+            FROM author_withdrawals
+            WHERE user_id = %s
+            ORDER BY created_at DESC
+            LIMIT 20
+            """,
+            (user["id"],),
+        )
+        withdrawals = cursor.fetchall()
+
+        return {
+            "total_sales": total,
+            "requested": req,
+            "available": available,
+            "orders_count": int(summary["orders_count"] or 0),
+            "items_count": int(summary["items_count"] or 0),
+            "recent_sales": recent,
+            "withdrawals": withdrawals,
+        }
+    finally:
+        db.close()
+
+
+@api_router.post("/author/withdrawals")
+async def request_withdrawal(req: WithdrawalRequest, request: Request):
+    user = await get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="No autorizado")
+    if user["role"] not in ("autor", "admin"):
+        raise HTTPException(status_code=403, detail="Solo autores pueden solicitar retiros")
+    if req.amount <= 0:
+        raise HTTPException(status_code=400, detail="El monto debe ser mayor a 0")
+    if not (req.account_details or "").strip():
+        raise HTTPException(status_code=400, detail="Indica los datos de cuenta para el depósito")
+
+    db = get_db()
+    try:
+        cursor = db.cursor()
+        cursor.execute(
+            """
+            SELECT COALESCE(SUM(o.subtotal), 0) AS total_sales,
+                   COALESCE((SELECT SUM(amount) FROM author_withdrawals
+                             WHERE user_id = %s AND status IN ('pending','approved','paid')), 0) AS requested
+            FROM orders o
+            JOIN order_items oi ON oi.order_id = o.id
+            JOIN books b ON b.id = oi.book_id
+            WHERE b.uploader_id = %s AND o.payment_status = 'approved'
+            """,
+            (user["id"], user["id"]),
+        )
+        row = cursor.fetchone()
+        available = float(row["total_sales"] or 0) - float(row["requested"] or 0)
+        if req.amount > available + 0.001:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Monto insuficiente. Disponible: S/ {available:.2f}",
+            )
+
+        now = datetime.now(timezone.utc).isoformat()
+        cursor.execute(
+            """
+            INSERT INTO author_withdrawals (user_id, amount, currency, method, account_details, status, created_at)
+            VALUES (%s, %s, %s, %s, %s, 'pending', %s)
+            RETURNING id
+            """,
+            (user["id"], req.amount, (req.currency or "PEN").upper(), req.method or "bank_transfer",
+             req.account_details.strip(), now),
+        )
+        wid = cursor.fetchone()["id"]
+        db.commit()
+        return {"id": wid, "status": "pending", "message": "Solicitud de retiro enviada. Un administrador la revisará."}
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Error al crear la solicitud de retiro")
+    finally:
+        db.close()
+
+
+@api_router.get("/admin/withdrawals")
+async def admin_withdrawals(request: Request, status: Optional[str] = None):
+    user = await get_current_user(request)
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+    db = get_db()
+    try:
+        cursor = db.cursor()
+        query = """
+            SELECT w.id, w.user_id, u.name, u.email, w.amount, w.currency,
+                   w.method, w.account_details, w.status, w.admin_note,
+                   w.created_at, w.processed_at
+            FROM author_withdrawals w
+            JOIN users u ON u.id = w.user_id
+        """
+        params = []
+        if status:
+            query += " WHERE w.status = %s"
+            params.append(status)
+        query += " ORDER BY w.created_at DESC LIMIT 100"
+        cursor.execute(query, params)
+        return {"withdrawals": cursor.fetchall()}
+    finally:
+        db.close()
+
+
+class WithdrawalDecision(BaseModel):
+    status: str  # approved | rejected | paid
+    admin_note: Optional[str] = None
+
+
+@api_router.put("/admin/withdrawals/{wid}")
+async def decide_withdrawal(wid: int, body: WithdrawalDecision, request: Request):
+    user = await get_current_user(request)
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+    if body.status not in ("approved", "rejected", "paid"):
+        raise HTTPException(status_code=400, detail="Estado no válido")
+    db = get_db()
+    try:
+        cursor = db.cursor()
+        cursor.execute("SELECT id, status FROM author_withdrawals WHERE id = %s", (wid,))
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Solicitud no encontrada")
+        now = datetime.now(timezone.utc).isoformat()
+        cursor.execute(
+            "UPDATE author_withdrawals SET status = %s, admin_note = %s, processed_at = %s WHERE id = %s",
+            (body.status, body.admin_note, now if body.status != "pending" else None, wid),
+        )
+        db.commit()
+        return {"id": wid, "status": body.status}
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Error al actualizar la solicitud")
+    finally:
+        db.close()
+
+
 # ── Admin: Stats y Auditoría ────────────────────────────────────────────────
 
 @api_router.get("/admin/forum/stats")
@@ -5671,9 +6176,14 @@ async def forum_admin_audit(request: Request, page: int = 1, limit: int = FORUM_
 @api_router.get("/commerce/currencies")
 async def get_available_currencies():
     """Retorna las monedas habilitadas y sus símbolos. Público (sin auth)."""
+    labels = getattr(payment_providers, "CURRENCY_LABELS", {})
     return {
         "currencies": [
-            {"code": code, "symbol": payment_providers.get_currency_symbol(code)}
+            {
+                "code": code,
+                "symbol": payment_providers.get_currency_symbol(code),
+                "label": labels.get(code, code),
+            }
             for code in payment_providers.ENABLED_DIGITAL_CURRENCIES
         ]
     }
@@ -5855,8 +6365,16 @@ async def create_checkout(req: CheckoutRequest, request: Request):
                 (datetime.now(timezone.utc).isoformat(), result["order_id"]),
             )
             db.commit()
-            paddle_details = str(provider_result.get("details", ""))[:500]
-            raise HTTPException(status_code=502, detail=f"Error al conectar con {provider.name}: {provider_result['error']} | Paddle: {paddle_details}")
+            err = str(provider_result.get("error", ""))
+            if "mínimo" in err.lower() or "minimo" in err.lower() or "minimum" in err.lower() or "charge_limit" in err.lower():
+                user_msg = err if len(err) < 160 else "El precio de este libro está por debajo del mínimo del proveedor de pagos. Ajusta el precio."
+            elif "tax_category" in err or "tax category" in err.lower():
+                user_msg = "El proveedor de pagos rechazó la categoría fiscal del producto. Intenta de nuevo o contacta al administrador."
+            elif "conexión" in err.lower() or "URL" in err or "HTTP 5" in err:
+                user_msg = "No se pudo conectar con el proveedor de pagos. Intenta de nuevo más tarde."
+            else:
+                user_msg = "No se pudo iniciar el pago. Intenta de nuevo más tarde."
+            raise HTTPException(status_code=502, detail=user_msg)
 
         # Actualizar orden con datos del proveedor
         cursor.execute(
@@ -5954,7 +6472,7 @@ async def get_checkout_status(order_id: int, request: Request):
             "order_status": order["order_status"],
             "total": float(order["total"]),
             "currency": order["currency"],
-            "provider": order.get("provider", "flow"),
+            "provider": order.get("provider") or "paddle",
             "book_title": order.get("book_title"),
             "created_at": order["created_at"],
             "paid_at": order.get("paid_at"),
@@ -5964,195 +6482,15 @@ async def get_checkout_status(order_id: int, request: Request):
 
 
 @api_router.post("/flow/webhook")
-async def flow_webhook(request: Request):
-    """
-    Webhook de Flow para notificación de pagos.
-    Flow envía POST con un token. El backend debe consultar Flow para obtener el estado real.
-    Flow NO envía firma en callbacks.
-    """
-    # Flow envía content-type: application/x-www-form-urlencoded
-    form_data = await request.form()
-    body = dict(form_data)
-
-    # Fallback: intentar JSON si no hay form data
-    if not body:
-        try:
-            body = await request.json()
-        except Exception:
-            pass
-
-    db = get_db()
-    cursor = db.cursor()
-    import flow_service
-    import commerce_service
-    now = datetime.now(timezone.utc).isoformat()
-
-    try:
-        # Flow solo envía token
-        token = body.get("token")
-        if not token:
-            cursor.execute(
-                """INSERT INTO payment_events
-                   (provider, event_type, payload, processing_status, error_message, created_at)
-                   VALUES ('flow', 'webhook_no_token', %s, 'failed', 'Token no proporcionado', %s)""",
-                (json.dumps(body), now),
-            )
-            db.commit()
-            return {"status": "error", "message": "Token not provided"}
-
-        # Registrar evento
-        cursor.execute(
-            """INSERT INTO payment_events
-               (provider, provider_event_id, event_type, payload, processing_status, created_at)
-               VALUES ('flow', %s, 'webhook_received', %s, 'received', %s)
-               RETURNING id""",
-            (token, json.dumps(body), now),
-        )
-        event_id = cursor.fetchone()["id"]
-        db.commit()
-
-        # Consultar estado real en Flow (fuente de verdad)
-        verify_result = flow_service.verify_payment(token)
-        if not verify_result["success"]:
-            cursor.execute(
-                "UPDATE payment_events SET processing_status = 'failed', error_message = %s WHERE id = %s",
-                (verify_result.get("error", "Error verificando con Flow"), event_id),
-            )
-            db.commit()
-            return {"status": "error", "message": "Payment verification failed"}
-
-        payment_data = verify_result["data"]
-        flow_status = payment_data.get("status")
-        flow_amount = payment_data.get("amount")
-        flow_currency = payment_data.get("currency")
-        commerce_order = payment_data.get("commerceOrder")
-        flow_order = payment_data.get("flowOrder")
-
-        # Actualizar payment_event con datos de Flow
-        cursor.execute(
-            """UPDATE payment_events SET
-               flow_status = %s, flow_amount = %s, flow_currency = %s,
-               flow_commerce_order = %s
-               WHERE id = %s""",
-            (flow_status, flow_amount, flow_currency, commerce_order, event_id),
-        )
-        db.commit()
-
-        if not commerce_order:
-            cursor.execute(
-                "UPDATE payment_events SET processing_status = 'failed', error_message = 'commerceOrder no encontrado en respuesta Flow' WHERE id = %s",
-                (event_id,),
-            )
-            db.commit()
-            return {"status": "error", "message": "commerceOrder not found in Flow response"}
-
-        # Buscar orden local por order_number (= commerceOrder)
-        cursor.execute(
-            "SELECT id, user_id, payment_status, total, currency, order_type FROM orders WHERE order_number = %s FOR UPDATE",
-            (commerce_order,),
-        )
-        order = cursor.fetchone()
-        if not order:
-            cursor.execute(
-                "UPDATE payment_events SET processing_status = 'failed', error_message = %s WHERE id = %s",
-                (f"Orden local no encontrada: {commerce_order}", event_id),
-            )
-            db.commit()
-            return {"status": "error", "message": "Local order not found"}
-
-        # Verificar monto usando la misma función que payment/create
-        # PEN/USD/EUR: Flow envía centavos (×100). CLP: Flow envía la unidad entera.
-        expected_amount = flow_service.format_amount_for_flow(Decimal(str(order["total"])), order["currency"])
-        if flow_amount is not None and flow_amount != expected_amount:
-            cursor.execute(
-                "UPDATE payment_events SET processing_status = 'failed', error_message = %s WHERE id = %s",
-                (f"Monto mismatch: esperado {expected_amount}, Flow {flow_amount}", event_id),
-            )
-            db.commit()
-            return {"status": "error", "message": "Amount mismatch"}
-
-        # Verificar moneda
-        if flow_currency and flow_currency != order["currency"]:
-            cursor.execute(
-                "UPDATE payment_events SET processing_status = 'failed', error_message = %s WHERE id = %s",
-                (f"Currency mismatch: esperado {order['currency']}, Flow {flow_currency}", event_id),
-            )
-            db.commit()
-            return {"status": "error", "message": "Currency mismatch"}
-
-        # Procesar según estado
-        if flow_service.is_payment_approved(payment_data):
-            # Pago aprobado: confirmar orden (idempotente)
-            confirm_result = commerce_service.confirm_payment(
-                db, order["id"],
-                provider_token=token,
-                provider_flow_order=flow_order,
-            )
-            cursor.execute(
-                "UPDATE payment_events SET order_id = %s, processing_status = 'processed' WHERE id = %s",
-                (order["id"], event_id),
-            )
-            db.commit()
-            return {"status": "ok", "message": "Payment confirmed"}
-
-        elif flow_service.is_payment_rejected(payment_data):
-            status_text = flow_service.get_payment_status_code(payment_data)
-            cursor.execute(
-                "UPDATE orders SET payment_status = 'rejected', order_status = 'cancelled', updated_at = %s WHERE id = %s",
-                (now, order["id"]),
-            )
-            cursor.execute(
-                "UPDATE payment_events SET order_id = %s, processing_status = 'processed' WHERE id = %s",
-                (order["id"], event_id),
-            )
-            db.commit()
-            return {"status": "ok", "message": f"Payment {status_text}"}
-
-        else:
-            # Pago pendiente u otro estado
-            cursor.execute(
-                "UPDATE payment_events SET processing_status = 'ignored' WHERE id = %s",
-                (event_id,),
-            )
-            db.commit()
-            return {"status": "ok", "message": "Payment pending"}
-
-    except Exception as e:
-        db.rollback()
-        try:
-            cursor.execute(
-                """INSERT INTO payment_events
-                   (provider, event_type, payload, processing_status, error_message, created_at)
-                   VALUES ('flow', 'webhook_error', %s, 'failed', %s, %s)""",
-                (json.dumps(body) if isinstance(body, dict) else "{}", str(e), now),
-            )
-            db.commit()
-        except Exception:
-            pass
-        return {"status": "error", "message": "Internal error"}
-    finally:
-        db.close()
+async def flow_webhook_removed():
+    """Flow (Chile) fue eliminado. Pagos: Paddle (digital) + Culqi (fisico Peru)."""
+    raise HTTPException(status_code=410, detail="Flow ya no esta soportado. Usa Paddle o Culqi.")
 
 
 @api_router.get("/flow/result")
-async def flow_payment_result(token: str = None, request: Request = None):
-    """Endpoint de retorno después de que el usuario paga en Flow."""
-    if not token:
-        raise HTTPException(status_code=400, detail="Token no proporcionado")
-
-    import flow_service
-    verify_result = flow_service.verify_payment(token)
-    if verify_result["success"]:
-        payment_data = verify_result["data"]
-        status = flow_service.get_payment_status_code(payment_data)
-        commerce_order = payment_data.get("commerceOrder")
-        return {
-            "status": status,
-            "order_number": commerce_order,
-            "message": "Pago procesado" if status == "approved" else "Pago no completado",
-        }
-    else:
-        raise HTTPException(status_code=502, detail="Error verificando pago")
+async def flow_payment_result_removed():
+    """Flow (Chile) fue eliminado."""
+    raise HTTPException(status_code=410, detail="Flow ya no esta soportado. Usa Paddle o Culqi.")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -6700,7 +7038,6 @@ async def admin_commerce_config(request: Request):
     user = await get_current_user(request)
     if not user or user["role"] != "admin":
         raise HTTPException(status_code=403, detail="No autorizado")
-    import flow_service
     import commerce_service
     paddle = payment_providers.get_paddle_provider()
     culqi = payment_providers.get_culqi_provider()
@@ -6725,8 +7062,6 @@ async def admin_commerce_config(request: Request):
                 "environment": culqi.environment,
             },
         },
-        "flow_configured": bool(flow_service.FLOW_API_KEY and flow_service.FLOW_SECRET_KEY),
-        "flow_sandbox": "sandbox" in flow_service.FLOW_BASE_URL,
     }
 
 

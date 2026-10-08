@@ -31,6 +31,22 @@ if "psycopg2" not in sys.modules:
     extras_mod.RealDictCursor = object
     sys.modules["psycopg2.extras"] = extras_mod
 
+    # psycopg2.pool (requerido desde el commit de connection pooling)
+    pool_mod = types.ModuleType("psycopg2.pool")
+
+    class PoolError(Exception):
+        pass
+
+    class ThreadedConnectionPool:
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError("psycopg2 stub: las pruebas no usan una BD real")
+
+    pool_mod.PoolError = PoolError
+    pool_mod.ThreadedConnectionPool = ThreadedConnectionPool
+    pool_mod.SimpleConnectionPool = ThreadedConnectionPool
+    psycopg2_mod.pool = pool_mod
+    sys.modules["psycopg2.pool"] = pool_mod
+
 # ── Módulo `database` simulado: init_db no-op y get_db → FakeDb ─────────────
 from support import FakeDb
 

@@ -88,10 +88,9 @@ def test_G_ref_valido_no_cambia_role_ni_rayos_aunque_se_intente(client, fake_db)
         json=_registro("rol@test.com", ref="QR001", role="admin", rayos_balance=99999),
     )
     assert r.status_code == 200
-    assert r.json()["role"] == "user"
-    assert r.json()["rayos_balance"] == 100
     u = _usuario(fake_db, "rol@test.com")
     assert u["role"] == "user"
+    assert u["rayos_balance"] == 100
     assert u["referred_by_qr_id"] == 1  # el ref válido sí asocia, el resto se ignora
 
 
@@ -100,15 +99,20 @@ def test_H_registro_normal_sigue_funcionando(client, fake_db):
     r = client.post(API, json=_registro("normal@test.com"))
     assert r.status_code == 200
     data = r.json()
-    assert data["role"] == "user"
-    assert data["rayos_balance"] == 100
-    assert _usuario(fake_db, "normal@test.com") is not None
+    assert data["requires_verification"] is True
+    u = _usuario(fake_db, "normal@test.com")
+    assert u is not None
+    assert u["role"] == "user"
+    assert u["rayos_balance"] == 100
 
 
-# I. email duplicado mantiene el comportamiento actual (400)
+# I. email duplicado: cuenta verificada -> 400; sin verificar -> reenvía código
 def test_I_email_duplicado_mantiene_comportamiento(client, fake_db):
     email = "dup@test.com"
     assert client.post(API, json=_registro(email)).status_code == 200
+    for u in fake_db.state["users"].values():
+        if u.get("email") == email:
+            u["email_verified"] = True
     r = client.post(API, json=_registro(email, ref="QR001"))
     assert r.status_code == 400
     assert "ya está registrado" in r.json()["detail"]
@@ -118,7 +122,7 @@ def test_I_email_duplicado_mantiene_comportamiento(client, fake_db):
 def test_J_registration_reward_sigue_funcionando(client, fake_db):
     r = client.post(API, json=_registro("recompensa@test.com", ref="QR001"))
     assert r.status_code == 200
-    assert r.json()["rayos_balance"] == 100
+    assert _usuario(fake_db, "recompensa@test.com")["rayos_balance"] == 100
     txns = [
         params
         for query, params in fake_db.state["log"]

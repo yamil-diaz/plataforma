@@ -540,7 +540,7 @@ def test_endpoint_error_inesperado_500_generico(as_admin, monkeypatch):
     async def boom(**kwargs):
         raise RuntimeError("detalle interno que no debe filtrarse")
 
-    monkeypatch.setattr(server, "process_chat", boom)
+    monkeypatch.setattr(ai_service, "process_chat", boom)
     resp = as_admin.post("/api/ai/chat", json={"message": "Hola"})
     assert resp.status_code == 500
     assert resp.json()["detail"] == "Error interno del servidor"

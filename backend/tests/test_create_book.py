@@ -99,14 +99,11 @@ def test_create_book_sin_pdf_devuelve_422(fake_db, as_uploader):
     assert fake_db.state["books"] == {k: v for k, v in fake_db.state["books"].items() if v["title"] != "Libro sin pdf"}
 
 
-def test_create_book_pdf_sin_texto_de_admin_tambien_rechazado_422(fake_db, as_admin, _storage_temporal):
-    libros_antes = len(fake_db.state["books"])
-    paginas_antes = len(fake_db.state["book_pages"])
+def test_create_book_pdf_sin_texto_de_admin_lo_publica_forzado(fake_db, as_admin, _storage_temporal):
+    """El admin puede forzar la publicación de un PDF sin capa de texto."""
     resp = _subir_pdf(as_admin, _pdf_bytes_sin_texto(2), "admin_sin_texto.pdf")
-    assert resp.status_code == 422, resp.text
-    assert len(fake_db.state["books"]) == libros_antes
-    assert len(fake_db.state["book_pages"]) == paginas_antes
-    assert list(_storage_temporal.iterdir()) == []
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["id"]
 
 
 def test_create_book_pdf_con_texto_mantiene_page_count_real(fake_db, as_uploader):

@@ -44,11 +44,11 @@ class FakeCursor:
             book = self.state["books"].get(int(params[0]))
             self._last_result = dict(book) if book else None
 
-        elif q.startswith("select id, title, published, page_count, uploader_id from books"):
+        elif q.startswith("select id, title, published, page_count, uploader_id") and "from books" in q:
             book = self.state["books"].get(params[0])
             self._last_result = dict(book) if book else None
 
-        elif q.startswith("select id, published, page_count, uploader_id from books"):
+        elif q.startswith("select id, published, page_count, uploader_id") and "from books" in q:
             book = self.state["books"].get(params[0])
             self._last_result = dict(book) if book else None
 
@@ -57,9 +57,50 @@ class FakeCursor:
             cnt = sum(1 for p in self.state["book_pages"] if p[0] == book_id)
             self._last_result = {"cnt": cnt}
 
-        elif q.startswith("select id, title, published, uploader_id from books"):
+        elif q.startswith("select id, title, published, uploader_id") and "from books" in q:
             book = self.state["books"].get(params[0])
             self._last_result = dict(book) if book else None
+
+        # ── Catálogo público: GET /books (JOIN con book_prices, sin content) ──
+        elif q.startswith("select b.id, b.title, b.author_name, b.category, b.price, b.cover_image_url, b.views, b.likes, b.dislikes") and "from books b" in q:
+            cat_filter = None
+            if "and category = %s" in q:
+                idx = q.index("and category = %s")
+                before = q[:idx].count("%s")
+                if before < len(params):
+                    cat_filter = params[before]
+            rows = []
+            for book in self.state["books"].values():
+                if not book.get("published"):
+                    continue
+                if cat_filter is not None and book.get("category") != cat_filter:
+                    continue
+                bp = self.state.get("book_prices", {}).get((book.get("id"), "PEN"))
+                rows.append({
+                    "id": book.get("id"),
+                    "title": book.get("title"),
+                    "author_name": book.get("author_name"),
+                    "category": book.get("category"),
+                    "price": book.get("price", 0),
+                    "cover_image_url": book.get("cover_image_url"),
+                    "views": book.get("views", 0),
+                    "likes": book.get("likes", 0),
+                    "dislikes": book.get("dislikes", 0),
+                    "average_rating": book.get("average_rating", 0),
+                    "total_reviews": book.get("total_reviews", 0),
+                    "published": book.get("published", 1),
+                    "created_at": book.get("created_at", ""),
+                    "page_count": book.get("page_count", 0),
+                    "uploader_id": book.get("uploader_id"),
+                    "is_physical": book.get("is_physical", False),
+                    "physical_price": book.get("physical_price"),
+                    "stock": book.get("stock"),
+                    "isbn": book.get("isbn"),
+                    "source": book.get("source"),
+                    "rental_price": (bp or {}).get("rental_price", 0) or 0,
+                })
+            rows.sort(key=lambda b: b["views"] or 0, reverse=True)
+            self._last_result = rows
 
         elif q.startswith("select id, title, author_name, content, pdf_path from books where title is not null and author_name is not null"):
             # Duplicate check query
@@ -470,6 +511,22 @@ class FakeCursor:
                 None,
             )
 
+        elif q.startswith("select id, google_id, email_verified, email from users where lower(email) = lower(%s)"):
+            email_buscado = (params[0] or "").lower()
+            self._last_result = next(
+                (
+                    {
+                        "id": uid,
+                        "google_id": u.get("google_id"),
+                        "email_verified": u.get("email_verified", False),
+                        "email": u["email"],
+                    }
+                    for uid, u in self.state["users"].items()
+                    if (u.get("email") or "").lower() == email_buscado
+                ),
+                None,
+            )
+
         elif q.startswith("select id from qr_codes where code"):
             if "and is_active = true" in q:
                 self._last_result = next(
@@ -537,7 +594,33 @@ class FakeCursor:
 
         elif q.startswith("insert into users") and "returning id" in q:
             new_id = max(self.state["users"].keys(), default=0) + 1
-            name, email, hashed_password, created_at, username, registration_ip, referred_by_qr_id = params
+            extra = {}
+            if len(params) == 9:
+                # Registro por email (12 columnas, 9 parámetros)
+                (name, email, hashed_password, created_at, username,
+                 registration_ip, referred_by_qr_id, verification_code,
+                 verification_expiry) = params
+                extra = {
+                    "verification_code": verification_code,
+                    "verification_expiry": verification_expiry,
+                    "email_verified": False,
+                }
+            elif len(params) == 8:
+                # Google OAuth: name, email, hash, rayos_balance, created_at, username, google_id, google_email
+                (name, email, hashed_password, rayos_balance, created_at, username,
+                 google_id, google_email) = params
+                registration_ip = None
+                referred_by_qr_id = None
+                extra = {
+                    "rayos_balance": rayos_balance,
+                    "google_id": google_id,
+                    "google_email": google_email,
+                    "email_verified": True,
+                }
+            else:
+                # Formato legacy de 7 parámetros
+                (name, email, hashed_password, created_at, username,
+                 registration_ip, referred_by_qr_id) = params
             self.state["users"][new_id] = {
                 "id": new_id,
                 "name": name,
@@ -551,8 +634,18 @@ class FakeCursor:
                 "is_banned": False,
                 "created_at": created_at,
             }
+            self.state["users"][new_id].update(extra)
             self._last_result = {"id": new_id}
             self.rowcount = 1
+
+        elif q.startswith("update users set hashed_password") and "where id = %s" in q:
+            hashed, verification_code, verification_expiry, uid = params
+            user = self.state["users"].get(uid)
+            if user:
+                user["hashed_password"] = hashed
+                user["verification_code"] = verification_code
+                user["verification_expiry"] = verification_expiry
+                self.rowcount = 1
 
         elif q.startswith("insert into qr_visits") and "on conflict" in q:
             qr_id, ip, visit_date, created_at = params
