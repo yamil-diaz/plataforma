@@ -75,9 +75,9 @@ export default function RegisterPage() {
     const errCode = searchParams.get('error');
     if (!errCode) return;
     const map = {
-      google_oauth_failed: 'Google no autorizó el inicio de sesión. Intenta de nuevo.',
+      google_oauth_failed: 'No se pudo completar el inicio de sesión con Google. Intenta de nuevo.',
       no_code: 'Google no devolvió el código de autorización. Intenta de nuevo.',
-      google_callback_failed: 'No pudimos completar el registro con Google. Si ya tenías cuenta, inicia sesión con correo o Google desde Iniciar sesión.',
+      google_callback_failed: 'Error al procesar el inicio de sesión con Google. Si ya tienes cuenta, inicia sesión desde la página de Login.',
       google_not_configured: 'Google OAuth no está configurado en el servidor.',
     };
     setError(map[errCode] || 'Error al continuar con Google. Intenta de nuevo.');

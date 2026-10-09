@@ -647,6 +647,25 @@ class QrCodeCreate(BaseModel):
     code: str
     name: str
 
+
+# ── Sistema de vendedores ──────────────────────────────────────────────────
+
+class SellerApplicationRequest(BaseModel):
+    business_name: str
+    business_type: str  # "individual", "company"
+    tax_id: Optional[str] = None
+    phone: str
+    address: str
+    city: str
+    country: str = "Perú"
+    description: str
+
+
+class ReviewSellerApplicationRequest(BaseModel):
+    application_id: int
+    action: str  # "approve" or "reject"
+    admin_note: Optional[str] = None
+
     @field_validator("code", "name", mode="before")
     @classmethod
     def _deben_ser_texto(cls, v):
@@ -826,7 +845,7 @@ async def register(user_data: UserRegister, response: Response, request: Request
         
         cursor.execute(
             """INSERT INTO users (name, email, hashed_password, role, rayos_balance, created_at, username, registration_ip, referred_by_qr_id, verification_code, verification_expiry, email_verified)
-               VALUES (%s, %s, %s, 'user', 0, %s, %s, %s, %s, %s, %s, FALSE) RETURNING id""",
+               VALUES (%s, %s, %s, 'buyer', 0, %s, %s, %s, %s, %s, %s, FALSE) RETURNING id""",
             (user_data.name, email_norm, hashed, now, username, user_ip, qr_id, verification_code, verification_expiry),
         )
         user_id = cursor.fetchone()["id"]
@@ -907,20 +926,27 @@ async def verify_email(req: VerifyEmailRequest, response: Response):
         )
         db.commit()
 
-        user_id = row["id"]
+        # Obtener datos actualizados del usuario
+        cursor.execute(
+            "SELECT id, name, email, role, rayos_balance FROM users WHERE id = %s",
+            (row["id"],),
+        )
+        updated_user = cursor.fetchone()
+
+        user_id = updated_user["id"]
         set_auth_cookies(
             response,
-            create_access_token(user_id, row["email"]),
+            create_access_token(user_id, updated_user["email"]),
             create_refresh_token(user_id),
         )
 
         return {
             "_id": str(user_id),
             "id": str(user_id),
-            "email": row["email"],
-            "name": row["name"],
-            "role": "user",
-            "rayos_balance": 100,  # registration reward
+            "email": updated_user["email"],
+            "name": updated_user["name"],
+            "role": updated_user["role"],
+            "rayos_balance": updated_user["rayos_balance"],
             "message": "Correo verificado correctamente. Bienvenido a AETERNUM!",
         }
     except HTTPException:
@@ -1095,7 +1121,22 @@ def _google_user_payload(cursor, response, userinfo):
         if existing_email_user["is_banned"]:
             raise HTTPException(status_code=403, detail="Tu cuenta ha sido suspendida")
         if existing_email_user["google_id"]:
-            raise HTTPException(status_code=400, detail="Este correo ya está vinculado a otra cuenta de Google")
+            # Usuario ya tiene Google vinculado, solo hacer login
+            user_id = existing_email_user["id"]
+            set_auth_cookies(
+                response,
+                create_access_token(user_id, existing_email_user["email"]),
+                create_refresh_token(user_id),
+            )
+            return {
+                "_id": str(user_id),
+                "id": str(user_id),
+                "email": existing_email_user["email"],
+                "name": existing_email_user["name"],
+                "role": existing_email_user["role"],
+                "rayos_balance": existing_email_user["rayos_balance"],
+            }
+        # Vincular Google a cuenta existente (primera vez)
         user_id = existing_email_user["id"]
         cursor.execute(
             "UPDATE users SET google_id = %s, google_email = %s, email_verified = TRUE WHERE id = %s",
@@ -1122,7 +1163,7 @@ def _google_user_payload(cursor, response, userinfo):
     now = datetime.now(timezone.utc).isoformat()
     cursor.execute(
         """INSERT INTO users (name, email, hashed_password, role, rayos_balance, created_at, username, google_id, google_email, email_verified)
-           VALUES (%s, %s, %s, 'user', %s, %s, %s, %s, %s, TRUE) RETURNING id""",
+           VALUES (%s, %s, %s, 'buyer', %s, %s, %s, %s, %s, TRUE) RETURNING id""",
         (google_name, google_email, "", REGISTRATION_REWARD_AMOUNT, now, username, google_id, google_email),
     )
     user_id = cursor.fetchone()["id"]
@@ -1455,6 +1496,15 @@ async def login(login_data: UserLogin, response: Response, request: Request):
         if row.get("is_banned"):
             raise HTTPException(status_code=403, detail="Tu cuenta ha sido suspendida")
 
+        # VERIFICAR EMAIL: Si no está verificado Y no tiene Google vinculado, dar mensaje claro
+        if not row.get("email_verified") and not row.get("google_id"):
+            # Obtener email del usuario para mostrar
+            user_email = row.get("email", login_data.email)
+            raise HTTPException(
+                status_code=403, 
+                detail=f"Debes verificar tu correo electrónico. Revisa {user_email} e ingresa el código de 6 dígitos que te enviamos."
+            )
+
         user_id = row["id"]
         set_auth_cookies(
             response,
@@ -1659,6 +1709,222 @@ async def refresh_token(request: Request, response: Response):
 @api_router.get("/me")
 async def get_me(user=Depends(get_current_user)):
     return user
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# SISTEMA DE VENDEDORES
+# ══════════════════════════════════════════════════════════════════════════
+
+@api_router.post("/seller/apply")
+async def apply_to_be_seller(req: SellerApplicationRequest, request: Request):
+    """Usuario comprador solicita convertirse en vendedor."""
+    user = await get_current_user(request)
+    if user["role"] not in ("buyer", "user"):
+        raise HTTPException(status_code=400, detail="Solo los compradores pueden solicitar ser vendedores")
+    
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute("SELECT id, status FROM seller_applications WHERE user_id = %s", (user["id"],))
+        existing = cursor.fetchone()
+        
+        if existing:
+            if existing["status"] == "pending":
+                raise HTTPException(status_code=400, detail="Ya tienes una solicitud pendiente")
+            elif existing["status"] == "approved":
+                raise HTTPException(status_code=400, detail="Ya eres vendedor verificado")
+            elif existing["status"] == "rejected":
+                cursor.execute(
+                    """UPDATE seller_applications SET
+                       business_name=%s, business_type=%s, tax_id=%s, phone=%s, address=%s, city=%s, country=%s, description=%s,
+                       status='pending', admin_note=NULL, reviewed_by=NULL, reviewed_at=NULL, created_at=%s
+                       WHERE user_id=%s""",
+                    (req.business_name, req.business_type, req.tax_id, req.phone, req.address, req.city, req.country, req.description,
+                     datetime.now(timezone.utc).isoformat(), user["id"])
+                )
+        else:
+            cursor.execute(
+                """INSERT INTO seller_applications
+                   (user_id, business_name, business_type, tax_id, phone, address, city, country, description, created_at)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                (user["id"], req.business_name, req.business_type, req.tax_id, req.phone, req.address, req.city, req.country, req.description,
+                 datetime.now(timezone.utc).isoformat())
+            )
+        
+        db.commit()
+        
+        cursor.execute("SELECT id FROM users WHERE role='admin'")
+        now = datetime.now(timezone.utc).isoformat()
+        for admin_row in cursor.fetchall():
+            cursor.execute(
+                "INSERT INTO notifications (user_id, type, content, created_at) VALUES (%s,'seller_application',%s,%s)",
+                (admin_row["id"], f"Nueva solicitud de vendedor de {user['name']}", now)
+            )
+        db.commit()
+        
+        return {"message": "Solicitud enviada. Te notificaremos cuando sea revisada."}
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+@api_router.get("/seller/application/status")
+async def get_seller_application_status(request: Request):
+    user = await get_current_user(request)
+    db = get_db()
+    try:
+        cursor = db.cursor()
+        cursor.execute("SELECT * FROM seller_applications WHERE user_id=%s", (user["id"],))
+        app = cursor.fetchone()
+        if not app:
+            return {"has_application": False}
+        return {
+            "has_application": True,
+            "status": app["status"],
+            "created_at": app["created_at"],
+            "reviewed_at": app["reviewed_at"],
+            "admin_note": app["admin_note"] if app["status"] == "rejected" else None
+        }
+    finally:
+        db.close()
+
+
+@api_router.get("/admin/seller-applications")
+async def admin_list_seller_applications(status: str = None, request: Request = None):
+    user = await get_current_user(request)
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+    db = get_db()
+    try:
+        cursor = db.cursor()
+        query = """SELECT sa.*, u.name as user_name, u.email as user_email
+                   FROM seller_applications sa JOIN users u ON u.id=sa.user_id"""
+        if status and status in ("pending", "approved", "rejected"):
+            query += " WHERE sa.status=%s"
+            cursor.execute(query + " ORDER BY sa.created_at DESC", (status,))
+        else:
+            cursor.execute(query + " ORDER BY sa.created_at DESC")
+        return [dict(row) for row in cursor.fetchall()]
+    finally:
+        db.close()
+
+
+@api_router.post("/admin/seller-applications/review")
+async def admin_review_seller_application(req: ReviewSellerApplicationRequest, request: Request):
+    user = await get_current_user(request)
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="No autorizado")
+    if req.action not in ("approve", "reject"):
+        raise HTTPException(status_code=400, detail="Acción inválida")
+    
+    db = get_db()
+    cursor = db.cursor()
+    try:
+        cursor.execute("SELECT * FROM seller_applications WHERE id=%s", (req.application_id,))
+        app = cursor.fetchone()
+        if not app:
+            raise HTTPException(status_code=404, detail="Solicitud no encontrada")
+        if app["status"] != "pending":
+            raise HTTPException(status_code=400, detail="Ya fue revisada")
+        
+        now = datetime.now(timezone.utc).isoformat()
+        new_status = "approved" if req.action == "approve" else "rejected"
+        
+        cursor.execute(
+            "UPDATE seller_applications SET status=%s, admin_note=%s, reviewed_by=%s, reviewed_at=%s WHERE id=%s",
+            (new_status, req.admin_note, user["id"], now, req.application_id)
+        )
+        
+        if req.action == "approve":
+            cursor.execute("UPDATE users SET role='seller', seller_verified=TRUE, seller_approved_at=%s WHERE id=%s",
+                          (now, app["user_id"]))
+        
+        notif_content = ("¡Felicitaciones! Tu solicitud para ser vendedor ha sido aprobada." if req.action == "approve"
+                        else f"Tu solicitud fue rechazada. {req.admin_note or ''}")
+        cursor.execute(
+            "INSERT INTO notifications (user_id, type, content, created_at) VALUES (%s,'seller_review',%s,%s)",
+            (app["user_id"], notif_content, now)
+        )
+        
+        db.commit()
+        
+        cursor.execute("SELECT name, email FROM users WHERE id=%s", (app["user_id"],))
+        applicant = cursor.fetchone()
+        if applicant:
+            subject = "Solicitud de vendedor aprobada" if req.action == "approve" else "Solicitud de vendedor rechazada"
+            html = f"""<div style="font-family:Arial;max-width:600px;margin:auto;padding:20px">
+                <h1 style="color:#D92B2B">AETERNUM</h1>
+                <div style="background:#1a1a1a;border-radius:12px;padding:30px;color:white">
+                <h2 style="color:{'#10B981' if req.action == 'approve' else '#EF4444'}">{'¡Aprobado!' if req.action == 'approve' else 'Rechazado'}</h2>
+                <p>Hola {applicant["name"]},</p><p>{notif_content}</p>
+                <a href="https://aeternumlibrary.com/dashboard" style="display:inline-block;padding:12px 24px;background:#D92B2B;color:white;text-decoration:none;border-radius:8px;font-weight:bold;margin-top:15px">Ir a la plataforma</a>
+                </div></div>"""
+            try:
+                send_email_async(applicant["email"], subject, html)
+            except:
+                pass
+        
+        return {"message": f"Solicitud {'aprobada' if req.action == 'approve' else 'rechazada'}"}
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+@api_router.get("/seller/sales")
+async def get_seller_sales(request: Request):
+    user = await get_current_user(request)
+    if user["role"] != "seller":
+        raise HTTPException(status_code=403, detail="Solo vendedores")
+    db = get_db()
+    try:
+        cursor = db.cursor()
+        cursor.execute("""
+            SELECT o.id, o.order_number, o.order_type, o.currency, o.total, o.created_at, o.payment_status,
+                   b.title as book_title, u.name as buyer_name
+            FROM orders o JOIN order_items oi ON oi.order_id=o.id
+            JOIN books b ON b.id=oi.book_id JOIN users u ON u.id=o.user_id
+            WHERE b.uploader_id=%s AND o.payment_status='approved'
+            ORDER BY o.created_at DESC""", (user["id"],))
+        sales = cursor.fetchall()
+        
+        cursor.execute("""
+            SELECT COUNT(*) as total_sales, SUM(o.total) as total_revenue, COUNT(DISTINCT o.user_id) as unique_buyers
+            FROM orders o JOIN order_items oi ON oi.order_id=o.id JOIN books b ON b.id=oi.book_id
+            WHERE b.uploader_id=%s AND o.payment_status='approved'""", (user["id"],))
+        stats = cursor.fetchone()
+        
+        return {
+            "sales": [dict(row) for row in sales],
+            "stats": {"total_sales": stats["total_sales"] or 0, "total_revenue": float(stats["total_revenue"] or 0), "unique_buyers": stats["unique_buyers"] or 0}
+        }
+    finally:
+        db.close()
+
+
+@api_router.get("/buyer/purchases")
+async def get_buyer_purchases(request: Request):
+    user = await get_current_user(request)
+    db = get_db()
+    try:
+        cursor = db.cursor()
+        cursor.execute("""
+            SELECT o.id, o.order_number, o.order_type, o.currency, o.total, o.created_at, o.payment_status,
+                   b.title as book_title, b.author_name, b.cover_image_url
+            FROM orders o JOIN order_items oi ON oi.order_id=o.id JOIN books b ON b.id=oi.book_id
+            WHERE o.user_id=%s ORDER BY o.created_at DESC""", (user["id"],))
+        return [dict(row) for row in cursor.fetchall()]
+    finally:
+        db.close()
 
 
 @api_router.get("/users")

@@ -390,9 +390,9 @@ export default function CheckoutPage() {
             <h3 className="text-lg font-bold text-white mb-4">Duración del alquiler</h3>
             <div className="flex gap-3">
               {[7, 14, 30].map(days => {
-                const durationFactors = { 7: 0.6, 14: 1.0, 30: 1.5 };
-                const baseRental = currentPriceData?.rental_price || 0;
-                const durationPrice = (baseRental * (durationFactors[days] || 1.0)).toFixed(2);
+                // El backend ya calcula el precio correcto para cada duración
+                // No recalcular aquí - solo mostrar el precio que viene del API
+                const durationPrice = currentPriceData?.rental_price || 0;
                 return (
                   <button
                     key={days}
@@ -406,7 +406,7 @@ export default function CheckoutPage() {
                     <span className="block">{days} días</span>
                     {currentPriceData && (
                       <span className="block text-xs mt-1 opacity-80">
-                        {displaySymbol} {durationPrice}
+                        {displaySymbol} {durationPrice.toFixed(2)}
                       </span>
                     )}
                   </button>

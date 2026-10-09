@@ -17,6 +17,16 @@
           "name": "MiMo V2.6 Flash Free",
           "modelID": "mimo-v2.6-flash-free",
           "reasoning": true
+        },
+        "kiro/claude-sonnet-4.5": {
+          "name": "Claude Sonnet 4.5 (Kiro free)",
+          "modelID": "kiro/claude-sonnet-4.5",
+          "reasoning": true
+        },
+        "kiro/claude-haiku-4.5": {
+          "name": "Claude Haiku 4.5 (Kiro free)",
+          "modelID": "kiro/claude-haiku-4.5",
+          "reasoning": true
         }
       }
     }

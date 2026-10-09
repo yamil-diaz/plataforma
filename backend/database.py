@@ -608,6 +608,41 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_forum_reports_created ON forum_reports(created_at DESC)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_forum_rate_limits_user_action ON forum_rate_limits(user_id, action, window_start)")
 
+    # ── Sistema de solicitudes de vendedor ────────────────────────────────
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS seller_applications (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        business_name TEXT NOT NULL,
+        business_type TEXT NOT NULL,
+        tax_id TEXT,
+        phone TEXT NOT NULL,
+        address TEXT NOT NULL,
+        city TEXT NOT NULL,
+        country TEXT NOT NULL,
+        description TEXT NOT NULL,
+        status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+        admin_note TEXT,
+        reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_at TEXT NOT NULL,
+        reviewed_at TEXT,
+        UNIQUE(user_id)
+    )
+    """)
+
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_seller_applications_user ON seller_applications(user_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_seller_applications_status ON seller_applications(status)")
+
+    # Migración: cambiar roles user→buyer, author→seller
+    try:
+        # Agregar columna seller_verified para distinguir vendedores aprobados
+        cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS seller_verified BOOLEAN DEFAULT FALSE")
+        cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS seller_approved_at TEXT")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        pass
+
     conn.commit()
 
     # ── Seed de categorías del foro ───────────────────────────────────────

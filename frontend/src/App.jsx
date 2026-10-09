@@ -43,9 +43,11 @@ import MyPhysicalOrdersPage from './pages/MyPhysicalOrdersPage';
 import OrderDetailPage from './pages/OrderDetailPage';
 import TestCheckoutPage from './pages/TestCheckoutPage';
 import WelcomePage from './pages/WelcomePage';
+import BecomeSellerPage from './pages/BecomeSellerPage';
+import SellerDashboardPage from './pages/SellerDashboardPage';
 
 // Componente para proteger rutas (Debe estar autenticado)
-const ProtectedRoute = ({ children, adminOnly = false, authorOnly = false }) => {
+const ProtectedRoute = ({ children, adminOnly = false, authorOnly = false, sellerOnly = false }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
 
@@ -65,8 +67,12 @@ const ProtectedRoute = ({ children, adminOnly = false, authorOnly = false }) => 
     return <Navigate to="/" replace />;
   }
 
-  if (authorOnly && user.role !== 'admin' && user.role !== 'autor') {
+  if (authorOnly && user.role !== 'admin' && user.role !== 'autor' && user.role !== 'seller') {
     return <Navigate to="/dashboard" replace />;
+  }
+
+  if (sellerOnly && user.role !== 'seller' && user.role !== 'admin') {
+    return <Navigate to="/" replace />;
   }
 
   return children;
@@ -247,6 +253,24 @@ function AppRoutes() {
         element={
           <ProtectedRoute adminOnly={true}>
             <AdminForumPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Sistema de Vendedores */}
+      <Route
+        path="/become-seller"
+        element={
+          <ProtectedRoute>
+            <BecomeSellerPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/seller/dashboard"
+        element={
+          <ProtectedRoute sellerOnly={true}>
+            <SellerDashboardPage />
           </ProtectedRoute>
         }
       />

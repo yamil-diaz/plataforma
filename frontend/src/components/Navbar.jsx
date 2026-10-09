@@ -58,7 +58,9 @@ export const useCart = () => {
 export const ROLE_LABELS = {
   admin: 'Admin',
   autor: 'Vendedor',
+  seller: 'Vendedor',
   user: 'Comprador',
+  buyer: 'Comprador',
 };
 
 export const Navbar = () => {
@@ -115,7 +117,7 @@ export const Navbar = () => {
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
   const roleLabel = user ? (ROLE_LABELS[user.role] || 'Comprador') : '';
-  const panelPath = user?.role === 'admin' ? '/dashboard' : user?.role === 'autor' ? '/dashboard' : '/dashboard';
+  const panelPath = user?.role === 'admin' ? '/dashboard' : (user?.role === 'seller' || user?.role === 'autor') ? '/seller/dashboard' : '/dashboard';
 
   return (
     <nav className="bg-[#0A0A0A]/90 border-b border-white/10 backdrop-blur-md sticky top-0 z-40">
@@ -312,9 +314,19 @@ export const Navbar = () => {
                         <Package className="w-4 h-4" /> Tus pedidos
                       </Link>
                       <Link to={panelPath} onClick={() => setShowProfile(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#A0A0A0] hover:text-white hover:bg-white/5 transition-colors">
-                        <Layers className="w-4 h-4" /> {user.role === 'admin' ? 'Panel Admin' : user.role === 'autor' ? 'Panel Vendedor' : 'Panel Comprador'}
+                        <Layers className="w-4 h-4" /> {user.role === 'admin' ? 'Panel Admin' : (user.role === 'autor' || user.role === 'seller') ? 'Panel Vendedor' : 'Panel Comprador'}
                       </Link>
-                      {user.role !== 'user' && (
+                      {(user.role === 'buyer' || user.role === 'user') && (
+                        <Link to="/become-seller" onClick={() => setShowProfile(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#D92B2B] hover:text-white hover:bg-[#D92B2B]/10 transition-colors font-semibold">
+                          <Store className="w-4 h-4" /> Ser Vendedor
+                        </Link>
+                      )}
+                      {(user.role === 'seller' || user.role === 'autor') && (
+                        <Link to="/seller/dashboard" onClick={() => setShowProfile(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#A0A0A0] hover:text-white hover:bg-white/5 transition-colors">
+                          <Wallet className="w-4 h-4" /> Mis Ventas
+                        </Link>
+                      )}
+                      {user.role !== 'buyer' && user.role !== 'user' && (
                         <Link to="/dashboard" onClick={() => { setShowProfile(false); }} className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#A0A0A0] hover:text-white hover:bg-white/5 transition-colors">
                           <Wallet className="w-4 h-4" /> Ganancias
                         </Link>

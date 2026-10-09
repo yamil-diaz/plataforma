@@ -47,6 +47,8 @@ services:
       - PADDLE_CLIENT_TOKEN=${PADDLE_CLIENT_TOKEN:-}
       - PADDLE_WEBHOOK_SECRET=${PADDLE_WEBHOOK_SECRET:-}
       - PADDLE_ENVIRONMENT=${PADDLE_ENVIRONMENT:-sandbox}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - AI_PROVIDER=${AI_PROVIDER:-gemini}
     volumes:
       - aeternum-data:/data/aeternum
 
