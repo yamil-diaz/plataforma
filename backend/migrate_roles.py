@@ -23,9 +23,9 @@ def migrate_roles():
         cursor.execute("UPDATE users SET role = 'buyer' WHERE role = 'user'")
         print(f"  {cursor.rowcount} usuarios migrados de 'user' a 'buyer'")
         
-        # author → seller
-        cursor.execute("UPDATE users SET role = 'seller' WHERE role = 'author'")
-        print(f"  {cursor.rowcount} autores migrados de 'author' a 'seller'")
+        # author → seller (both English and Spanish variants)
+        cursor.execute("UPDATE users SET role = 'seller' WHERE role IN ('author', 'autor')")
+        print(f"  {cursor.rowcount} autores migrados de 'author'/'autor' a 'seller'")
         
         # Marcar sellers existentes como verificados
         cursor.execute("UPDATE users SET seller_verified = TRUE WHERE role = 'seller'")
