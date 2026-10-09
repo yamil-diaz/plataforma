@@ -666,10 +666,10 @@ class ReviewSellerApplicationRequest(BaseModel):
     action: str  # "approve" or "reject"
     admin_note: Optional[str] = None
 
-    @field_validator("code", "name", mode="before")
+    @field_validator("action", "admin_note", mode="before")
     @classmethod
     def _deben_ser_texto(cls, v):
-        if not isinstance(v, str):
+        if v is not None and not isinstance(v, str):
             raise ValueError("Debe ser texto")
         return v
 
