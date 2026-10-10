@@ -1206,8 +1206,12 @@ async def google_callback_get(code: str = "", error: str = "", state: str = ""):
         payload = _google_user_payload(cursor, tmp_response, userinfo)
         print(f"[GOOGLE] login OK user={payload.get('email')} id={payload.get('id')}")
         redirect = RedirectResponse(url="/?oauth=success", status_code=302)
-        for cookie in tmp_response.headers.get_list("set-cookie"):
-            redirect.headers.append("set-cookie", cookie)
+        # Copiar cookies de tmp_response a redirect
+        if "set-cookie" in tmp_response.headers:
+            # MutableHeaders en FastAPI no tiene get_list, usar .getlist() o iterar raw_headers
+            for key, value in tmp_response.raw_headers:
+                if key.lower() == b"set-cookie":
+                    redirect.headers.append("set-cookie", value.decode())
         return redirect
     except HTTPException as he:
         db.rollback()

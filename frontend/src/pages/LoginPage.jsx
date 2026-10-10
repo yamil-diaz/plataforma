@@ -76,6 +76,27 @@ export default function LoginPage() {
           </div>
         )}
 
+        {/* Botón Google OAuth */}
+        <button
+          type="button"
+          onClick={handleGoogleSignIn}
+          disabled={loading || googleLoading}
+          className="w-full flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold py-3.5 rounded-lg transition-all duration-200 disabled:opacity-50 mb-6"
+        >
+          <Chrome className="w-5 h-5" />
+          <span>{googleLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Continuar con Google'}</span>
+        </button>
+
+        {/* Separador */}
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-white/10" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-4 bg-[#121212] text-[#A0A0A0]">o inicia sesión con correo</span>
+          </div>
+        </div>
+
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -118,27 +139,6 @@ export default function LoginPage() {
             {loading ? 'Iniciando sesión...' : 'Ingresar'}
           </button>
         </form>
-
-        {/* Botón Google OAuth */}
-        <button
-          type="button"
-          onClick={handleGoogleSignIn}
-          disabled={loading || googleLoading}
-          className="ae-btn ae-btn-ghost w-full py-3.5 disabled:opacity-50 mb-6 mt-6"
-        >
-          <Chrome className="w-5 h-5" />
-          <span>{googleLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Continuar con Google'}</span>
-        </button>
-
-        {/* Separador */}
-        <div className="relative mb-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-white/10" />
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-4 bg-[#121212] text-[#A0A0A0]">o inicia sesión con correo</span>
-          </div>
-        </div>
 
         <div className="mt-8 flex flex-col gap-4 text-center">
           <Link to="/forgot-password" className="text-sm text-[#A0A0A0] hover:text-white transition-colors">
