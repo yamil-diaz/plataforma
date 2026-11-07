@@ -14,11 +14,14 @@ import hmac
 import json
 import os
 import time
+import logging
 import urllib.request
 import urllib.parse
 import urllib.error
 from abc import ABC, abstractmethod
 from decimal import Decimal, ROUND_HALF_UP
+
+logger = logging.getLogger("aeternum.payments")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -67,7 +70,8 @@ PADDLE_CURRENCY_CONFIG = {
 }
 
 # Monedas habilitadas para checkout digital (lista corta y formal).
-# Solo Paddle (digital internacional) + Culqi (físico Perú). Sin Flow/Chile.
+# Solo Paddle (digital internacional) + Culqi (físico Perú). 
+# NOTA: CLP soportado por Paddle pero comentado por ahora (será habilitado en FASE 4 Latam)
 ENABLED_DIGITAL_CURRENCIES = ["USD", "PEN", "EUR", "MXN", "COP", "ARS", "BRL"]
 
 # Nombres formales para mostrar en la UI
@@ -292,7 +296,7 @@ class PaddleProvider(PaymentProvider):
                     }],
                 }
                 data_bytes = json.dumps(payload).encode("utf-8")
-                print(f"[PADDLE DEBUG] Creating transaction: amount={amount_int} {currency} tax={tax_cat}", flush=True)
+                 logger.debug(f"Paddle: Creating transaction amount={amount_int} {currency} tax={tax_cat}")
                 req = urllib.request.Request(
                     f"{self.api_base}/transactions",
                     data=data_bytes,
@@ -315,7 +319,7 @@ class PaddleProvider(PaymentProvider):
                         pass
                     last_error_body = body
                     last_error_msg = f"Error HTTP {e.code} de Paddle (tax_category={tax_cat})"
-                    print(f"[PADDLE DEBUG] HTTP ERROR {e.code} tax={tax_cat}: {body[:400]}", flush=True)
+                     logger.error(f"Paddle HTTP {e.code} tax={tax_cat}: {body[:400]}")
                     # Si es error de tax category, probar la siguiente
                     if "tax_category" in body or e.code == 400:
                         continue
@@ -326,12 +330,12 @@ class PaddleProvider(PaymentProvider):
                     }
 
                 data = result.get("data", {})
-                print(f"[PADDLE DEBUG] Transaction created: id={data.get('id')} tax={tax_cat}", flush=True)
+                 logger.debug(f"Paddle: Transaction created id={data.get('id')} tax={tax_cat}")
 
                 if data.get("id"):
                     checkout = data.get("checkout") or {}
                     checkout_url = checkout.get("url", "")
-                    print(f"[PADDLE DEBUG] Checkout URL: {checkout_url[:200]}", flush=True)
+                    logger.debug(f"Paddle: Checkout URL created")
                     return {
                         "success": True,
                         "checkout_url": checkout_url,
@@ -342,7 +346,7 @@ class PaddleProvider(PaymentProvider):
                     error = result.get("error", {})
                     last_error_msg = error.get("message", "Error desconocido de Paddle")
                     last_error_body = json.dumps(result)[:500]
-                    print(f"[PADDLE DEBUG] ERROR creating transaction: {last_error_body}", flush=True)
+                    logger.error(f"Paddle: Transaction error {last_error_body}")
                     if "tax_category" in last_error_body:
                         continue
                     return {
@@ -363,7 +367,7 @@ class PaddleProvider(PaymentProvider):
                 body = e.read().decode("utf-8")
             except Exception:
                 pass
-            print(f"[PADDLE DEBUG] HTTP ERROR {e.code}: {body[:500]}", flush=True)
+            logger.error(f"Paddle HTTP {e.code}: {body[:500]}")
             return {
                 "success": False,
                 "error": f"Error HTTP {e.code} de Paddle",

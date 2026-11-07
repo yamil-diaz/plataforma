@@ -8,17 +8,23 @@ Funciones para:
 - Gestionar entitlements (acceso digital)
 - Gestionar stock físico
 - Generar efectos secundarios (Rayos, notificaciones, emails)
+- Calcular y registrar comisiones de vendedores
 - Verificar acceso a libros
 - Consultar precios por moneda
 """
 import random
 import string
+import urllib.request
+import json
+import logging
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timezone, timedelta
 
+logger = logging.getLogger("aeternum.commerce")
+
 # ── Configuración de Rayos por compra ────────────────────────────────────────
-# PENDIENTE DE DECISIÓN DE NEGOCIO. Por defecto 0.
-PURCHASE_REWARD_RAYOS = 0
+# Recompensa por compra (digital o física) - 50 Rayos
+PURCHASE_REWARD_RAYOS = 50
 
 # ── Monedas permitidas ───────────────────────────────────────────────────────
 # Físicos: solo PEN/Perú
@@ -37,18 +43,76 @@ def _generate_order_number() -> str:
     return f"AET-{ts}-{rand}"
 
 
-PEN_EXCHANGE_RATES = {
-    "USD": Decimal("0.27"),
-    "EUR": Decimal("0.25"),
-    "GBP": Decimal("0.21"),
-    "MXN": Decimal("4.6"),
-    "BRL": Decimal("1.35"),
-    "CLP": Decimal("250"),
-    "COP": Decimal("1050"),
-    "ARS": Decimal("110"),
-    "CAD": Decimal("0.37"),
-    "AUD": Decimal("0.41"),
-}
+# Cache de tipos de cambio (en memoria, expira a la hora)
+_exchange_rates_cache = {"rates": None, "fetched_at": None}
+_EXCHANGE_CACHE_TTL = 3600  # 1 hora
+
+
+def _fetch_exchange_rates() -> dict:
+    """
+    Obtiene tipos de cambio desde exchangerate.host (gratis, sin API key).
+    Base: USD. Retorna dict {currency: rate_to_usd}.
+    """
+    global _exchange_rates_cache
+    now = datetime.now(timezone.utc)
+    
+    # Verificar cache
+    if (_exchange_rates_cache["rates"] is not None and 
+        _exchange_rates_cache["fetched_at"] is not None and
+        (now - _exchange_rates_cache["fetched_at"]).total_seconds() < _EXCHANGE_CACHE_TTL):
+        return _exchange_rates_cache["rates"]
+    
+    try:
+        # exchangerate.host - gratis, sin API key, base USD
+        url = "https://api.exchangerate.host/latest?base=USD"
+        req = urllib.request.Request(url, headers={"User-Agent": "AeternumLibrary/1.0"})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode())
+        
+        if data.get("success") and data.get("rates"):
+            rates = data["rates"]
+            # Convertir a PEN como base (PEN = 1 USD * rate_PEN)
+            pen_per_usd = rates.get("PEN", 3.7)  # fallback aprox
+            # Normalizar: 1 PEN = X moneda
+            normalized = {}
+            for curr, rate in rates.items():
+                if curr == "PEN":
+                    normalized[curr] = Decimal("1.0")
+                else:
+                    normalized[curr] = Decimal(str(rate / pen_per_usd))
+            
+            _exchange_rates_cache["rates"] = normalized
+            _exchange_rates_cache["fetched_at"] = now
+            logger.info(f"Exchange rates updated: {len(normalized)} currencies")
+            return normalized
+    except Exception as e:
+        logger.warning(f"Error fetching exchange rates: {e}")
+    
+    # Fallback a hardcoded si falla la API
+    return _get_fallback_rates()
+
+
+def _get_fallback_rates() -> dict:
+    """Tipos de cambio hardcodeados como fallback (basados en PEN = 1)."""
+    return {
+        "PEN": Decimal("1.0"),
+        "USD": Decimal("0.27"),
+        "EUR": Decimal("0.25"),
+        "GBP": Decimal("0.21"),
+        "MXN": Decimal("4.6"),
+        "BRL": Decimal("1.35"),
+        "CLP": Decimal("250"),
+        "COP": Decimal("1050"),
+        "ARS": Decimal("110"),
+        "CAD": Decimal("0.37"),
+        "AUD": Decimal("0.41"),
+    }
+
+
+def get_exchange_rate(currency: str) -> Decimal:
+    """Obtiene el tipo de cambio PEN -> currency."""
+    rates = _fetch_exchange_rates()
+    return rates.get(currency, Decimal("1.0"))
 
 
 def get_book_price(db, book_id: int, currency: str, rental_days: int = None) -> dict:
@@ -92,16 +156,17 @@ def get_book_price(db, book_id: int, currency: str, rental_days: int = None) -> 
             return {"price": price, "rental_price": rental, "found": True}
 
     # Auto-conversión: si no hay precio explícito para la moneda, convertir desde PEN
-    if currency != "PEN" and currency in PEN_EXCHANGE_RATES:
-        cursor.execute("SELECT price FROM books WHERE id = %s", (book_id,))
-        row = cursor.fetchone()
-        if row and row["price"] is not None:
-            pen_price = Decimal(str(row["price"]))
-            rate = PEN_EXCHANGE_RATES[currency]
-            converted = (pen_price * rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            rental = (converted * RENTAL_PRICE_FACTOR).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            rental = _apply_rental_duration(rental, rental_days)
-            return {"price": converted, "rental_price": rental, "found": True}
+    if currency != "PEN":
+        rate = get_exchange_rate(currency)
+        if rate and rate > 0:
+            cursor.execute("SELECT price FROM books WHERE id = %s", (book_id,))
+            row = cursor.fetchone()
+            if row and row["price"] is not None:
+                pen_price = Decimal(str(row["price"]))
+                converted = (pen_price * rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                rental = (converted * RENTAL_PRICE_FACTOR).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                rental = _apply_rental_duration(rental, rental_days)
+                return {"price": converted, "rental_price": rental, "found": True}
 
     return {"price": Decimal("0"), "rental_price": None, "found": False}
 
@@ -115,20 +180,22 @@ def _apply_rental_duration(base_rental: Decimal, rental_days: int = None) -> Dec
     return (base_rental * factor).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
-def create_order(db, user_id: int, order_type: str, currency: str,
-                 items_data: list, rental_days: int = None,
-                 address_id: int = None) -> dict:
+def create_order(db, user_id: int = None, order_type: str = "", currency: str = "",
+                 items_data: list = None, rental_days: int = None,
+                 address_id: int = None, guest_email: str = None, guest_name: str = None) -> dict:
     """
     Crea una orden pendiente con sus items.
 
     Args:
         db: Conexión a la BD
-        user_id: ID del usuario
+        user_id: ID del usuario (opcional para guest checkout)
         order_type: 'digital_purchase', 'digital_rental', 'physical_purchase'
         currency: PEN, CLP, MXN
         items_data: Lista de [{book_id, item_type, quantity, unit_price: Decimal, rental_days}]
         rental_days: Días de alquiler
         address_id: ID de dirección del usuario (solo físico)
+        guest_email: Email del invitado (para guest checkout)
+        guest_name: Nombre del invitado (para guest checkout)
 
     Returns:
         dict con order_id, order_number, total, currency o error
@@ -151,13 +218,12 @@ def create_order(db, user_id: int, order_type: str, currency: str,
     try:
         cursor.execute(
             """INSERT INTO orders
-               (user_id, order_number, order_type, currency, subtotal, shipping_cost,
+               (user_id, guest_email, guest_name, order_number, order_type, currency, subtotal, shipping_cost,
                 total, payment_status, order_status, rental_days, created_at)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, 'pending', 'pending', %s, %s)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending', 'pending', %s, %s)
                RETURNING id""",
-            (user_id, order_number, order_type, currency,
-             float(subtotal), float(shipping_cost), float(total),
-             rental_days, now),
+            (user_id, guest_email, guest_name, order_number, order_type, currency, subtotal, shipping_cost,
+             total, rental_days, now),
         )
         order_id = cursor.fetchone()["id"]
 
@@ -251,21 +317,29 @@ def _apply_order_effects(cursor, order_id: int, order: dict) -> dict:
     now = datetime.now(timezone.utc).isoformat()
     results = {}
 
-    # 1. Stock (ANTES de entitlement para físicos: si stock falla, no crear entitlement)
+    # 1. Comisiones (PRIMERO, antes de entitlement)
+    try:
+        from commerce_seller_service import calculate_commissions
+        results["commissions"] = calculate_commissions(cursor, order_id, order)
+    except Exception as e:
+        logger.warning(f"Error calculating commissions for order {order_id}: {e}")
+        results["commissions"] = "error"
+
+    # 2. Stock (ANTES de entitlement para físicos: si stock falla, no crear entitlement)
     if order["order_type"] == "physical_purchase":
         results["stock"] = _effect_decrement_stock(cursor, order_id, order)
 
-    # 2. Entitlement (acceso digital)
+    # 3. Entitlement (acceso digital)
     if order["order_type"] in ("digital_purchase", "digital_rental"):
         results["entitlement"] = _effect_create_entitlement(cursor, order_id, order)
 
-    # 3. Rayos
+    # 4. Rayos
     results["rayos"] = _effect_reward_rayos(cursor, order_id, order)
 
-    # 4. Notificación
+    # 5. Notificación
     results["notification"] = _effect_create_notification(cursor, order_id, order)
 
-    # 5. Email (no debería estar en transacción DB, pero por ahora es aceptable)
+    # 6. Email (no debería estar en transacción DB, pero por ahora es aceptable)
     results["email"] = _effect_send_email(cursor, order_id, order)
 
     return results

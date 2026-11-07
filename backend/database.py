@@ -633,6 +633,79 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_seller_applications_user ON seller_applications(user_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_seller_applications_status ON seller_applications(status)")
 
+    # ── FASE 2: Sistema de Comisiones y Payouts ──────────────────────────────
+    # Tabla: Comisiones por orden
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS seller_commissions (
+        id SERIAL PRIMARY KEY,
+        order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+        seller_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+        commission_percentage DECIMAL(5,2) NOT NULL,
+        order_total DECIMAL(12,2) NOT NULL,
+        commission_amount DECIMAL(12,2) NOT NULL,
+        currency TEXT NOT NULL,
+        status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'paid', 'cancelled')),
+        created_at TEXT NOT NULL,
+        approved_at TEXT,
+        paid_at TEXT
+    )
+    """)
+
+    # Tabla: Saldos acumulados del vendedor
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS seller_balances (
+        id SERIAL PRIMARY KEY,
+        seller_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        currency TEXT NOT NULL,
+        total_earned DECIMAL(12,2) DEFAULT 0,
+        total_paid DECIMAL(12,2) DEFAULT 0,
+        pending_amount DECIMAL(12,2) DEFAULT 0,
+        last_payout_at TEXT,
+        updated_at TEXT NOT NULL,
+        UNIQUE(seller_id, currency)
+    )
+    """)
+
+    # Tabla: Payouts (liquidaciones al vendedor)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS seller_payouts (
+        id SERIAL PRIMARY KEY,
+        seller_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        payout_number VARCHAR(32) UNIQUE NOT NULL,
+        amount DECIMAL(12,2) NOT NULL,
+        currency TEXT NOT NULL,
+        status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'cancelled')),
+        payment_method TEXT,
+        bank_info JSONB,
+        commission_ids TEXT,
+        transaction_id TEXT,
+        failure_reason TEXT,
+        created_at TEXT NOT NULL,
+        processed_at TEXT,
+        completed_at TEXT
+    )
+    """)
+
+    # Índices para comisiones y payouts
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_seller_commissions_seller ON seller_commissions(seller_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_seller_commissions_order ON seller_commissions(order_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_seller_commissions_status ON seller_commissions(status)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_seller_balances_seller ON seller_balances(seller_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_seller_payouts_seller ON seller_payouts(seller_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_seller_payouts_status ON seller_payouts(status)")
+
+    # Migraciones: vincular libros a vendedor + comisiones
+    try:
+        cursor.execute("ALTER TABLE books ADD COLUMN IF NOT EXISTS seller_id INTEGER REFERENCES users(id) ON DELETE SET NULL")
+        cursor.execute("ALTER TABLE books ADD COLUMN IF NOT EXISTS commission_percentage DECIMAL(5,2) DEFAULT 30.00")
+        cursor.execute("ALTER TABLE books ADD COLUMN IF NOT EXISTS is_for_sale BOOLEAN DEFAULT TRUE")
+        cursor.execute("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS seller_id INTEGER REFERENCES users(id) ON DELETE SET NULL")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        pass
+
     # Migración: cambiar roles user→buyer, author→seller
     try:
         # Agregar columna seller_verified para distinguir vendedores aprobados
